@@ -172,10 +172,15 @@ void LayoutFactory::loadCustomScreens()
     g_model.view = viewMain->getMainViewsCount() - 1;
     storageDirty(EE_MODEL);
     viewMain->setCurrentMainView(g_model.view);
+  } else {
+    // No custom screens configured (e.g. fresh model) — load the built-in
+    // default layout so the main view is never left blank/black.
+    loadDefaultLayout();
+    if (viewMain->getMainViewsCount() > 0) {
+      g_model.view = 0;
+      viewMain->setCurrentMainView(0);
+    }
   }
-  // else {
-  //   TODO: load some default view?
-  // }
 
   viewMain->updateTopbarVisibility();
 }

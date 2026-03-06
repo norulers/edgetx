@@ -713,7 +713,7 @@ static void checkFailsafe()
 void checkAll(bool isBootCheck)
 {
   checkSDfreeStorage();
-  
+
   // we don't check the throttle stick if the radio is not calibrated
   if (g_eeGeneral.chkSum == evalChkSum()) {
     checkThrottleStick();
@@ -1569,7 +1569,6 @@ void edgeTxInit()
 #if defined(GUI)
     if (!calibration_needed && !(startOptions & OPENTX_START_NO_SPLASH)) {
       if (!g_eeGeneral.dontPlayHello) AUDIO_HELLO();
-
       waitSplash();
     }
 #endif // defined(GUI)

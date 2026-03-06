@@ -22,6 +22,9 @@
 #include "cortex_m_isr.h"
 #include "stm32_cmsis.h"
 
+extern void bl_uart_puts(const char* s);
+extern void bl_print_hex(uint32_t v);
+
 #define GET_VECTACTIVE() \
   ((SCB->ICSR & SCB_ICSR_VECTACTIVE_Msk) >> SCB_ICSR_VECTACTIVE_Pos)
 
@@ -72,6 +75,20 @@ typedef struct __attribute__((packed)) ContextStateFrame {
 
 __attribute__((optimize("O0")))
 void hard_fault_handler_c(sContextStateFrame *frame) {
+  // Report to serial first (USART1 PA9 115200)
+  bl_uart_puts("\r\n!!! HardFault !!! CFSR=");
+  bl_print_hex(SCB->CFSR);
+  bl_uart_puts(" HFSR=");
+  bl_print_hex(SCB->HFSR);
+  bl_uart_puts(" BFAR=");
+  bl_print_hex(SCB->BFAR);
+  if (frame) {
+    bl_uart_puts(" PC=");
+    bl_print_hex(frame->return_address);
+    bl_uart_puts(" LR=");
+    bl_print_hex(frame->lr);
+  }
+  bl_uart_puts("\r\n");
   HALT_IF_DEBUGGING();
 }
 

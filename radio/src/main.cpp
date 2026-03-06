@@ -28,6 +28,13 @@
 #include "edgetx.h"
 #include "lua/lua_states.h"
 
+#if defined(RADIO_H750DEV) && !defined(SIMU)
+extern "C" void bl_uart_puts(const char* s);
+#define PM_LOG(m) bl_uart_puts("[PM] " m "\r\n")
+#else
+#define PM_LOG(m) do {} while(0)
+#endif
+
 #if defined(COLORLCD)
 #include "view_main.h"
 #include "startup_shutdown.h"
@@ -518,6 +525,13 @@ void initLoggingTimer();
 
 void perMain()
 {
+  // DEBUG: counter + force backlight to isolate black-screen cause
+  {
+    static unsigned short _pc = 0;
+    _pc++;
+    if (_pc == 1)   PM_LOG("perMain first call");
+    if (_pc == 500)  PM_LOG("perMain #500 still running");
+  }
   DEBUG_TIMER_START(debugTimerPerMain1);
 
   checkSpeakerVolume();

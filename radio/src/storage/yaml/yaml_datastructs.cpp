@@ -42,6 +42,8 @@
  #include "yaml_datastructs_t15pro.cpp"
 #elif defined(PCBTX16SMK3)
  #include "yaml_datastructs_tx16smk3.cpp"
+#elif defined(PCBH750DEV)
+ #include "yaml_datastructs_h750dev.cpp"
 #elif defined(PCBPL18)
  #if defined(RADIO_NB4P)
   #include "yaml_datastructs_nb4p.cpp"

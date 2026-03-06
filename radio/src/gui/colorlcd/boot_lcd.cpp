@@ -33,6 +33,9 @@
 #include "board.h"
 #include "etx_lv_theme.h"
 
+extern "C" void bl_uart_puts(const char* s);
+#define BL_LCD_LOG(m) bl_uart_puts("[LCD] " m "\r\n")
+
 pixel_t LCD_FIRST_FRAME_BUFFER[DISPLAY_BUFFER_SIZE] __SDRAM;
 pixel_t LCD_SECOND_FRAME_BUFFER[DISPLAY_BUFFER_SIZE] __SDRAM;
 
@@ -112,18 +115,28 @@ void lcdInitDisplayDriver()
 
 #if LV_USE_GPU_STM32_DMA2D
   // Init only DMA2D
+  BL_LCD_LOG("lv_draw_stm32_dma2d_init start");
   lv_draw_stm32_dma2d_init();
+  BL_LCD_LOG("lv_draw_stm32_dma2d_init done");
 #else
+  BL_LCD_LOG("DMAInit start");
   DMAInit();
+  BL_LCD_LOG("DMAInit done");
 #endif
 
   // Clear buffers first
+  BL_LCD_LOG("clear_frame_buffers start");
   clear_frame_buffers();
+  BL_LCD_LOG("clear_frame_buffers done");
   lcdSetInitalFrameBuffer(lcdFront->getData());
 
   // Init hardware LCD driver
+  BL_LCD_LOG("lcdInit start");
   lcdInit();
+  BL_LCD_LOG("lcdInit done");
+  BL_LCD_LOG("backlightInit start");
   backlightInit();
+  BL_LCD_LOG("backlightInit done");
 
   init_lvgl_disp_drv();
 

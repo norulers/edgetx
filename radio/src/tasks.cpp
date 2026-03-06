@@ -34,6 +34,7 @@
 
 #if defined(COLORLCD)
 #include "startup_shutdown.h"
+#include <lvgl/lvgl.h>
 #endif
 
 task_handle_t menusTaskId;
@@ -55,6 +56,17 @@ bool perMainEnabled = true;
 static void menusTask()
 {
   edgeTxInit();
+
+  // Reset backlight timeout: it may have expired during the throttle-warning
+  // interaction (which can take several seconds before the user dismisses it).
+  resetBacklightTimeout();
+
+#if defined(COLORLCD)
+  // Force LVGL to redraw ViewMain on the first perMain call.
+  // Without this, after the throttle-warning dialog closes the display stays
+  // black because no dirty region is queued for the main view.
+  lv_obj_invalidate(lv_scr_act());
+#endif
 
   mixerTaskInit();
 
