@@ -188,11 +188,13 @@ TIM17:	  ROTARY_ENCODER_TIMER
 #define ADC_GPIO_PIN_POT2               LL_GPIO_PIN_0      // PC.00 ADC123 INP10
 #define ADC_GPIO_PIN_SLIDER1            LL_GPIO_PIN_1      // PB.01 ADC12 INP5
 #define ADC_GPIO_PIN_SLIDER2            LL_GPIO_PIN_4      // PC.04 ADC12 INP4
+#define ADC_GPIO_PIN_SLIDER3            LL_GPIO_PIN_3      // PC.03 ADC12_INP13
+#define ADC_GPIO_PIN_SLIDER4            LL_GPIO_PIN_2      // PC.02 ADC12_INP12
 #define ADC_GPIO_PIN_BATT               LL_GPIO_PIN_5      // PC.05 ADC12_INP8
 
 #define ADC_GPIOA_PINS                  (ADC_GPIO_PIN_STICK_LH | ADC_GPIO_PIN_STICK_LV, ADC_GPIO_PIN_STICK_RH, ADC_GPIO_PIN_STICK_RV)
 #define ADC_GPIOB_PINS                  (ADC_GPIO_PIN_SLIDER1)
-#define ADC_GPIOC_PINS                  (ADC_GPIO_PIN_POT2 | ADC_GPIO_PIN_SLIDER2 | ADC_GPIO_PIN_BATT)
+#define ADC_GPIOC_PINS                  (ADC_GPIO_PIN_POT2 | ADC_GPIO_PIN_SLIDER2 | ADC_GPIO_PIN_SLIDER3 | ADC_GPIO_PIN_SLIDER4 | ADC_GPIO_PIN_BATT)
 #define ADC_GPIOH_PINS                  (ADC_GPIO_PIN_POT1)
 
 #define ADC_CHANNEL_STICK_LH            LL_ADC_CHANNEL_16
@@ -204,6 +206,8 @@ TIM17:	  ROTARY_ENCODER_TIMER
 #define ADC_CHANNEL_POT2                LL_ADC_CHANNEL_10
 #define ADC_CHANNEL_SLIDER1             LL_ADC_CHANNEL_5
 #define ADC_CHANNEL_SLIDER2             LL_ADC_CHANNEL_4
+#define ADC_CHANNEL_SLIDER3             LL_ADC_CHANNEL_13
+#define ADC_CHANNEL_SLIDER4             LL_ADC_CHANNEL_12
 #define ADC_CHANNEL_BATT                LL_ADC_CHANNEL_8
 #define ADC_CHANNEL_RTC_BAT             LL_ADC_CHANNEL_VBAT  // ADC3 IMP17
 
@@ -229,7 +233,7 @@ TIM17:	  ROTARY_ENCODER_TIMER
 #define ADC_DIRECTION {       	 \
 0,-1,0,-1, 	/* gimbals */    \
 1,1,       	/* pots */       \
-0,0,     	/* sliders */    \
+0,0,0,0, 	/* sliders */    \
 0,	     	/* vbat */       \
 0,       	/* rtc_bat */    \
 0,       	/* SWA */        \

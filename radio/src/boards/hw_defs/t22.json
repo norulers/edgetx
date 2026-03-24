@@ -102,6 +102,28 @@
         "default": "SLIDER"
       },
       {
+        "name": "SL3",
+        "type": "FLEX",
+        "adc": "MAIN",
+        "gpio": "GPIOC",
+        "pin": "LL_GPIO_PIN_3",
+        "channel": "LL_ADC_CHANNEL_13",
+        "label": "SL",
+        "short_label": "L",
+        "default": "SLIDER"
+      },
+      {
+        "name": "SL4",
+        "type": "FLEX",
+        "adc": "MAIN",
+        "gpio": "GPIOC",
+        "pin": "LL_GPIO_PIN_2",
+        "channel": "LL_ADC_CHANNEL_12",
+        "label": "SR",
+        "short_label": "R",
+        "default": "SLIDER"
+      },
+      {
         "name": "VBAT",
         "type": "VBAT",
         "adc": "MAIN",
