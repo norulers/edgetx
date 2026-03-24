@@ -889,6 +889,59 @@ LEGACY_NAMES = [
         }
     },
     {
+        "targets": {"t22"},
+        "inputs": {
+            "LH": {
+                "yaml": "Rud",
+                "lua": "rud",
+                "description": "Rudder"
+            },
+            "LV": {
+                "yaml": "Ele",
+                "lua": "ele",
+                "description": "Elevator"
+            },
+            "RV": {
+                "yaml": "Thr",
+                "lua": "thr",
+                "description": "Throttle"
+            },
+            "RH": {
+                "yaml": "Ail",
+                "lua": "ail",
+                "description": "Aileron"
+            },
+            "P1": {
+                "yaml": "POT1",
+                "lua": "s1",
+                "label": "S1",
+                "short_label": "1",
+                "description": "Potentiometer 1"
+            },
+            "P2": {
+                "yaml": "POT2",
+                "lua": "s2",
+                "label": "S2",
+                "short_label": "2",
+                "description": "Potentiometer 2"
+            },
+            "SL1": {
+                "yaml": "SLIDER1",
+                "lua": "s3",
+                "label": "S3",
+                "short_label": "3",
+                "description": "Potentiometer 3"
+            },
+            "SL2": {
+                "yaml": "SLIDER2",
+                "lua": "s4",
+                "label": "S4",
+                "short_label": "4",
+                "description": "Potentiometer 4"
+            },
+        },
+    },
+    {
         "targets": {"pocket"},
         "inputs": {
             "LH": {
