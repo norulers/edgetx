@@ -416,7 +416,7 @@ int Boards::getCapability(Board::Type board, Board::Capability capability)
               IS_RADIOMASTER_POCKET(board) || IS_RADIOMASTER_TX12(board) ||
               IS_RADIOMASTER_TX12_MK2(board) || IS_RADIOMASTER_TX16S(board) ||
               IS_RADIOMASTER_ZORRO(board) || IS_RADIOMASTER_TX15(board) ||
-              IS_JUMPER_T15PRO(board) || IS_FLYSKY_PA01(board) ||
+              IS_JUMPER_T15PRO(board) || IS_JUMPER_T22(board) || IS_FLYSKY_PA01(board) ||
               IS_FLYSKY_ST16(board) || IS_RADIOMASTER_TX16SMK3(board) ||
               IS_IFLIGHT_C14(board));
 

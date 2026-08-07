@@ -141,6 +141,7 @@ StandaloneLuaWindow::StandaloneLuaWindow(bool useLvgl, int initFn, int runFn) :
   if (useLvglLayout()) {
     padAll(PAD_ZERO);
     etx_scrollbar(lvobj);
+    lv_obj_set_scroll_dir(lvobj, LV_DIR_VER);
 
     lv_obj_t* lbl = etx_label_create(lvobj, FONT_XL_INDEX);
     lv_obj_set_pos(lbl, 0, 0);

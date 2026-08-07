@@ -228,6 +228,11 @@ class EdgeTxStyles
   lv_style_t outline_color_normal;
   lv_style_t outline_color_focus;
   lv_style_t outline_color_edit;
+
+  // Visual enhancement styles
+  lv_style_t ctrl_shadow;     // drop shadow for interactive controls
+  lv_style_t page_body_grad;  // vertical gradient for page body background
+  lv_style_t header_grad;     // vertical gradient for page/group headers
   lv_style_t graph_border;
   lv_style_t graph_dashed;
   lv_style_t graph_line;
@@ -278,10 +283,10 @@ class EdgeTxStyles
   void applyColors();
   void setFonts();
 
-  static LAYOUT_VAL_SCALED(STD_FONT_HEIGHT, 21)
+  static LAYOUT_VAL_SCALED(STD_FONT_HEIGHT, 24)
   static LAYOUT_VAL_SCALED(UI_ELEMENT_HEIGHT, 32)
-  static LAYOUT_VAL_SCALED(MENU_HEADER_HEIGHT, 45)
-  static LAYOUT_VAL_SCALED(EDIT_FLD_WIDTH_NARROW, 70)
+  static LAYOUT_VAL_SCALED(MENU_HEADER_HEIGHT, 52)  // 2×STD_FONT_HEIGHT + 2×PAD_TINY = 52
+  static LAYOUT_VAL_SCALED(EDIT_FLD_WIDTH_NARROW, 84)
   static LAYOUT_VAL_SCALED(EDIT_FLD_WIDTH, 100)
 
  protected:

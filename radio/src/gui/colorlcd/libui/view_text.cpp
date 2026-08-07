@@ -525,6 +525,11 @@ ModelNotesPage::ModelNotesPage(const PageDef& pageDef) : PageGroupItem(pageDef, 
 
 void ModelNotesPage::build(Window* window)
 {
+  // FPV dark theme
+  lv_obj_set_style_bg_color(window->getLvObj(), lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(window->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_text_color(window->getLvObj(), lv_color_white(), LV_PART_MAIN);
+
   if (!textViewer) textViewer = new TextViewer(MODELS_PATH, getModelNotesFile());
   if (textViewer) textViewer->build(window);
 }

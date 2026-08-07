@@ -357,6 +357,9 @@ int ModelMap::addLabel(std::string lbl)
 {
   if (lbl == STR_UNLABELEDMODEL) return -1;
 
+  // Migrate legacy English "Favorites" label to the current locale
+  if (lbl == "Favorites") lbl = STR_FAVORITE_LABEL;
+
   // Limit maximum label length, TODO... Truncate UTF8 Properly
   lbl = lbl.substr(0, LABEL_LENGTH);
   removeYAMLChars(lbl);

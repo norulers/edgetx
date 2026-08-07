@@ -34,9 +34,16 @@
 
 extern "C" {
 
-// All languages use the same font for LXL & XXL size
+// LXL font is always en regardless of font family
 extern const etxLz4Font lv_font_en_bold_LXL;
+// XXL font depends on selected font family
+#if defined(FONT_FAMILY_ORBITRON)
+extern const etxLz4Font lv_font_ob_bold_XXL;
+#define ETX_FONT_XXL lv_font_ob_bold_XXL
+#else
 extern const etxLz4Font lv_font_en_bold_XXL;
+#define ETX_FONT_XXL lv_font_en_bold_XXL
+#endif
 
 } // extern "C"
 
@@ -68,12 +75,18 @@ extern "C" {
       { &lv_font_##x##_XS,          nullptr,            false },  /* FONT_XS_INDEX */ \
       { &lv_font_##x##_L,           nullptr,            false },  /* FONT_L_INDEX */ \
       { &lv_font_##x##_bold_XL,     nullptr,            false },  /* FONT_XL_INDEX */ \
-      { &lv_font_en_bold_XXL,       nullptr,            false },  /* FONT_XXL_INDEX */ \
+      { &ETX_FONT_XXL,              nullptr,            false },  /* FONT_XXL_INDEX */ \
       { &lv_font_en_bold_LXL,       nullptr,            false },  /* FONT_LXL_INDEX */ \
   };
 
 #if defined(TRANSLATIONS_CN)
+#if defined(FONT_CN_FAMILY_LXGW)
+FONT_TABLE(lxgw)
+#elif defined(FONT_CN_FAMILY_SMILEYSANS)
+FONT_TABLE(ss)
+#else
 FONT_TABLE(cn)
+#endif
 #define ENABLE_FALLBACK
 #elif defined(TRANSLATIONS_TW)
 FONT_TABLE(tw)
@@ -94,11 +107,34 @@ FONT_TABLE(ru)
 FONT_TABLE(ua)
 #define ENABLE_FALLBACK
 #else
+#if defined(FONT_FAMILY_ORBITRON)
+FONT_TABLE(ob)
+#else
 FONT_TABLE(en)
+#endif
 #endif
 
 #if defined(ENABLE_FALLBACK)
 // Fallback fonts - language fonts only contain language specific characters
+// The fallback uses the selected font family for the Latin base
+#if defined(FONT_FAMILY_ORBITRON)
+extern const lv_font_t lv_font_ob_STD;
+extern const etxLz4Font lv_font_ob_bold_STD;
+extern const etxLz4Font lv_font_ob_XXS;
+extern const etxLz4Font lv_font_ob_XS;
+extern const etxLz4Font lv_font_ob_L;
+extern const etxLz4Font lv_font_ob_bold_XL;
+static etxLvglFont en_fontTable[FONTS_COUNT] = {
+  { nullptr,                 (lv_font_t*)&lv_font_ob_STD, true  },  /* FONT_STD_INDEX */
+  { &lv_font_ob_bold_STD,    nullptr,                     false },  /* FONT_BOLD_INDEX */
+  { &lv_font_ob_XXS,         nullptr,                     false },  /* FONT_XXS_INDEX */
+  { &lv_font_ob_XS,          nullptr,                     false },  /* FONT_XS_INDEX */
+  { &lv_font_ob_L,           nullptr,                     false },  /* FONT_L_INDEX */
+  { &lv_font_ob_bold_XL,     nullptr,                     false },  /* FONT_XL_INDEX */
+  { nullptr,                 nullptr,                     true  },  /* FONT_XXL_INDEX */
+  { nullptr,                 nullptr,                     false },  /* FONT_LXL_INDEX */
+};
+#else
 extern const lv_font_t lv_font_en_STD;
 extern const etxLz4Font lv_font_en_bold_STD;
 extern const etxLz4Font lv_font_en_XXS;
@@ -115,6 +151,7 @@ static etxLvglFont en_fontTable[FONTS_COUNT] = {
   { nullptr,                 nullptr,         true },   /* FONT_XXL_INDEX */
   { nullptr,                 nullptr,         true },   /* FONT_LXL_INDEX */
 };
+#endif
 #endif
 
 } // extern "C"
@@ -163,6 +200,13 @@ void initFontBuffers()
   sz += getSize(fontTable);
 
   // Allocate buffer and assign to fonts
+#if defined(ENABLE_FALLBACK)
+  // Extra RAM needed to make a mutable proxy of the STD font so we can
+  // override its compile-time fallback pointer (the FLASH const lv_font_t
+  // has fallback hard-coded to lv_font_en_STD; we need it to point to the
+  // runtime-selected family e.g. Orbitron when FONT_FAMILY=Orbitron).
+  sz += BUFSIZE(sizeof(lv_font_t));
+#endif
 #if defined(SIMU)
   uint8_t* b = (uint8_t*)malloc(sz);
 #else
@@ -171,6 +215,22 @@ void initFontBuffers()
   if (b) {
 #if defined(ENABLE_FALLBACK)
     b = allocBuf(en_fontTable, b);
+    // Build mutable STD proxy in RAM with corrected fallback
+    lv_font_t* stdProxy = (lv_font_t*)b;
+    *stdProxy = *fontTable[FONT_STD_INDEX].lvglFont;
+    stdProxy->fallback = en_fontTable[FONT_STD_INDEX].lvglFont;
+    // Ensure line_height and base_line accommodate fallback (Orbitron) glyphs.
+    // Orbitron has deeper descenders (e.g. j/g/p/q/y with ofs_y=-4) that
+    // would clip against the primary (LXGW) line_height without this fix.
+    {
+      const lv_font_t* fb = en_fontTable[FONT_STD_INDEX].lvglFont;
+      if (fb->line_height > stdProxy->line_height)
+        stdProxy->line_height = fb->line_height;
+      if (fb->base_line > stdProxy->base_line)
+        stdProxy->base_line = fb->base_line;
+    }
+    fontTable[FONT_STD_INDEX].lvglFont = stdProxy;
+    b += BUFSIZE(sizeof(lv_font_t));
 #endif
     b = allocBuf(fontTable, b);
   } else {
@@ -203,12 +263,20 @@ extern "C" {
       { &lv_font_##x##_XS,          nullptr,            false },  /* FONT_XS_INDEX */ \
       { &lv_font_##x##_L,           nullptr,            false },  /* FONT_L_INDEX */ \
       { &lv_font_##x##_bold_XL,     nullptr,            false },  /* FONT_XL_INDEX */ \
-      { &lv_font_en_bold_XXL,       nullptr,            false },  /* FONT_XXL_INDEX */ \
+      { &ETX_FONT_XXL,              nullptr,            false },  /* FONT_XXL_INDEX */ \
       { &lv_font_en_bold_LXL,       nullptr,            false },  /* FONT_LXL_INDEX */ \
   };
 
 FONT_TABLE(en);
+#if defined(FONT_CN_FAMILY_LXGW)
+FONT_TABLE(lxgw);
+#define cn_fontTable lxgw_fontTable
+#elif defined(FONT_CN_FAMILY_SMILEYSANS)
+FONT_TABLE(ss);
+#define cn_fontTable ss_fontTable
+#else
 FONT_TABLE(cn);
+#endif
 FONT_TABLE(tw);
 FONT_TABLE(jp);
 FONT_TABLE(ko);
@@ -256,7 +324,7 @@ void setLanguageFont(int idx)
     if (fontTable != en_fontTable) {
       // Force fonts to be decompressed.
       for (int i = FONT_STD_INDEX; i < FONTS_COUNT; i += 1) {
-        if ((fontTable[i].lz4Font != nullptr) && (i != FONT_XXL_INDEX)) {
+        if ((fontTable[i].lz4Font != nullptr) && (i != FONT_XXL_INDEX) && (i != FONT_LXL_INDEX)) {
           fontTable[i].loaded = false;
         }
       }
@@ -340,6 +408,11 @@ void decompressFont(int idx, etxLvglFont* fonts)
   if (fonts[idx].loaded) return;
 
   const etxLz4Font* etxFont = fonts[idx].lz4Font;
+  // Font not available in this tier (e.g. LXL on non-mid targets)
+  if (!etxFont) {
+    fonts[idx].loaded = true;
+    return;
+  }
 
   // Init SDRAM buffer
   initFontBuffers();
@@ -437,6 +510,13 @@ void decompressFont(int idx, etxLvglFont* fonts)
   if (fonts[idx].lz4Font != en_fontTable[idx].lz4Font) {
     decompressFont(idx, en_fontTable);
     lvglFont->fallback = en_fontTable[idx].lvglFont;
+    // Ensure line metrics accommodate fallback glyphs (e.g. Orbitron
+    // descenders clipping in LXGW's smaller line_height).
+    const lv_font_t* fb = en_fontTable[idx].lvglFont;
+    if (fb->line_height > lvglFont->line_height)
+      lvglFont->line_height = fb->line_height;
+    if (fb->base_line > lvglFont->base_line)
+      lvglFont->base_line = fb->base_line;
   }
 #endif
 
@@ -464,6 +544,10 @@ const lv_font_t* getFont(LcdFlags flags)
 #if defined(BOOT)
   return LV_FONT_DEFAULT;
 #else
+  // Ensure font buffers are allocated and STD proxy (ENABLE_FALLBACK) is set up
+  // BEFORE any font pointer is handed to LVGL styles. decompressFont() skips
+  // initFontBuffers() for loaded=true STD fonts, so we force it here.
+  initFontBuffers();
   auto fontIndex = FONT_INDEX(flags);
   if (fontIndex >= FONTS_COUNT) return fontTable[FONT_STD_INDEX].lvglFont;
   decompressFont(fontIndex, fontTable);

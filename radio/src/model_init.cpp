@@ -113,10 +113,7 @@ void initCustomSwitches()
       if (strncmp(switchGetDefaultName(i), "SW", 2) == 0) {
         g_model.customSwitches[idx].type = SWITCH_2POS;
         g_model.customSwitches[idx].group = 1;
-        if (strncmp(switchGetDefaultName(i), "SW1", 3) == 0)
-          g_model.customSwitches[idx].start = FS_START_ON;
-        else
-          g_model.customSwitches[idx].start = FS_START_OFF;
+        g_model.customSwitches[idx].start = FS_START_PREVIOUS;
       } else {
         g_model.customSwitches[idx].type = SWITCH_GLOBAL;
         g_model.customSwitches[idx].group = 0;
@@ -130,7 +127,7 @@ void initCustomSwitches()
 #endif
     }
   }
-  g_model.cfsSetGroupAlwaysOn(1, true);
+  g_model.cfsSetGroupAlwaysOn(1, false);
 }
 #endif
 
@@ -160,7 +157,7 @@ void applyDefaultTemplate()
     if (SWITCH_WARNING_ALLOWED(i)) {
 #if defined(FUNCTION_SWITCHES)
       if (switchIsCustomSwitch(i) && !sw1found) {
-        g_model.setSwitchWarning(i, 3);
+        g_model.setSwitchWarning(i, 1);
         sw1found = true;
       } else {
         g_model.setSwitchWarning(i, 1);

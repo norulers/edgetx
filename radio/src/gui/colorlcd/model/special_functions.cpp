@@ -29,6 +29,7 @@
 #include "sourcechoice.h"
 #include "switchchoice.h"
 #include "timeedit.h"
+#include "timer_setup.h"
 #include "toggleswitch.h"
 #include "view_main.h"
 
@@ -296,6 +297,34 @@ FunctionEditPage::FunctionEditPage(uint8_t index, EdgeTxIcon icon,
 {
   buildHeader(header, title, prefix);
 
+  // Dark FPV header: hide original canvas icons, place new ones with orange color
+  for (uint32_t i = 0; i < lv_obj_get_child_cnt(header->getLvObj()); i++) {
+    auto child = lv_obj_get_child(header->getLvObj(), i);
+    if (lv_obj_check_type(child, &lv_canvas_class))
+      lv_obj_add_flag(child, LV_OBJ_FLAG_HIDDEN);
+  }
+  auto leftBg = new StaticIcon(header, 0, 0, ICON_TOPLEFT_BG, COLOR_THEME_PRIMARY2_INDEX);
+  lv_obj_set_style_img_recolor_opa(leftBg->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_img_recolor(leftBg->getLvObj(), lv_color_make(0x22, 0x22, 0x22), LV_PART_MAIN);
+  leftBg->setTop((EdgeTxStyles::MENU_HEADER_HEIGHT - leftBg->height()) / 2);
+  auto leftIco = new StaticIcon(leftBg, 0, 0, icon, COLOR_THEME_PRIMARY2_INDEX);
+  lv_obj_set_style_img_recolor_opa(leftIco->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_img_recolor(leftIco->getLvObj(), lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN);
+  leftIco->center(leftBg->width() + PAD_MEDIUM, leftBg->height());
+  auto rightBg = new StaticIcon(header, LCD_W, 0, ICON_TOPRIGHT_BG, COLOR_THEME_PRIMARY2_INDEX);
+  lv_obj_set_style_img_recolor_opa(rightBg->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_img_recolor(rightBg->getLvObj(), lv_color_make(0x22, 0x22, 0x22), LV_PART_MAIN);
+  rightBg->setPos(LCD_W - rightBg->width(), (EdgeTxStyles::MENU_HEADER_HEIGHT - rightBg->height()) / 2);
+  auto rightIco = new StaticIcon(rightBg, 0, 0, ICON_BTN_CLOSE, COLOR_THEME_PRIMARY2_INDEX);
+  lv_obj_set_style_img_recolor_opa(rightIco->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_img_recolor(rightIco->getLvObj(), lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN);
+  rightIco->center(rightBg->width() + PAD_MEDIUM, rightBg->height());
+
+  // Dark FPV theme
+  lv_obj_set_style_bg_color(body->getLvObj(), lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(body->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_text_color(body->getLvObj(), lv_color_white(), LV_PART_MAIN);
+
   delayLoad();
 }
 
@@ -331,17 +360,22 @@ void FunctionEditPage::buildHeader(Window *window, const char *title,
 void FunctionEditPage::addSourceChoice(FormLine *line, const char *title,
                                        CustomFunctionData *cfn, int16_t vmax)
 {
-  new StaticText(line, rect_t{}, title);
-  new SourceChoice(line, rect_t{}, 0, vmax, GET_SET_DEFAULT(CFN_PARAM(cfn)), true);
+  auto lbl = new StaticText(line, rect_t{}, title);
+  lv_obj_set_style_text_color(lbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
+  auto choice = new SourceChoice(line, rect_t{}, 0, vmax, GET_SET_DEFAULT(CFN_PARAM(cfn)), true);
+  applyDarkBtnStyle(choice->getLvObj());
 }
 
 NumberEdit *FunctionEditPage::addNumberEdit(FormLine *line, const char *title,
                                             CustomFunctionData *cfn,
                                             int16_t vmin, int16_t vmax)
 {
-  new StaticText(line, rect_t{}, title);
-  return new NumberEdit(line, rect_t{}, vmin, vmax,
-                        GET_SET_DEFAULT(CFN_PARAM(cfn)));
+  auto lbl = new StaticText(line, rect_t{}, title);
+  lv_obj_set_style_text_color(lbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
+  auto edit = new NumberEdit(line, rect_t{}, vmin, vmax,
+                            GET_SET_DEFAULT(CFN_PARAM(cfn)));
+  applyDarkBtnStyle(edit->getLvObj());
+  return edit;
 }
 
 void FunctionEditPage::updateSpecialFunctionOneWindow()
@@ -351,17 +385,25 @@ void FunctionEditPage::updateSpecialFunctionOneWindow()
   FlexGridLayout grid(col_dsc, row_dsc, PAD_TINY);
   auto line = specialFunctionOneWindow->newLine(grid);
 
+  lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  line->padAll(PAD_SMALL);
   CustomFunctionData *cfn = customFunctionData();
   uint8_t func = CFN_FUNC(cfn);
 
   // Func param
   switch (func) {
     case FUNC_OVERRIDE_CHANNEL: {
-      new StaticText(line, rect_t{}, STR_CH);
-      new NumberEdit(line, rect_t{}, 1, MAX_OUTPUT_CHANNELS,
+      auto chLbl = new StaticText(line, rect_t{}, STR_CH);
+      lv_obj_set_style_text_color(chLbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
+      auto chEdit = new NumberEdit(line, rect_t{}, 1, MAX_OUTPUT_CHANNELS,
                      GET_SET_VALUE_WITH_OFFSET(CFN_CH_INDEX(cfn), 1));
+      applyDarkBtnStyle(chEdit->getLvObj());
       line = specialFunctionOneWindow->newLine(grid);
 
+      lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+      lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+      line->padAll(PAD_SMALL);
       int limit =
           (g_model.extendedLimits ? LIMIT_EXT_PERCENT : LIMIT_STD_PERCENT);
       addNumberEdit(line, STR_VALUE, cfn, -limit, limit);
@@ -369,10 +411,12 @@ void FunctionEditPage::updateSpecialFunctionOneWindow()
     }
 
     case FUNC_TRAINER: {
-      new StaticText(line, rect_t{}, STR_VALUE);
+      auto trainerLbl = new StaticText(line, rect_t{}, STR_VALUE);
+      lv_obj_set_style_text_color(trainerLbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
       auto max_sticks = adcGetMaxInputs(ADC_INPUT_MAIN);
       auto choice = new Choice(line, rect_t{}, 0, max_sticks + 1,
                                GET_SET_DEFAULT(CFN_CH_INDEX(cfn)));
+      applyDarkBtnStyle(choice->getLvObj());
       choice->setTextHandler([=](int32_t value) {
         if (value == 0)
           return std::string(STR_STICKS);
@@ -386,11 +430,13 @@ void FunctionEditPage::updateSpecialFunctionOneWindow()
 
     case FUNC_RESET:
       if (CFN_PARAM(cfn) <= FUNC_RESET_PARAM_LAST) {
-        new StaticText(line, rect_t{}, STR_RESET);
+        auto resetLbl = new StaticText(line, rect_t{}, STR_RESET);
+        lv_obj_set_style_text_color(resetLbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
         auto choice =
             new Choice(line, rect_t{}, 0,
                        FUNC_RESET_PARAM_FIRST_TELEM + lastUsedTelemetryIndex(),
                        GET_SET_DEFAULT(CFN_PARAM(cfn)));
+        applyDarkBtnStyle(choice->getLvObj());
         choice->setAvailableHandler(isSourceAvailableInResetSpecialFunction);
         choice->setTextHandler([=](int32_t value) {
           if (value < FUNC_RESET_PARAM_FIRST_TELEM)
@@ -412,19 +458,23 @@ void FunctionEditPage::updateSpecialFunctionOneWindow()
       addSourceChoice(line, STR_VALUE, cfn, MIXSRC_LAST_CH);
       break;
 
-    case FUNC_PLAY_SOUND:
-      new StaticText(line, rect_t{}, STR_VALUE);
-      new Choice(line, rect_t{}, STR_FUNCSOUNDS, 0,
+    case FUNC_PLAY_SOUND: {
+      auto soundLbl = new StaticText(line, rect_t{}, STR_VALUE);
+      lv_obj_set_style_text_color(soundLbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
+      auto soundChoice = new Choice(line, rect_t{}, STR_FUNCSOUNDS, 0,
                  AU_SPECIAL_SOUND_LAST - AU_SPECIAL_SOUND_FIRST - 1,
                  GET_SET_DEFAULT(CFN_PARAM(cfn)));
+      applyDarkBtnStyle(soundChoice->getLvObj());
       break;
+    }
 
     case FUNC_PLAY_TRACK:
     case FUNC_BACKGND_MUSIC:
     case FUNC_PLAY_SCRIPT:
-    case FUNC_RGB_LED:
-      new StaticText(line, rect_t{}, STR_VALUE);
-      new FileChoice(
+    case FUNC_RGB_LED: {
+      auto fileLbl = new StaticText(line, rect_t{}, STR_VALUE);
+      lv_obj_set_style_text_color(fileLbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
+      auto fileChoice = new FileChoice(
           line, rect_t{},
           func == FUNC_PLAY_SCRIPT || func == FUNC_RGB_LED
               ? (func == FUNC_PLAY_SCRIPT ? SCRIPTS_FUNCS_PATH
@@ -442,13 +492,17 @@ void FunctionEditPage::updateSpecialFunctionOneWindow()
               LUA_LOAD_MODEL_SCRIPTS();
           },
           true, funcGetLabel(func));
+      applyDarkBtnStyle(fileChoice->getLvObj());
       break;
+    }
 
     case FUNC_SET_TIMER: {
-      new StaticText(line, rect_t{}, STR_TIMER);
+      auto timerLbl = new StaticText(line, rect_t{}, STR_TIMER);
+      lv_obj_set_style_text_color(timerLbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
       if (timersSetupCount() > 0) {
         auto timerchoice = new Choice(line, rect_t{}, 0, TIMERS - 1,
                                       GET_SET_DEFAULT(CFN_TIMER_INDEX(cfn)));
+        applyDarkBtnStyle(timerchoice->getLvObj());
         timerchoice->setTextHandler([](int32_t value) {
           return std::string(STR_TIMER) + std::to_string(value + 1);
         });
@@ -456,21 +510,30 @@ void FunctionEditPage::updateSpecialFunctionOneWindow()
             [=](int value) { return isTimerSourceAvailable(value); });
 
         line = specialFunctionOneWindow->newLine(grid);
-        new StaticText(line, rect_t{}, STR_VALUE);
-        new TimeEdit(line, rect_t{}, 0, 9 * 60 * 60 - 1,
+        lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+        lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+        line->padAll(PAD_SMALL);
+        auto timerValLbl = new StaticText(line, rect_t{}, STR_VALUE);
+        lv_obj_set_style_text_color(timerValLbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
+        auto timeEdit = new TimeEdit(line, rect_t{}, 0, 9 * 60 * 60 - 1,
                     GET_SET_DEFAULT(CFN_PARAM(cfn)));
+        applyDarkBtnStyle(timeEdit->getLvObj());
       } else {
-        new StaticText(line, rect_t{}, STR_NO_TIMERS);
+        auto noTimersLbl = new StaticText(line, rect_t{}, STR_NO_TIMERS);
+        lv_obj_set_style_text_color(noTimersLbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
       }
       break;
     }
 
     static const char* const strModules[] = { "Int.", "Ext." };
-    case FUNC_SET_FAILSAFE:
-      new StaticText(line, rect_t{}, STR_MODULE);
-      new Choice(line, rect_t{}, strModules, 0, NUM_MODULES - 1,
+    case FUNC_SET_FAILSAFE: {
+      auto moduleLbl = new StaticText(line, rect_t{}, STR_MODULE);
+      lv_obj_set_style_text_color(moduleLbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
+      auto moduleChoice = new Choice(line, rect_t{}, strModules, 0, NUM_MODULES - 1,
                  GET_SET_DEFAULT(CFN_PARAM(cfn)));
+      applyDarkBtnStyle(moduleChoice->getLvObj());
       break;
+    }
 
     case FUNC_PLAY_VALUE:
       addSourceChoice(line, STR_VALUE, cfn, MIXSRC_LAST_TELEM);
@@ -482,11 +545,13 @@ void FunctionEditPage::updateSpecialFunctionOneWindow()
 
 #if defined(FUNCTION_SWITCHES)
     case FUNC_PUSH_CUST_SWITCH: {
-        new StaticText(line, rect_t{}, STR_SWITCH);
+        auto swLbl = new StaticText(line, rect_t{}, STR_SWITCH);
+        lv_obj_set_style_text_color(swLbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
         auto choice = new Choice(line, rect_t{}, 0, switchGetMaxSwitches() - 1,
                     [=]() { return switchGetSwitchFromCustomIdx(CFN_CS_INDEX(cfn)); },
                     [=](int n) { CFN_CS_INDEX(cfn) = switchGetCustomSwitchIdx(n); },
                     STR_SWITCH);
+        applyDarkBtnStyle(choice->getLvObj());
         choice->setTextHandler([=](int n) {
           return std::string(switchGetDefaultName(n));
         });
@@ -494,6 +559,9 @@ void FunctionEditPage::updateSpecialFunctionOneWindow()
 
         line = specialFunctionOneWindow->newLine(grid);
 
+        lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+        lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+        line->padAll(PAD_SMALL);
         auto edit = addNumberEdit(line, STR_INTERVAL, cfn, PUSH_CS_DURATION_MIN,
                                 PUSH_CS_DURATION_MAX);
 
@@ -529,7 +597,8 @@ void FunctionEditPage::updateSpecialFunctionOneWindow()
 
     case FUNC_ADJUST_GVAR: {
       if (validateSFGV(cfn)) SET_DIRTY();
-      new StaticText(line, rect_t{}, STR_GLOBALVAR);
+      auto gvarLbl1 = new StaticText(line, rect_t{}, STR_GLOBALVAR);
+      lv_obj_set_style_text_color(gvarLbl1->getLvObj(), lv_color_white(), LV_PART_MAIN);
       auto gvarchoice = new Choice(line, rect_t{}, 0, MAX_GVARS - 1,
                                    GET_DEFAULT(CFN_GVAR_INDEX(cfn)),
                                    [=](int32_t newValue){
@@ -537,12 +606,17 @@ void FunctionEditPage::updateSpecialFunctionOneWindow()
                                      SET_DIRTY();
                                      updateSpecialFunctionOneWindow();
                                    });
+      applyDarkBtnStyle(gvarchoice->getLvObj());
       gvarchoice->setTextHandler([](int32_t value) {
         return std::string(getSourceString(value + MIXSRC_FIRST_GVAR));
       });
       line = specialFunctionOneWindow->newLine(grid);
 
-      new StaticText(line, rect_t{}, STR_MODE);
+      lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+      lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+      line->padAll(PAD_SMALL);
+      auto modeLbl = new StaticText(line, rect_t{}, STR_MODE);
+      lv_obj_set_style_text_color(modeLbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
       auto modechoice = new Choice(line, rect_t{}, FUNC_ADJUST_GVAR_CONSTANT,
                                    FUNC_ADJUST_GVAR_INCDEC,
                                    GET_DEFAULT(CFN_GVAR_MODE(cfn)),
@@ -552,8 +626,12 @@ void FunctionEditPage::updateSpecialFunctionOneWindow()
                                      SET_DIRTY();
                                      updateSpecialFunctionOneWindow();
                                    });
+      applyDarkBtnStyle(modechoice->getLvObj());
       line = specialFunctionOneWindow->newLine(grid);
 
+      lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+      lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+      line->padAll(PAD_SMALL);
       modechoice->setTextHandler([](int32_t value) {
         switch (value) {
           case FUNC_ADJUST_GVAR_CONSTANT:
@@ -583,9 +661,11 @@ void FunctionEditPage::updateSpecialFunctionOneWindow()
           addSourceChoice(line, STR_MIXSOURCE, cfn, MIXSRC_LAST_CH);
           break;
         case FUNC_ADJUST_GVAR_GVAR: {
-          new StaticText(line, rect_t{}, STR_GLOBALVAR);
+          auto gvarLbl2 = new StaticText(line, rect_t{}, STR_GLOBALVAR);
+          lv_obj_set_style_text_color(gvarLbl2->getLvObj(), lv_color_white(), LV_PART_MAIN);
           auto gvarchoice = new Choice(line, rect_t{}, 0, MAX_GVARS - 1,
                                        GET_SET_DEFAULT(CFN_PARAM(cfn)));
+          applyDarkBtnStyle(gvarchoice->getLvObj());
           gvarchoice->setTextHandler([](int32_t value) {
             return std::string(getSourceString(value + MIXSRC_FIRST_GVAR));
           });
@@ -611,11 +691,16 @@ void FunctionEditPage::updateSpecialFunctionOneWindow()
 
   if (HAS_REPEAT_PARAM(func)) {  // !1x 1x 1s 2s 3s ...
     line = specialFunctionOneWindow->newLine(grid);
-    new StaticText(line, rect_t{}, STR_REPEAT);
+    lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    line->padAll(PAD_SMALL);
+    auto repeatLbl = new StaticText(line, rect_t{}, STR_REPEAT);
+    lv_obj_set_style_text_color(repeatLbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
     if (func == FUNC_PLAY_SCRIPT || func == FUNC_RGB_LED) {
       auto repeat = new Choice(line, rect_t{}, 0, 1,
                                GET_DEFAULT((int8_t)CFN_PLAY_REPEAT(cfn)),
                                SET_DEFAULT(CFN_PLAY_REPEAT(cfn)));
+      applyDarkBtnStyle(repeat->getLvObj());
       repeat->setTextHandler([](int32_t value) {
         // 0 == repeat at 50ms interval for backward compatibility
         return (value == 0) ? std::string("On") : std::string("1x");
@@ -624,6 +709,7 @@ void FunctionEditPage::updateSpecialFunctionOneWindow()
       auto repeat = new NumberEdit(line, rect_t{}, -1, 60 / CFN_PLAY_REPEAT_MUL,
                                    GET_DEFAULT((int8_t)CFN_PLAY_REPEAT(cfn)),
                                    SET_DEFAULT(CFN_PLAY_REPEAT(cfn)));
+      applyDarkBtnStyle(repeat->getLvObj());
       repeat->setDisplayHandler([](int32_t value) {
         if (value == 0)
           return std::string("1x");
@@ -638,19 +724,24 @@ void FunctionEditPage::updateSpecialFunctionOneWindow()
   }
 
   line = specialFunctionOneWindow->newLine(grid);
-  new StaticText(line, rect_t{}, STR_ENABLE);
-  new ToggleSwitch(line, rect_t{}, GET_DEFAULT(CFN_ACTIVE(cfn)),
+  lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  line->padAll(PAD_SMALL);
+  auto enableLbl = new StaticText(line, rect_t{}, STR_ENABLE);
+  lv_obj_set_style_text_color(enableLbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
+  auto enableSw = new ToggleSwitch(line, rect_t{}, GET_DEFAULT(CFN_ACTIVE(cfn)),
             [=](int newValue) {
               CFN_ACTIVE(cfn) = newValue;
               SET_DIRTY();
               if (CFN_FUNC(cfn) == FUNC_PLAY_SCRIPT || CFN_FUNC(cfn) == FUNC_RGB_LED)
                 LUA_LOAD_MODEL_SCRIPTS();
             });
+  applyDarkBtnStyle(enableSw->getLvObj());
 }
 
 void FunctionEditPage::buildBody(Window *form)
 {
-  form->setFlexLayout(LV_FLEX_FLOW_COLUMN, PAD_LARGE);
+  form->setFlexLayout(LV_FLEX_FLOW_COLUMN, PAD_TINY);
 
   FlexGridLayout grid(col_dsc, row_dsc, PAD_TINY);
 
@@ -658,9 +749,14 @@ void FunctionEditPage::buildBody(Window *form)
 
   // Switch
   auto line = form->newLine(grid);
-  new StaticText(line, rect_t{}, STR_SF_SWITCH);
+  lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  line->padAll(PAD_SMALL);
+  auto swLbl2 = new StaticText(line, rect_t{}, STR_SF_SWITCH);
+  lv_obj_set_style_text_color(swLbl2->getLvObj(), lv_color_white(), LV_PART_MAIN);
   auto switchChoice = new SwitchChoice(line, rect_t{}, SWSRC_FIRST, SWSRC_LAST,
                                        GET_SET_DEFAULT(CFN_SWITCH(cfn)));
+  applyDarkBtnStyle(switchChoice->getLvObj());
   switchChoice->setAvailableHandler(
       [=](int value) { return isSwitchAvailable(value); });
 
@@ -677,7 +773,11 @@ void FunctionEditPage::buildBody(Window *form)
 
   // Function
   line = form->newLine(grid);
-  new StaticText(line, rect_t{}, STR_FUNC);
+  lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  line->padAll(PAD_SMALL);
+  auto funcLbl = new StaticText(line, rect_t{}, STR_FUNC);
+  lv_obj_set_style_text_color(funcLbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
   auto functionChoice =
       new Choice(line, rect_t{}, 0, FUNC_MAX - 1, GET_DEFAULT(getFuncSortIdx(CFN_FUNC(cfn))),
                   [=](int32_t newValue) {
@@ -690,6 +790,7 @@ void FunctionEditPage::buildBody(Window *form)
                     SET_DIRTY();
                     updateSpecialFunctionOneWindow();
                   });
+  applyDarkBtnStyle(functionChoice->getLvObj());
   functionChoice->setTextHandler([=](int val) { return funcGetLabel(cfn_sorted[val]); });
   functionChoice->setAvailableHandler(
       [=](int value) { return isAssignableFunctionAvailable(cfn_sorted[value]); });
@@ -781,6 +882,11 @@ void FunctionsPage::plusPopup(Window *window)
 
 void FunctionsPage::build(Window *window)
 {
+  // FPV dark theme
+  lv_obj_set_style_bg_color(window->getLvObj(), lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(window->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_text_color(window->getLvObj(), lv_color_white(), LV_PART_MAIN);
+
   window->setFlexLayout(LV_FLEX_FLOW_COLUMN, PAD_TINY);
 
   bool hasEmptyFunction = false;
@@ -796,6 +902,7 @@ void FunctionsPage::build(Window *window)
     if (isActive) {
       auto button = functionButton(
           window, rect_t{0, 0, window->width() - PAD_LARGE - PAD_SMALL, SF_BUTTON_H}, i);
+      if (usePageGroupControlStyle()) stylePageGroupControl(button->getLvObj());
 
       lv_obj_set_grid_cell(button->getLvObj(), LV_GRID_ALIGN_CENTER, 0, 1,
                            LV_GRID_ALIGN_CENTER, 0, 1);
@@ -900,6 +1007,7 @@ void FunctionsPage::build(Window *window)
                          plusPopup(window);
                          return 0;
                        });
+    if (usePageGroupControlStyle()) stylePageGroupControl(addButton->getLvObj());
 
     addButton->setLongPressHandler([=]() -> uint8_t {
       plusPopup(window);

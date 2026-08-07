@@ -99,6 +99,25 @@ WidgetsContainer* LayoutFactory::loadLayout(
 {
   const LayoutFactory* factory = getLayoutFactory(g_model.getScreenLayoutId(screenNum));
   if (factory) {
+    // Auto-migrate: if the stored layout is the old compile-time default
+    // (Layout2P1), silently upgrade it to FPV Dashboard so that all
+    // existing models benefit from the new default without any manual step.
+    if (factory == defaultLayout) {
+      const LayoutFactory* fpv = getLayoutFactory("LayoutFpvDash");
+      if (fpv) {
+        factory = fpv;
+        g_model.setScreenLayoutId(screenNum, factory->getId());
+        // Reset decoration options so FPV layout starts clean
+        // (old layout may have had topbar/sliders/FM = true)
+        auto* opts = g_model.getScreenLayoutData(screenNum)->options;
+        opts[LAYOUT_OPTION_TOPBAR].value.boolValue  = false;
+        opts[LAYOUT_OPTION_FM].value.boolValue      = false;
+        opts[LAYOUT_OPTION_SLIDERS].value.boolValue = false;
+        // Keep TRIMS enabled — FPV layout shows trims for stick feedback
+        opts[LAYOUT_OPTION_TRIMS].value.boolValue   = true;
+        storageDirty(EE_MODEL);
+      }
+    }
     return factory->load(parent, screenNum);
   }
   return nullptr;
@@ -128,10 +147,15 @@ void LayoutFactory::loadDefaultLayout()
   auto& screen = customScreens[0];
 
   if (screen == nullptr && defaultLayout != nullptr) {
-    g_model.setScreenLayoutId(0, defaultLayout->getId());
+    // Prefer FPV Dashboard if it has been registered; fall back to the
+    // compile-time defaultLayout (layout2P1) otherwise.
+    const LayoutFactory* factory = getLayoutFactory("LayoutFpvDash");
+    if (!factory) factory = defaultLayout;
+
+    g_model.setScreenLayoutId(0, factory->getId());
 
     auto viewMain = ViewMain::instance();
-    screen = defaultLayout->create(viewMain, 0);
+    screen = factory->create(viewMain, 0);
     //
     // TODO:
     // -> attach a few default widgets
@@ -149,7 +173,8 @@ void LayoutFactory::loadDefaultLayout()
 //
 void LayoutFactory::loadCustomScreens()
 {
-  // Delete old screens
+  // Ensure any screens created by loadDefaultLayout() are removed before
+  // we add the real set, so we never end up with duplicate tileview entries.
   deleteCustomScreens();
 
   unsigned i = 0;

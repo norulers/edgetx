@@ -130,6 +130,15 @@ static void keyboardDriverRead(lv_indev_drv_t *drv, lv_indev_data_t *data)
       return;
     }
 
+    // EXIT break always goes to the top window directly,
+    // bypassing LVGL focus so a single press always exits.
+    if (evt == EVT_KEY_BREAK(KEY_EXIT)) {
+      auto w = Window::topWindow();
+      dispatch_kb_event(w, evt);
+      backup_kb_data(data);
+      return;
+    }
+
     if(evt == EVT_KEY_FIRST(KEY_PAGEUP) ||
        evt == EVT_KEY_FIRST(KEY_PAGEDN) ||
        evt == EVT_KEY_FIRST(KEY_ENTER) ||
@@ -329,10 +338,14 @@ LvglWrapper::LvglWrapper()
 
   static lv_theme_t theme;
 
-  /* Initialize default theme */
+  /* Initialize theme with FPV dark colors as the system default.
+     Custom styles (Page, SubPage, setDarkBody, etc.) normally
+     override these on each widget.  When the LVGL global style_refr
+     counter is temporarily stuck > 0 custom overrides cannot be
+     applied, so having a dark default prevents bright-blue fallback. */
   theme.disp = NULL;
-  theme.color_primary = lv_palette_main(LV_PALETTE_BLUE);
-  theme.color_secondary = lv_palette_main(LV_PALETTE_RED);
+  theme.color_primary = lv_color_make(0x22, 0x22, 0x22);
+  theme.color_secondary = lv_color_make(0xFF, 0x8C, 0x00);
   theme.font_small = LV_FONT_DEFAULT;
   theme.font_normal = LV_FONT_DEFAULT;
   theme.font_large = LV_FONT_DEFAULT;

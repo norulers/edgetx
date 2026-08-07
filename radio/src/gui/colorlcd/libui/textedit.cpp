@@ -135,7 +135,9 @@ TextEdit::TextEdit(Window* parent, const rect_t& rect, char* text,
   if (rect.w == 0) setWidth(EdgeTxStyles::EDIT_FLD_WIDTH);
 
   update();
-  lv_obj_align(label, LV_ALIGN_OUT_LEFT_MID, 0, PAD_TINY);
+  lv_obj_align(label, LV_ALIGN_LEFT_MID, PAD_MEDIUM, 0);
+  lv_obj_set_width(label, rect.w > 0 ? (rect.w - PAD_MEDIUM - PAD_SMALL - PAD_BORDER * 2) : (EdgeTxStyles::EDIT_FLD_WIDTH - PAD_MEDIUM - PAD_SMALL - PAD_BORDER * 2));
+  lv_label_set_long_mode(label, LV_LABEL_LONG_CLIP);
 }
 
 void TextEdit::update()

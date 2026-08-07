@@ -35,6 +35,7 @@ class CurveButton : public Button
       Button(parent, rect), index(index)
   {
     padAll(PAD_ZERO);
+    stylePageGroupControl(lvobj);
 
     // Title
     char buf[32];
@@ -45,11 +46,13 @@ class CurveButton : public Button
     }
     title = new StaticText(this, {0, 0, lv_pct(100), EdgeTxStyles::STD_FONT_HEIGHT}, buf,
                            COLOR_THEME_SECONDARY1_INDEX, CENTERED | FONT(BOLD));
-    etx_txt_color(title->getLvObj(), COLOR_THEME_PRIMARY2_INDEX,
-                  LV_PART_MAIN | LV_STATE_USER_1);
-    etx_solid_bg(title->getLvObj(), COLOR_THEME_SECONDARY2_INDEX);
-    etx_solid_bg(title->getLvObj(), COLOR_THEME_FOCUS_INDEX,
-                 LV_PART_MAIN | LV_STATE_USER_1);
+    // FPV dark theme: override title colors for dark background
+    lv_obj_set_style_text_color(title->getLvObj(), lv_color_white(), LV_PART_MAIN);
+    lv_obj_set_style_bg_color(title->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(title->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(title->getLvObj(), lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN | LV_STATE_USER_1);
+    lv_obj_set_style_bg_opa(title->getLvObj(), LV_OPA_COVER, LV_PART_MAIN | LV_STATE_USER_1);
+    lv_obj_set_style_text_color(title->getLvObj(), lv_color_black(), LV_PART_MAIN | LV_STATE_USER_1);
 
     // Preview
     preview = new CurveRenderer(
@@ -62,8 +65,10 @@ class CurveButton : public Button
     CurveHeader &curve = g_model.curves[index];
     snprintf(buf, 32, "%s %d %s", STR_CURVE_TYPES[curve.type], 5 + curve.points,
              STR_PTS);
+    // FPV dark theme: white text for curve info label
     new StaticText(this, {0, height() - EdgeTxStyles::STD_FONT_HEIGHT - PAD_MEDIUM, LV_PCT(100), EdgeTxStyles::STD_FONT_HEIGHT}, buf,
-                   COLOR_THEME_SECONDARY1_INDEX, CENTERED | FONT(BOLD));
+                   COLOR_THEME_PRIMARY2_INDEX, CENTERED | FONT(BOLD));
+    lv_obj_set_style_text_color(lv_obj_get_child(lvobj, lv_obj_get_child_cnt(lvobj) - 1), lv_color_white(), LV_PART_MAIN);
   }
 
   void update() { preview->update(); }
@@ -190,6 +195,11 @@ void ModelCurvesPage::plusPopup(Window *window)
 
 void ModelCurvesPage::build(Window *window)
 {
+  // FPV dark theme
+  lv_obj_set_style_bg_color(window->getLvObj(), lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(window->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_text_color(window->getLvObj(), lv_color_white(), LV_PART_MAIN);
+
 #if LANDSCAPE
   static const lv_coord_t col_dsc[] = {LV_GRID_FR(1), LV_GRID_FR(1),
                                        LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST};
@@ -282,6 +292,7 @@ void ModelCurvesPage::build(Window *window)
                                  plusPopup(window);
                                  return 0;
                                });
+    stylePageGroupControl(addButton->getLvObj());
 
     lv_obj_set_grid_cell(addButton->getLvObj(), LV_GRID_ALIGN_CENTER,
                          curveIndex % PER_ROW, 1, LV_GRID_ALIGN_CENTER, 0, 1);

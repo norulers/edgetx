@@ -46,6 +46,7 @@ StaticText::StaticText(Window* parent, const rect_t& rect, std::string txt,
                                      LV_PART_MAIN);
   lv_label_set_text(lvobj, text.c_str());
   if (rect.h == 0) lv_obj_set_height(lvobj, LV_SIZE_CONTENT);
+  if (rect.w == 0) lv_obj_set_width(lvobj, LV_PCT(100));
 }
 
 #if defined(DEBUG_WINDOWS)

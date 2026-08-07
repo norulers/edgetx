@@ -81,6 +81,7 @@ class ThrottleCurveWindow : public Window
  public:
   ThrottleCurveWindow(Window* parent, const rect_t& rect) : Window(parent, rect)
   {
+    etx_obj_add_style(lvobj, styles->bg_opacity_transparent, LV_PART_MAIN);
     lv_coord_t x, h = height();
     int i;
 

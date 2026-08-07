@@ -74,7 +74,7 @@ SourceNumberEdit::SourceNumberEdit(Window* parent,
   num_field->setDefault(vdefault);
 
   // The Source button
-  m_srcBtn = new TextButton(this, {EdgeTxStyles::EDIT_FLD_WIDTH_NARROW + PAD_TINY, 0, SRC_BTN_W, 0}, "SRC", [=]() {
+  m_srcBtn = new TextButton(this, {EdgeTxStyles::EDIT_FLD_WIDTH_NARROW + PAD_TINY, 0, SRC_BTN_W, 0}, STR_SRC_BTN, [=]() {
     switchSourceMode();
     return isSource();
   });

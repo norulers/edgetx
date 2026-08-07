@@ -231,6 +231,7 @@
 #define STR_QUICK_MENU_FAVORITES currentLangStrings->STR_QUICK_MENU_FAVORITES
 #define STR_CURRENT_SCREEN currentLangStrings->STR_CURRENT_SCREEN
 #define STR_MAIN_MENU_APPS currentLangStrings->STR_MAIN_MENU_APPS
+#define STR_MAIN_MENU_TOOLS currentLangStrings->STR_MAIN_MENU_TOOLS
 #define STR_MAIN_VIEW_1 currentLangStrings->STR_MAIN_VIEW_1
 #define STR_MAIN_VIEW_10 currentLangStrings->STR_MAIN_VIEW_10
 #define STR_MAIN_VIEW_2 currentLangStrings->STR_MAIN_VIEW_2
@@ -961,6 +962,7 @@
 #define STR_SPECTRUM_ANALYSER_INT currentLangStrings->STR_SPECTRUM_ANALYSER_INT
 #define STR_SPLASHSCREEN currentLangStrings->STR_SPLASHSCREEN
 #define STR_SPORT_UPDATE_POWER_MODE currentLangStrings->STR_SPORT_UPDATE_POWER_MODE
+#define STR_SRC_BTN currentLangStrings->STR_SRC_BTN
 #define STR_SRC_BATT currentLangStrings->STR_SRC_BATT
 #define STR_SRC_GPS currentLangStrings->STR_SRC_GPS
 #define STR_SRC_LIGHT currentLangStrings->STR_SRC_LIGHT

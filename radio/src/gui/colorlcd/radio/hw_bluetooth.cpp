@@ -35,6 +35,19 @@ static const lv_coord_t col_dsc[] = {LV_GRID_FR(1), LV_GRID_FR(3),
 
 static const lv_coord_t row_dsc[] = {LV_GRID_CONTENT, LV_GRID_TEMPLATE_LAST};
 
+static void styleBluetoothDetailsObject(lv_obj_t* obj)
+{
+  if (lv_obj_check_type(obj, &lv_label_class)) {
+    lv_obj_set_style_text_color(obj, makeLvColor(COLOR_THEME_QM_FG_INDEX), LV_PART_MAIN);
+  } else {
+    stylePageGroupControl(obj);
+  }
+
+  for (uint32_t i = 0; i < lv_obj_get_child_cnt(obj); i += 1) {
+    styleBluetoothDetailsObject(lv_obj_get_child(obj, i));
+  }
+}
+
 class BTDetailsDialog : public BaseDialog
 {
  public:
@@ -67,47 +80,56 @@ class BTDetailsDialog : public BaseDialog
           return std::string(bluetooth.distantAddr[0] ? bluetooth.distantAddr
                                                       : "---");
         });
+
+    styleBluetoothDetailsObject(form->getLvObj());
   }
 };
 
 BluetoothConfigWindow::BluetoothConfigWindow(Window* parent, FlexGridLayout& grid)
 {
   auto line = parent->newLine(grid);
+  stylePageGroupControl(line->getLvObj());
   line->padLeft(PAD_SMALL);
-  new StaticText(line, rect_t{}, STR_MODE);
+  new StaticText(line, rect_t{}, STR_MODE, COLOR_THEME_QM_FG_INDEX);
 
   auto box = new Window(line, rect_t{});
+  stylePageGroupControl(box->getLvObj());
   box->padAll(PAD_TINY);
   box->setFlexLayout(LV_FLEX_FLOW_ROW_WRAP, PAD_SMALL);
   lv_obj_set_style_grid_cell_x_align(box->getLvObj(), LV_GRID_ALIGN_STRETCH, 0);
   lv_obj_set_style_flex_cross_place(box->getLvObj(), LV_FLEX_ALIGN_CENTER, 0);
 
-  new Choice(
+  auto bluetoothMode = new Choice(
       box, rect_t{}, STR_BLUETOOTH_MODES, BLUETOOTH_OFF, BLUETOOTH_TRAINER,
       GET_DEFAULT(g_eeGeneral.bluetoothMode), [=](int value) {
         g_eeGeneral.bluetoothMode = value;
         settingsBtn->show(g_eeGeneral.bluetoothMode != BLUETOOTH_OFF);
         nameEdit->show(g_eeGeneral.bluetoothMode != BLUETOOTH_OFF);
       });
+  stylePageGroupControl(bluetoothMode->getLvObj());
 
   settingsBtn =
       new TextButton(box, rect_t{}, LV_SYMBOL_SETTINGS, [=]() -> uint8_t {
         new BTDetailsDialog();
         return 0;
       });
+  stylePageGroupControl(settingsBtn->getLvObj());
   settingsBtn->show(g_eeGeneral.bluetoothMode != BLUETOOTH_OFF);
 
   // BT radio name
   nameEdit = parent->newLine(grid);
+  stylePageGroupControl(nameEdit->getLvObj());
   nameEdit->padLeft(PAD_SMALL);
-  new StaticText(nameEdit, rect_t{}, STR_NAME);
+  new StaticText(nameEdit, rect_t{}, STR_NAME, COLOR_THEME_QM_FG_INDEX);
 
   box = new Window(nameEdit, rect_t{});
+  stylePageGroupControl(box->getLvObj());
   box->padAll(PAD_TINY);
   box->setFlexLayout(LV_FLEX_FLOW_ROW_WRAP, PAD_SMALL);
   lv_obj_set_style_grid_cell_x_align(box->getLvObj(), LV_GRID_ALIGN_STRETCH, 0);
   lv_obj_set_style_flex_cross_place(box->getLvObj(), LV_FLEX_ALIGN_CENTER, 0);
-  new RadioTextEdit(box, rect_t{}, g_eeGeneral.bluetoothName,
-                    LEN_BLUETOOTH_NAME);
+  auto bluetoothName = new RadioTextEdit(box, rect_t{}, g_eeGeneral.bluetoothName,
+                                         LEN_BLUETOOTH_NAME);
+  stylePageGroupControl(bluetoothName->getLvObj());
   nameEdit->show(g_eeGeneral.bluetoothMode != BLUETOOTH_OFF);
 }

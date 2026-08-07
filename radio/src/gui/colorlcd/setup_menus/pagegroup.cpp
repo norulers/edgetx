@@ -25,12 +25,14 @@
 #include "keyboard_base.h"
 #include "mainwindow.h"
 #include "model_select.h"
+#include "model_setup.h"
 #include "os/time.h"
 #include "radio_tools.h"
 #include "screen_setup.h"
 #include "theme_manager.h"
 #include "topbar.h"
 #include "view_channels.h"
+#include "view_telemetry_dash.h"
 #include "view_main.h"
 
 #if defined(DEBUG)
@@ -51,6 +53,27 @@ static void on_draw_end(lv_event_t* e)
         end_ms - start_ms, dsms - end_ms, dems - dsms, dems - start_ms);
 }
 #endif
+
+//-----------------------------------------------------------------------------
+
+void stylePageGroupControl(lv_obj_t* obj)
+{
+  lv_obj_set_style_bg_color(obj, lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(obj, LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_bg_grad_dir(obj, LV_GRAD_DIR_NONE, LV_PART_MAIN);
+  lv_obj_set_style_text_color(obj, lv_color_white(), LV_PART_MAIN);
+  lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN);
+  lv_obj_set_style_outline_width(obj, 0, LV_PART_MAIN | LV_STATE_FOCUS_KEY);
+
+  lv_obj_set_style_bg_color(obj, lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN | LV_STATE_CHECKED);
+  lv_obj_set_style_text_color(obj, lv_color_white(), LV_PART_MAIN | LV_STATE_CHECKED);
+  lv_obj_set_style_bg_color(obj, lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN | LV_STATE_FOCUSED);
+  lv_obj_set_style_text_color(obj, lv_color_black(), LV_PART_MAIN | LV_STATE_FOCUSED);
+  lv_obj_set_style_bg_color(obj, lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN | LV_STATE_FOCUSED | LV_STATE_CHECKED);
+  lv_obj_set_style_text_color(obj, lv_color_black(), LV_PART_MAIN | LV_STATE_FOCUSED | LV_STATE_CHECKED);
+  lv_obj_set_style_bg_color(obj, lv_color_make(0x00, 0xA0, 0x00), LV_PART_MAIN | LV_STATE_PRESSED);
+  lv_obj_set_style_text_color(obj, lv_color_black(), LV_PART_MAIN | LV_STATE_PRESSED);
+}
 
 //-----------------------------------------------------------------------------
 
@@ -111,7 +134,9 @@ class PageGroupIconButton : public ButtonBase
 PageGroupHeaderBase::PageGroupHeaderBase(Window* parent, coord_t height, EdgeTxIcon icon, const char* parentTitle, PageGroupBase* menu) :
     Window(parent, {0, 0, LCD_W, height}), menu(menu)
 {
-    etx_solid_bg(lvobj, COLOR_THEME_SECONDARY1_INDEX);
+    lv_obj_set_style_bg_color(lvobj, lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(lvobj, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_bg_grad_dir(lvobj, LV_GRAD_DIR_NONE, LV_PART_MAIN);
 
     hdrIcon = new HeaderIcon(this, icon);
 
@@ -119,14 +144,14 @@ PageGroupHeaderBase::PageGroupHeaderBase(Window* parent, coord_t height, EdgeTxI
     new HeaderBackIcon(this);
 
     parentLabel = etx_label_create(lvobj);
-    etx_txt_color(parentLabel, COLOR_THEME_PRIMARY2_INDEX);
+    etx_txt_color(parentLabel, COLOR_THEME_QM_FG_INDEX);
     lv_obj_set_pos(parentLabel, PageHeader::PAGE_TITLE_LEFT, PageHeader::PAGE_TITLE_TOP);
     lv_obj_set_size(parentLabel, LCD_W - PageHeader::PAGE_TITLE_LEFT - PageGroup::PAGE_GROUP_BACK_BTN_W * 2 - PAD_LARGE * 2, EdgeTxStyles::STD_FONT_HEIGHT);
     lv_label_set_text(parentLabel, parentTitle);
 #endif
 
     titleLabel = etx_label_create(lvobj);
-    etx_txt_color(titleLabel, COLOR_THEME_PRIMARY2_INDEX);
+    etx_txt_color(titleLabel, COLOR_THEME_QM_FG_INDEX);
 
 #if VERSION_MAJOR == 2
     auto sep = lv_obj_create(lvobj);
@@ -287,16 +312,27 @@ class PageGroupHeader : public PageGroupHeaderBase
 PageGroupBase::PageGroupBase(coord_t bodyY, EdgeTxIcon icon) :
     NavWindow(MainWindow::instance(), {0, 0, LCD_W, LCD_H}), icon(icon)
 {
-  etx_solid_bg(lvobj);
+  lv_obj_set_style_bg_color(lvobj, lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(lvobj, LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_bg_grad_dir(lvobj, LV_GRAD_DIR_NONE, LV_PART_MAIN);
 
   pushLayer(true);
 
+  // Disable group editing so EXIT fires CANCEL immediately (first press)
+  lv_group_t* grp = (lv_group_t*)lv_group_get_default();
+  if (grp) lv_group_set_editing(grp, false);
+
   body = new Window(this, {0, bodyY, LCD_W, LCD_H - bodyY});
-  body->setWindowFlag(NO_FOCUS);
+  body->setWindowFlag(NO_FOCUS | OPAQUE);
+  lv_obj_set_style_bg_color(body->getLvObj(), lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(body->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_bg_grad_dir(body->getLvObj(), LV_GRAD_DIR_NONE, LV_PART_MAIN);
   lv_obj_set_style_max_height(body->getLvObj(), LCD_H - bodyY, LV_PART_MAIN);
-  etx_scrollbar(body->getLvObj());
+  lv_obj_set_scrollbar_mode(body->getLvObj(), LV_SCROLLBAR_MODE_OFF);
+  lv_obj_set_scroll_dir(body->getLvObj(), LV_DIR_VER);
 
 #if defined(DEBUG)
+  lv_obj_add_event_cb(lvobj, on_draw_begin, LV_EVENT_COVER_CHECK, nullptr);
   lv_obj_add_event_cb(lvobj, on_draw_begin, LV_EVENT_COVER_CHECK, nullptr);
   lv_obj_add_event_cb(lvobj, on_draw_end, LV_EVENT_DRAW_POST_END, nullptr);
 #endif
@@ -393,6 +429,13 @@ void PageGroupBase::setCurrentTab(unsigned index)
 #if defined(HARDWARE_KEYS)
 void PageGroupBase::doKeyShortcut(event_t event)
 {
+  if (event == EVT_KEY_LONG(KEY_TELE)) {
+    onCancel();
+    auto w = Window::topWindow();
+    while (w && w != ViewMain::instance()) { w->deleteLater(); w = Window::topWindow(); }
+    new TelemetryDashViewMenu();
+    return;
+  }
   QMPage pg = g_eeGeneral.getKeyShortcut(event);
   if (pg == QM_APP) {
     onCancel();
@@ -402,6 +445,9 @@ void PageGroupBase::doKeyShortcut(event_t event)
   } else {
     if (QuickMenu::subMenuIcon(pg) == icon) {
       setCurrentTab(QuickMenu::pageIndex(pg));
+    } else if (QuickMenu::subMenuIcon(pg) == ICON_MODEL) {
+      onCancel();
+      new ModelMenuPage();
     } else {
       onCancel();
       QuickMenu::openPage(pg);
@@ -482,15 +528,54 @@ class TabsGroupHeader : public PageGroupHeaderBase
 #endif
 
 #if VERSION_MAJOR > 2
+    // Hide original blue canvas-based HeaderIcon/HeaderBackIcon and recreate dark
+    for (uint32_t ci = 0; ci < lv_obj_get_child_cnt(lvobj); ci++) {
+      auto child = lv_obj_get_child(lvobj, ci);
+      if (lv_obj_check_type(child, &lv_canvas_class)) {
+        lv_obj_add_flag(child, LV_OBJ_FLAG_HIDDEN);
+        for (uint32_t di = 0; di < lv_obj_get_child_cnt(child); di++)
+          lv_obj_add_flag(lv_obj_get_child(child, di), LV_OBJ_FLAG_HIDDEN);
+      }
+    }
+    // Left corner: dark bg + orange icon
+    auto leftBg = new StaticIcon(this, 0, 0, ICON_TOPLEFT_BG, COLOR_THEME_PRIMARY2_INDEX);
+    lv_obj_set_style_img_recolor_opa(leftBg->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_img_recolor(leftBg->getLvObj(), lv_color_make(0x22, 0x22, 0x22), LV_PART_MAIN);
+    leftBg->setTop((EdgeTxStyles::MENU_HEADER_HEIGHT - leftBg->height()) / 2);
+    auto leftIco = new StaticIcon(leftBg, 0, 0, icon, COLOR_THEME_PRIMARY2_INDEX);
+    lv_obj_set_style_img_recolor_opa(leftIco->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_img_recolor(leftIco->getLvObj(), lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN);
+    leftIco->center(leftBg->width() + PAD_MEDIUM, leftBg->height());
+    // Right corner: dark bg + orange close icon
+    auto rightBg = new StaticIcon(this, LCD_W, 0, ICON_TOPRIGHT_BG, COLOR_THEME_PRIMARY2_INDEX);
+    lv_obj_set_style_img_recolor_opa(rightBg->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_img_recolor(rightBg->getLvObj(), lv_color_make(0x22, 0x22, 0x22), LV_PART_MAIN);
+    rightBg->setPos(LCD_W - rightBg->width(),
+                    (EdgeTxStyles::MENU_HEADER_HEIGHT - rightBg->height()) / 2);
+    auto rightIco = new StaticIcon(rightBg, 0, 0, ICON_BTN_CLOSE, COLOR_THEME_PRIMARY2_INDEX);
+    lv_obj_set_style_img_recolor_opa(rightIco->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_img_recolor(rightIco->getLvObj(), lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN);
+    rightIco->center(rightBg->width() + PAD_MEDIUM, rightBg->height());
+
     prevBtn = new IconButton(this, ICON_BTN_PREV, LCD_W - PageGroup::PAGE_GROUP_BACK_BTN_W * 3, PAD_MEDIUM, [=]() {
       prevTab();
       return 0;
     });
+    stylePageGroupControl(prevBtn->getLvObj());
+    if (auto ic = lv_obj_get_child(prevBtn->getLvObj(), 0)) {
+      lv_obj_set_style_img_recolor_opa(ic, LV_OPA_COVER, LV_PART_MAIN);
+      lv_obj_set_style_img_recolor(ic, lv_color_white(), LV_PART_MAIN);
+    }
 
     nextBtn = new IconButton(this, ICON_BTN_NEXT, LCD_W - PageGroup::PAGE_GROUP_BACK_BTN_W * 2, PAD_MEDIUM, [=]() {
       nextTab();
       return 0;
     });
+    stylePageGroupControl(nextBtn->getLvObj());
+    if (auto ic = lv_obj_get_child(nextBtn->getLvObj(), 0)) {
+      lv_obj_set_style_img_recolor_opa(ic, LV_OPA_COVER, LV_PART_MAIN);
+      lv_obj_set_style_img_recolor(ic, lv_color_white(), LV_PART_MAIN);
+    }
 #endif
   }
 

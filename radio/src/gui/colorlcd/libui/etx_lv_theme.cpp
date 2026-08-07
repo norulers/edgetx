@@ -175,7 +175,7 @@ const lv_style_const_prop_t border_thin_props[] = {
 LV_STYLE_CONST_MULTI_INIT(EdgeTxStyles::border_thin, border_thin_props);
 
 static const lv_style_const_prop_t outline_props[] = {
-    LV_STYLE_CONST_OUTLINE_WIDTH(PAD_OUTLINE),
+    LV_STYLE_CONST_OUTLINE_WIDTH(0),
     LV_STYLE_CONST_OUTLINE_OPA(LV_OPA_COVER),
     LV_STYLE_CONST_OUTLINE_PAD(1),
     LV_STYLE_PROP_INV,
@@ -253,6 +253,9 @@ EdgeTxStyles::EdgeTxStyles()
   lv_style_init(&outline_color_normal);
   lv_style_init(&outline_color_focus);
   lv_style_init(&outline_color_edit);
+  lv_style_init(&ctrl_shadow);
+  lv_style_init(&page_body_grad);
+  lv_style_init(&header_grad);
   lv_style_init(&graph_border);
   lv_style_init(&graph_dashed);
   lv_style_init(&graph_line);
@@ -356,6 +359,25 @@ void EdgeTxStyles::applyColors()
                              makeLvColor(COLOR_THEME_FOCUS));
   lv_style_set_outline_color(&outline_color_edit,
                              makeLvColor(COLOR_THEME_EDIT));
+
+  // Control drop shadow (lifts controls off the dark QM background)
+  lv_style_set_shadow_width(&ctrl_shadow, 8);
+  lv_style_set_shadow_ofs_x(&ctrl_shadow, 0);
+  lv_style_set_shadow_ofs_y(&ctrl_shadow, 3);
+  lv_style_set_shadow_spread(&ctrl_shadow, 0);
+  lv_style_set_shadow_color(&ctrl_shadow, lv_color_black());
+  lv_style_set_shadow_opa(&ctrl_shadow, LV_OPA_30);
+
+  // Page body vertical gradient: QM_BG at top -> slightly darker at bottom
+  lv_color_t qm_bg = makeLvColor(COLOR_THEME_QM_BG);
+  lv_style_set_bg_grad_dir(&page_body_grad, LV_GRAD_DIR_VER);
+  lv_style_set_bg_grad_color(&page_body_grad, lv_color_darken(qm_bg, 50));
+
+  // Header gradient: slightly lighter at top -> QM_BG at bottom
+  lv_style_set_bg_grad_dir(&header_grad, LV_GRAD_DIR_VER);
+  lv_style_set_bg_color(&header_grad, lv_color_lighten(qm_bg, 30));
+  lv_style_set_bg_grad_color(&header_grad, qm_bg);
+  lv_style_set_bg_opa(&header_grad, LV_OPA_COVER);
 }
 
 static EdgeTxStyles* mainStyles = nullptr;
@@ -573,6 +595,8 @@ void etx_std_ctrl_colors(lv_obj_t* obj, lv_style_selector_t selector)
   etx_solid_bg(obj, COLOR_THEME_PRIMARY2_INDEX, selector);
   etx_txt_color(obj, COLOR_THEME_SECONDARY1_INDEX, selector);
 
+  etx_obj_add_style(obj, styles->ctrl_shadow, selector);
+
   etx_obj_add_style(obj, styles->border_color[COLOR_THEME_FOCUS_INDEX],
                     selector | LV_STATE_FOCUSED);
 
@@ -676,7 +700,7 @@ static void textarea_constructor(const lv_obj_class_t* class_p, lv_obj_t* obj)
   lv_textarea_set_one_line(obj, true);
 
   lv_textarea_t* ta = (lv_textarea_t*)obj;
-  lv_obj_set_height(ta->label, EdgeTxStyles::UI_ELEMENT_HEIGHT * 21 / 32);
+  lv_obj_set_height(ta->label, EdgeTxStyles::STD_FONT_HEIGHT);
 }
 
 static const lv_obj_class_t textarea_class = {

@@ -1,7 +1,7 @@
 include(CMakeForceCompiler)
 include(Bitmaps)
 
-set(PCB_TYPES X9LITE X9LITES X7 XLITE XLITES X9D X9D+ X9E X10 X12S PL18 T15PRO ST16 PA01 TX15 TX16SMK3 T22 V12)
+set(PCB_TYPES X9LITE X9LITES X7 XLITE XLITES X9D X9D+ X9E X10 X12S PL18 T15PRO ST16 PA01 TX15 TX16SMK3 T22 H750DEV V12)
 set(RADIO_LANGUAGES CN CZ DA DE EN ES FI FR HE HU IT JP KO NL PL PT RU SE SK TW UA)
 set(TTS_LANGUAGES CN CZ DA DE EN ES FI FR HE HU IT JP KO NL PL PT RU SE SK TW UA)
 
@@ -9,6 +9,10 @@ set(PCB "X9D+" CACHE STRING "Radio type, one of: ${PCB_TYPES}")
 set_property(CACHE PCB PROPERTY STRINGS ${PCB_TYPES})
 set(TRANSLATIONS "EN" CACHE STRING "Radio language, one of: ${RADIO_LANGUAGES}")
 set_property(CACHE TRANSLATIONS PROPERTY STRINGS ${RADIO_LANGUAGES})
+set(FONT_FAMILY "Roboto" CACHE STRING "UI font family, one of: Roboto Orbitron")
+set_property(CACHE FONT_FAMILY PROPERTY STRINGS Roboto Orbitron)
+set(FONT_CN_FAMILY "Noto" CACHE STRING "Chinese font family, one of: Noto LXGW SmileySans")
+set_property(CACHE FONT_CN_FAMILY PROPERTY STRINGS Noto LXGW SmileySans)
 set(DEFAULT_MODE "" CACHE STRING "Default sticks mode")
 set(POPUP_LEVEL 2 CACHE STRING "Popup level")
 
@@ -103,10 +107,12 @@ elseif(PCB STREQUAL V12)
   include(targets/v12/CMakeLists.txt)
 elseif(PCB STREQUAL TX15)
   include(targets/tx15/CMakeLists.txt)
-elseif(PCB STREQUAL TX16SMK3)
-    include(targets/tx16smk3/CMakeLists.txt)
 elseif(PCB STREQUAL T22)
   include(targets/t22/CMakeLists.txt)
+elseif(PCB STREQUAL TX16SMK3)
+    include(targets/tx16smk3/CMakeLists.txt)
+elseif(PCB STREQUAL H750DEV)
+  include(targets/h750dev/CMakeLists.txt)
 elseif(PCB STREQUAL STM32H7S78_DK)
   include(targets/stm32h7s78-dk/CMakeLists.txt)
 elseif(PCB STREQUAL X9E OR PCB STREQUAL X9D+ OR PCB STREQUAL X9D OR PCB STREQUAL X7 OR PCB STREQUAL X9LITE OR PCB STREQUAL X9LITES OR PCB STREQUAL XLITE OR PCB STREQUAL XLITES)
@@ -196,6 +202,23 @@ foreach(LANGUAGE ${RADIO_LANGUAGES})
     add_definitions(-DTRANSLATIONS_${LANGUAGE} -DTRANSLATIONS="${LANGUAGE}")
   endif()
 endforeach()
+
+if(FONT_FAMILY STREQUAL "Orbitron")
+  add_definitions(-DFONT_FAMILY_ORBITRON)
+  message(STATUS "UI font family: Orbitron")
+else()
+  message(STATUS "UI font family: Roboto (default)")
+endif()
+
+if(FONT_CN_FAMILY STREQUAL "LXGW")
+  add_definitions(-DFONT_CN_FAMILY_LXGW)
+  message(STATUS "CN font family: LXGW NeoXiHei")
+elseif(FONT_CN_FAMILY STREQUAL "SmileySans")
+  add_definitions(-DFONT_CN_FAMILY_SMILEYSANS)
+  message(STATUS "CN font family: Smiley Sans")
+else()
+  message(STATUS "CN font family: Noto (default)")
+endif()
 
 set(RTL_LANGUAGES HE)
 if(TRANSLATIONS IN_LIST RTL_LANGUAGES)
@@ -747,6 +770,17 @@ endif()
 if (DEFINED TARGET_PSRAM_START)
   target_link_options(firmware PRIVATE
     -Wl,--defsym=__PSRAM_START__=${TARGET_PSRAM_START}
+  )
+endif()
+
+# When Orbitron is selected, all language *_STD font files have a compile-time
+# reference to lv_font_en_STD (hardcoded by lv_font_conv --lv-fallback).
+# Create a linker alias so lv_font_en_STD resolves to lv_font_ob_STD, which
+# means no duplicate Roboto glyph data is linked in. The runtime proxy in
+# fonts.cpp also sets the correct fallback chain after boot.
+if(FONT_FAMILY STREQUAL "Orbitron")
+  target_link_options(firmware PRIVATE
+    -Wl,--defsym=lv_font_en_STD=lv_font_ob_STD
   )
 endif()
 

@@ -581,6 +581,7 @@ void ThemeSetupPage::setupListbox(Window *window, rect_t r,
                                   ThemePersistance *tp)
 {
   listBox = new ListBox(window, r, tp->getNames());
+  stylePageGroupControl(listBox->getLvObj());
   etx_scrollbar(listBox->getLvObj());
   listBox->setAutoEdit();
   listBox->setSelected(currentTheme);
@@ -656,8 +657,10 @@ void ThemeSetupPage::build(Window *window)
 
   // author and name of theme on right side of screen
   nameText = new StaticText(rw, r, "");
+  etx_txt_color(nameText->getLvObj(), COLOR_THEME_QM_FG_INDEX);
   lv_label_set_long_mode(nameText->getLvObj(), LV_LABEL_LONG_DOT);
   authorText = new StaticText(rw, r, "");
+  etx_txt_color(authorText->getLvObj(), COLOR_THEME_QM_FG_INDEX);
   lv_label_set_long_mode(authorText->getLvObj(), LV_LABEL_LONG_DOT);
 
   setName(theme);

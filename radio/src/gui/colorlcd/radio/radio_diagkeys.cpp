@@ -23,6 +23,8 @@
 
 #include "hal/rotary_encoder.h"
 #include "edgetx.h"
+#include "pagegroup.h"
+#include "timer_setup.h"
 
 #if defined(RADIO_PL18U)
   static const uint8_t _trimMap[MAX_TRIMS * 2] = {6, 7, 4, 5, 2, 3, 0, 1,
@@ -67,7 +69,10 @@ class RadioKeyDiagsWindow : public Window
 
     if (keysGetMaxKeys() > 0) {
       form = new Window(parent, rect_t{x, PAD_MEDIUM, colWidth, colHeight});
-      etx_txt_color(form->getLvObj(), COLOR_THEME_PRIMARY1_INDEX);
+      stylePageGroupControl(form->getLvObj());
+      lv_obj_set_style_bg_color(form->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+      lv_obj_set_style_bg_opa(form->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+      lv_obj_set_style_text_color(form->getLvObj(), lv_color_white(), LV_PART_MAIN);
       addKeys(form);
       x += colWidth + PAD_MEDIUM;
     } else {
@@ -75,12 +80,18 @@ class RadioKeyDiagsWindow : public Window
     }
 
     form = new Window(parent, rect_t{x, PAD_MEDIUM, colWidth, colHeight});
-    etx_txt_color(form->getLvObj(), COLOR_THEME_PRIMARY1_INDEX);
+    stylePageGroupControl(form->getLvObj());
+    lv_obj_set_style_bg_color(form->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(form->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_text_color(form->getLvObj(), lv_color_white(), LV_PART_MAIN);
     addSwitches(form);
     x += colWidth + PAD_MEDIUM;
 
     form = new Window(parent, rect_t{x, PAD_MEDIUM, colWidth, colHeight});
-    etx_txt_color(form->getLvObj(), COLOR_THEME_PRIMARY1_INDEX);
+    stylePageGroupControl(form->getLvObj());
+    lv_obj_set_style_bg_color(form->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(form->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_text_color(form->getLvObj(), lv_color_white(), LV_PART_MAIN);
     addTrims(form);
   }
 
@@ -129,12 +140,17 @@ class RadioKeyDiagsWindow : public Window
     uint8_t i;
     uint8_t row = 0;
 
-    // SWITCHES
+    int maxRows = form->height() / EdgeTxStyles::STD_FONT_HEIGHT;
+    coord_t subColW = form->width() / 2;
+
+    // SWITCHES - wrap into second sub-column if rows exceed visible height
     for (i = 0; i < switchGetMaxAllSwitches(); i++) {
       if (SWITCH_EXISTS(i) && !switchIsCustomSwitch(i)) {
+        coord_t col_x = (row >= maxRows) ? subColW : 0;
+        coord_t col_row = (row >= maxRows) ? row - maxRows : row;
         auto lbl = etx_label_create(obj);
         lv_label_set_text(lbl, "");
-        lv_obj_set_pos(lbl, 0, row * EdgeTxStyles::STD_FONT_HEIGHT);
+        lv_obj_set_pos(lbl, col_x, col_row * EdgeTxStyles::STD_FONT_HEIGHT);
         switchValues[i] = lbl;
         row += 1;
       }
@@ -252,4 +268,32 @@ RadioKeyDiagsPage::RadioKeyDiagsPage() : Page(ICON_MODEL_SETUP)
 {
   buildHeader(header);
   buildBody(body);
+
+  // Dark FPV header: hide original canvas icons, place new ones with orange color
+  for (uint32_t i = 0; i < lv_obj_get_child_cnt(header->getLvObj()); i++) {
+    auto child = lv_obj_get_child(header->getLvObj(), i);
+    if (lv_obj_check_type(child, &lv_canvas_class))
+      lv_obj_add_flag(child, LV_OBJ_FLAG_HIDDEN);
+  }
+  auto leftBg = new StaticIcon(header, 0, 0, ICON_TOPLEFT_BG, COLOR_THEME_PRIMARY2_INDEX);
+  lv_obj_set_style_img_recolor_opa(leftBg->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_img_recolor(leftBg->getLvObj(), lv_color_make(0x22, 0x22, 0x22), LV_PART_MAIN);
+  leftBg->setTop((EdgeTxStyles::MENU_HEADER_HEIGHT - leftBg->height()) / 2);
+  auto leftIco = new StaticIcon(leftBg, 0, 0, ICON_MODEL_SETUP, COLOR_THEME_PRIMARY2_INDEX);
+  lv_obj_set_style_img_recolor_opa(leftIco->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_img_recolor(leftIco->getLvObj(), lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN);
+  leftIco->center(leftBg->width() + PAD_MEDIUM, leftBg->height());
+  auto rightBg = new StaticIcon(header, LCD_W, 0, ICON_TOPRIGHT_BG, COLOR_THEME_PRIMARY2_INDEX);
+  lv_obj_set_style_img_recolor_opa(rightBg->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_img_recolor(rightBg->getLvObj(), lv_color_make(0x22, 0x22, 0x22), LV_PART_MAIN);
+  rightBg->setPos(LCD_W - rightBg->width(), (EdgeTxStyles::MENU_HEADER_HEIGHT - rightBg->height()) / 2);
+  auto rightIco = new StaticIcon(rightBg, 0, 0, ICON_BTN_CLOSE, COLOR_THEME_PRIMARY2_INDEX);
+  lv_obj_set_style_img_recolor_opa(rightIco->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_img_recolor(rightIco->getLvObj(), lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN);
+  rightIco->center(rightBg->width() + PAD_MEDIUM, rightBg->height());
+
+  // Dark FPV theme
+  lv_obj_set_style_bg_color(body->getLvObj(), lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(body->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_text_color(body->getLvObj(), lv_color_white(), LV_PART_MAIN);
 }

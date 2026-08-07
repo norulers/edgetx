@@ -67,6 +67,7 @@ ChoiceBase::ChoiceBase(Window* parent, const rect_t& rect,
 
   // Add label
   label = etx_label_create(lvobj);
+  etx_txt_color(label, COLOR_THEME_SECONDARY1_INDEX);
   lv_obj_set_pos(label, type == CHOICE_TYPE_DROPOWN ? ICON_W - 2 : ICON_W, PAD_TINY);
   etx_font(label, FONT_XS_INDEX, LV_STATE_USER_1);
 }
@@ -107,7 +108,12 @@ void ChoiceBase::update()
       std::string s = getLabelText();
       if (width() > 0) {
         int w = width() - (type == CHOICE_TYPE_DROPOWN ? ICON_W - 2 : ICON_W) - PAD_TINY * 3;
-        if (getTextWidth(s.c_str(), 0, FONT(STD)) > w)
+        lv_obj_set_width(label, w);
+        lv_label_set_long_mode(label, LV_LABEL_LONG_CLIP);
+        auto font = lv_obj_get_style_text_font(label, LV_PART_MAIN);
+        auto letterSpace = lv_obj_get_style_text_letter_space(label, LV_PART_MAIN);
+        int textWidth = lv_txt_get_width(s.c_str(), s.size(), font, letterSpace, LV_TEXT_FLAG_EXPAND);
+        if (textWidth > w)
           lv_obj_add_state(label, LV_STATE_USER_1);
         else
           lv_obj_clear_state(label, LV_STATE_USER_1);
@@ -152,6 +158,7 @@ void Choice::setValues(std::vector<std::string> values)
 {
   this->values.clear();
   this->values = std::move(values);
+  vmax = vmin + (int)this->values.size() - 1;  // update range
   currentValue = INT_MAX; // Force update
   update();
 }
@@ -195,12 +202,13 @@ void Choice::fillMenu(Menu* menu, const FilterFct& filter)
   for (int i = vmin; i <= vmax; ++i) {
     if (filter && !filter(i)) continue;
     if (isValueAvailable && !isValueAvailable(inverted ? -i : i)) continue;
+    auto onFocus = [=]() { if (selectionHandler) selectionHandler(i); };
     if (textHandler) {
-      menu->addLineBuffered(textHandler(i), [=]() { setValue(i); });
+      menu->addLineBuffered(textHandler(i), [=]() { setValue(i); }, nullptr, onFocus);
     } else if (unsigned(i - vmin) < values.size()) {
-      menu->addLineBuffered(values[i - vmin], [=]() { setValue(i); });
+      menu->addLineBuffered(values[i - vmin], [=]() { setValue(i); }, nullptr, onFocus);
     } else {
-      menu->addLineBuffered(std::to_string(i), [=]() { setValue(i); });
+      menu->addLineBuffered(std::to_string(i), [=]() { setValue(i); }, nullptr, onFocus);
     }
     if (value == i) {
       selectedIx = count;

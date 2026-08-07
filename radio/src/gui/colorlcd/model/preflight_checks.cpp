@@ -101,8 +101,8 @@ class SwitchWarnMatrix : public ButtonMatrix
     setChecked(btn_id);
   }
 
-  static LAYOUT_SIZE(SW_BTNS, 8, 4)
-  static LAYOUT_SIZE_SCALED(SW_BTN_W, 56, 72)
+  static LAYOUT_SIZE(SW_BTNS, 6, 4)
+  static LAYOUT_SIZE_SCALED(SW_BTN_W, 72, 72)
   static LAYOUT_VAL_SCALED(SW_BTN_H, 36)
 
  private:

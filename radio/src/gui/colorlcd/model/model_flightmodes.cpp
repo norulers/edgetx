@@ -30,6 +30,7 @@
 #include "page.h"
 #include "switchchoice.h"
 #include "textedit.h"
+#include "timer_setup.h"
 
 #define SET_DIRTY() storageDirty(EE_MODEL)
 
@@ -69,7 +70,7 @@ class TrimEdit : public Window
     setWindowFlag(NO_FOCUS);
 
     padAll(PAD_TINY);
-    setFlexLayout(LV_FLEX_FLOW_ROW, PAD_SMALL, LV_SIZE_CONTENT);
+    setFlexLayout(LV_FLEX_FLOW_ROW, PAD_TINY, LV_SIZE_CONTENT);
 
     trim_t* tr = &g_model.flightModeData[fmId].trim[trimId];
 
@@ -84,6 +85,7 @@ class TrimEdit : public Window
           SET_DIRTY();
           return tr->mode == 0;
         });
+    applyDarkBtnStyle(tr_btn->getLvObj());
 
     if (tr->mode != TRIM_MODE_NONE) tr_btn->check();
 
@@ -93,6 +95,7 @@ class TrimEdit : public Window
                            showControls();
                            SET_DIRTY();
                          });
+    applyDarkBtnStyle(tr_mode->getLvObj());
     tr_mode->setTextHandler(
         [=](uint8_t mode) { return getFMTrimStr(mode, true); });
     tr_mode->setAvailableHandler([=](int mode) {
@@ -105,11 +108,12 @@ class TrimEdit : public Window
     tr_value = new NumberEdit(
         this, rect_t{0, 0, EdgeTxStyles::EDIT_FLD_WIDTH_NARROW, 0}, g_model.extendedTrims ? -512 : -128,
         g_model.extendedTrims ? 512 : 128, GET_SET_DEFAULT(tr->value));
+    applyDarkBtnStyle(tr_value->getLvObj());
 
     showControls();
   }
 
-  static LAYOUT_VAL_SCALED(TR_BTN_W, 65)
+  static LAYOUT_VAL_SCALED(TR_BTN_W, 58)
 
  protected:
   int trimId;
@@ -149,6 +153,11 @@ class FlightModeEdit : public Page
     header->setTitle(STR_MENUFLIGHTMODES);
     header->setTitle2(title2);
 
+    // Dark FPV theme background
+    lv_obj_set_style_bg_color(body->getLvObj(), lv_color_make(0x18, 0x18, 0x18),
+                              LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(body->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+
     FlexGridLayout grid(line_col_dsc, line_row_dsc, PAD_TINY);
     body->setFlexLayout();
 
@@ -156,32 +165,61 @@ class FlightModeEdit : public Page
 
     // Flight mode name
     auto line = body->newLine(grid);
-    new StaticText(line, rect_t{}, STR_NAME);
-    new ModelTextEdit(line, rect_t{}, p_fm->name, LEN_FLIGHT_MODE_NAME);
+    lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28),
+                              LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    line->padAll(PAD_SMALL);
+    auto lbl = new StaticText(line, rect_t{}, STR_NAME);
+    lv_obj_set_style_text_color(lbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
+    auto te = new ModelTextEdit(line, rect_t{}, p_fm->name, LEN_FLIGHT_MODE_NAME);
+    applyDarkBtnStyle(te->getLvObj());
 
     if (index > 0) {
       // Switch
       line = body->newLine(grid);
-      new StaticText(line, rect_t{}, STR_SWITCH);
-      new SwitchChoice(line, rect_t{}, SWSRC_FIRST_IN_MIXES,
+      lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28),
+                                LV_PART_MAIN);
+      lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+      line->padAll(PAD_SMALL);
+      lbl = new StaticText(line, rect_t{}, STR_SWITCH);
+      lv_obj_set_style_text_color(lbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
+      auto sw = new SwitchChoice(line, rect_t{}, SWSRC_FIRST_IN_MIXES,
                        SWSRC_LAST_IN_MIXES, GET_SET_DEFAULT(p_fm->swtch));
+      applyDarkBtnStyle(sw->getLvObj());
     }
 
     // Fade in
     line = body->newLine(grid);
-    new StaticText(line, rect_t{}, STR_FADEIN);
-    new NumberEdit(line, rect_t{}, 0, DELAY_MAX, GET_DEFAULT(p_fm->fadeIn),
+    lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28),
+                              LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    line->padAll(PAD_SMALL);
+    lbl = new StaticText(line, rect_t{}, STR_FADEIN);
+    lv_obj_set_style_text_color(lbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
+    auto fi = new NumberEdit(line, rect_t{}, 0, DELAY_MAX, GET_DEFAULT(p_fm->fadeIn),
                    SET_VALUE(p_fm->fadeIn, newValue), PREC1);
+    applyDarkBtnStyle(fi->getLvObj());
 
     // Fade out
     line = body->newLine(grid);
-    new StaticText(line, rect_t{}, STR_FADEOUT);
-    new NumberEdit(line, rect_t{}, 0, DELAY_MAX, GET_DEFAULT(p_fm->fadeOut),
+    lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28),
+                              LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    line->padAll(PAD_SMALL);
+    lbl = new StaticText(line, rect_t{}, STR_FADEOUT);
+    lv_obj_set_style_text_color(lbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
+    auto fo = new NumberEdit(line, rect_t{}, 0, DELAY_MAX, GET_DEFAULT(p_fm->fadeOut),
                    SET_VALUE(p_fm->fadeOut, newValue), PREC1);
+    applyDarkBtnStyle(fo->getLvObj());
 
     // Trims
     line = body->newLine(grid);
-    new StaticText(line, rect_t{}, STR_TRIMS);
+    lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28),
+                              LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    line->padAll(PAD_SMALL);
+    lbl = new StaticText(line, rect_t{}, STR_TRIMS);
+    lv_obj_set_style_text_color(lbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
 
     FlexGridLayout trim_grid(trims_col_dsc, line_row_dsc, PAD_SMALL);
 
@@ -189,11 +227,38 @@ class FlightModeEdit : public Page
       if ((t % TRIMS_PER_LINE) == 0) {
         line = body->newLine(trim_grid);
         line->padAll(PAD_TINY);
-        line->padLeft(10);
       }
 
       new TrimEdit(line, t, index);
     }
+
+    // Style header icon to match model setup FPV theme (dark bg + orange icon)
+    lv_obj_t* hdr = header->getLvObj();
+    // Hide original canvas-based HeaderIcon/HeaderBackIcon
+    for (uint32_t i = 0; i < lv_obj_get_child_cnt(hdr); i++) {
+      auto child = lv_obj_get_child(hdr, i);
+      if (lv_obj_check_type(child, &lv_canvas_class))
+        lv_obj_add_flag(child, LV_OBJ_FLAG_HIDDEN);
+    }
+    // Left: dark bg shape + orange flight modes icon
+    auto leftBg = new StaticIcon(header, 0, 0, ICON_TOPLEFT_BG, COLOR_THEME_PRIMARY2_INDEX);
+    lv_obj_set_style_img_recolor_opa(leftBg->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_img_recolor(leftBg->getLvObj(), lv_color_make(0x22, 0x22, 0x22), LV_PART_MAIN);
+    leftBg->setTop((EdgeTxStyles::MENU_HEADER_HEIGHT - leftBg->height()) / 2);
+    auto leftIco = new StaticIcon(leftBg, 0, 0, ICON_MODEL_FLIGHT_MODES, COLOR_THEME_PRIMARY2_INDEX);
+    lv_obj_set_style_img_recolor_opa(leftIco->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_img_recolor(leftIco->getLvObj(), lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN);
+    leftIco->center(leftBg->width() + PAD_MEDIUM, leftBg->height());
+    // Right: dark bg shape + orange close icon
+    auto rightBg = new StaticIcon(header, LCD_W, 0, ICON_TOPRIGHT_BG, COLOR_THEME_PRIMARY2_INDEX);
+    lv_obj_set_style_img_recolor_opa(rightBg->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_img_recolor(rightBg->getLvObj(), lv_color_make(0x22, 0x22, 0x22), LV_PART_MAIN);
+    rightBg->setPos(LCD_W - rightBg->width(),
+                    (EdgeTxStyles::MENU_HEADER_HEIGHT - rightBg->height()) / 2);
+    auto rightIco = new StaticIcon(rightBg, 0, 0, ICON_BTN_CLOSE, COLOR_THEME_PRIMARY2_INDEX);
+    lv_obj_set_style_img_recolor_opa(rightIco->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_img_recolor(rightIco->getLvObj(), lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN);
+    rightIco->center(rightBg->width() + PAD_MEDIUM, rightBg->height());
   }
 
   static LAYOUT_SIZE(TRIMS_PER_LINE, 2, 1)
@@ -209,6 +274,7 @@ class FlightModeBtn : public ListLineButton
   {
     padAll(PAD_ZERO);
     setHeight(BTN_H);
+    applyDarkBtnStyle(lvobj);
 
     delayLoad();
   }
@@ -317,7 +383,7 @@ class FlightModeBtn : public ListLineButton
   static LAYOUT_SIZE(MAX_FMTRIMS, 6, 4)
   static constexpr coord_t FMID_X = PAD_TINY;
   static LAYOUT_SIZE_SCALED(FMID_Y, 6, 16)
-  static LAYOUT_SIZE_SCALED(FMID_W, 36, 46)
+  static LAYOUT_SIZE_SCALED(FMID_W, 40, 46)
   static constexpr coord_t NAME_X = FMID_X + FMID_W + PAD_TINY;
   static LAYOUT_SIZE_SCALED(NAME_Y, 6, 0)
   static LAYOUT_SIZE_SCALED(NAME_W, 95, 160)
@@ -356,6 +422,7 @@ class FlightModeBtn : public ListLineButton
 static void fm_id_constructor(const lv_obj_class_t* class_p, lv_obj_t* obj)
 {
   etx_obj_add_style(obj, styles->text_align_left, LV_PART_MAIN);
+  lv_label_set_long_mode(obj, LV_LABEL_LONG_CLIP);
 }
 
 const lv_obj_class_t FlightModeBtn::fm_id_class = {
@@ -375,6 +442,7 @@ static void fm_name_constructor(const lv_obj_class_t* class_p, lv_obj_t* obj)
 {
   etx_obj_add_style(obj, styles->text_align_left, LV_PART_MAIN);
   etx_font(obj, FONT_XS_INDEX);
+  lv_label_set_long_mode(obj, LV_LABEL_LONG_CLIP);
 }
 
 const lv_obj_class_t FlightModeBtn::fm_name_class = {
@@ -393,6 +461,7 @@ const lv_obj_class_t FlightModeBtn::fm_name_class = {
 static void fm_switch_constructor(const lv_obj_class_t* class_p, lv_obj_t* obj)
 {
   etx_obj_add_style(obj, styles->text_align_left, LV_PART_MAIN);
+  lv_label_set_long_mode(obj, LV_LABEL_LONG_CLIP);
 }
 
 const lv_obj_class_t FlightModeBtn::fm_switch_class = {
@@ -411,6 +480,7 @@ const lv_obj_class_t FlightModeBtn::fm_switch_class = {
 static void fm_fade_constructor(const lv_obj_class_t* class_p, lv_obj_t* obj)
 {
   etx_obj_add_style(obj, styles->text_align_right, LV_PART_MAIN);
+  lv_label_set_long_mode(obj, LV_LABEL_LONG_CLIP);
 }
 
 const lv_obj_class_t FlightModeBtn::fm_fade_class = {
@@ -430,6 +500,7 @@ static void fm_trim_mode_constructor(const lv_obj_class_t* class_p,
                                      lv_obj_t* obj)
 {
   etx_obj_add_style(obj, styles->text_align_center, LV_PART_MAIN);
+  lv_label_set_long_mode(obj, LV_LABEL_LONG_CLIP);
 }
 
 const lv_obj_class_t FlightModeBtn::fm_trim_mode_class = {
@@ -450,6 +521,7 @@ static void fm_trim_value_constructor(const lv_obj_class_t* class_p,
 {
   etx_obj_add_style(obj, styles->text_align_center, LV_PART_MAIN);
   etx_font(obj, FONT_XS_INDEX);
+  lv_label_set_long_mode(obj, LV_LABEL_LONG_CLIP);
 }
 
 const lv_obj_class_t FlightModeBtn::fm_trim_value_class = {
@@ -477,6 +549,50 @@ static const lv_coord_t fmt_row_dsc[] = {LV_GRID_CONTENT,
 
 void ModelFlightModesPage::build(Window* form)
 {
+  // Style header icon to match flight modes FPV theme
+  Window* pg = form->getParent();
+  if (pg) {
+    for (uint32_t i = 0; i < lv_obj_get_child_cnt(pg->getLvObj()); i++) {
+      auto child = lv_obj_get_child(pg->getLvObj(), i);
+      bool isHeader = false;
+      for (uint32_t j = 0; j < lv_obj_get_child_cnt(child); j++) {
+        if (lv_obj_check_type(lv_obj_get_child(child, j), &lv_canvas_class)) {
+          isHeader = true;
+          break;
+        }
+      }
+      if (isHeader) {
+        auto hdrWin = (Window*)lv_obj_get_user_data(child);
+        // Hide original canvas-based icons
+        for (uint32_t k = 0; k < lv_obj_get_child_cnt(child); k++) {
+          auto hc = lv_obj_get_child(child, k);
+          if (lv_obj_check_type(hc, &lv_canvas_class))
+            lv_obj_add_flag(hc, LV_OBJ_FLAG_HIDDEN);
+        }
+        // Left: dark bg + orange flight modes icon
+        auto leftBg = new StaticIcon(hdrWin, 0, 0, ICON_TOPLEFT_BG, COLOR_THEME_PRIMARY2_INDEX);
+        lv_obj_set_style_img_recolor_opa(leftBg->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+        lv_obj_set_style_img_recolor(leftBg->getLvObj(), lv_color_make(0x22, 0x22, 0x22), LV_PART_MAIN);
+        leftBg->setTop((EdgeTxStyles::MENU_HEADER_HEIGHT - leftBg->height()) / 2);
+        auto leftIco = new StaticIcon(leftBg, 0, 0, ICON_MODEL_FLIGHT_MODES, COLOR_THEME_PRIMARY2_INDEX);
+        lv_obj_set_style_img_recolor_opa(leftIco->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+        lv_obj_set_style_img_recolor(leftIco->getLvObj(), lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN);
+        leftIco->center(leftBg->width() + PAD_MEDIUM, leftBg->height());
+        // Right: dark bg + orange close icon
+        auto rightBg = new StaticIcon(hdrWin, LCD_W, 0, ICON_TOPRIGHT_BG, COLOR_THEME_PRIMARY2_INDEX);
+        lv_obj_set_style_img_recolor_opa(rightBg->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+        lv_obj_set_style_img_recolor(rightBg->getLvObj(), lv_color_make(0x22, 0x22, 0x22), LV_PART_MAIN);
+        rightBg->setPos(LCD_W - rightBg->width(),
+                        (EdgeTxStyles::MENU_HEADER_HEIGHT - rightBg->height()) / 2);
+        auto rightIco = new StaticIcon(rightBg, 0, 0, ICON_BTN_CLOSE, COLOR_THEME_PRIMARY2_INDEX);
+        lv_obj_set_style_img_recolor_opa(rightIco->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+        lv_obj_set_style_img_recolor(rightIco->getLvObj(), lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN);
+        rightIco->center(rightBg->width() + PAD_MEDIUM, rightBg->height());
+        break;
+      }
+    }
+  }
+
   form->padAll(PAD_ZERO);
   form->padBottom(PAD_LARGE);
 
@@ -499,6 +615,7 @@ void ModelFlightModesPage::build(Window* form)
           trimsCheckTimer = 200;  // 2 seconds trims cancelled
         return trimsCheckTimer;
       });
+  applyDarkBtnStyle(trimCheck->getLvObj());
 }
 
 void ModelFlightModesPage::checkEvents()
