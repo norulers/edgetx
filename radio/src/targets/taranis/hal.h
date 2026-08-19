@@ -754,7 +754,7 @@
   #define BACKLIGHT_CCMR1               TIM_CCMR1_OC1M_1 | TIM_CCMR1_OC1M_2 // Channel 1, PWM
   #define BACKLIGHT_CCER                TIM_CCER_CC1E
   #define BACKLIGHT_COUNTER_REGISTER    BACKLIGHT_TIMER->CCR1
-#elif defined(RADIO_T8) || defined(RADIO_TPROV2) || defined(RADIO_TPROS) || defined(RADIO_FAMILY_T20) || defined(RADIO_T14) || defined(RADIO_BUMBLEBEE) || defined(RADIO_GX12)
+#elif defined(RADIO_T8) || defined(RADIO_TPROV2) || defined(RADIO_TPROS) || defined(RADIO_FAMILY_T20) || defined(RADIO_T14) || defined(RADIO_BUMBLEBEE) || defined(RADIO_GX12) || defined(RADIO_V14)
   // No backlight: OLED display
 #elif defined(RADIO_COMMANDO8)
   #define BACKLIGHT_TIMER_FREQ          (PERI1_FREQUENCY * TIMER_MULT_APB1)
@@ -973,6 +973,17 @@
   #else
     #define AUDIO_UNMUTE_DELAY          150  // ms
   #endif
+#endif
+
+#if defined(RADIO_MT12)
+  #define SERVO_PWM
+  #define PWM_GPIO                   GPIO_PIN(GPIOB, 0) // PB.00
+  #define PWM_GPIO_AF                GPIO_AF2
+  #define PWM_GPIO_TIMER             TIM3 // Timer 3 Channel3
+  #define PWM_TIMER_FREQ             (PERI2_FREQUENCY * TIMER_MULT_APB2)
+  #define PWM_COUNTER_REGISTER       PWM_TIMER->CCR3
+  #define PWM_CCMR2                  TIM_CCMR2_OC3M_1 | TIM_CCMR2_OC3M_2
+  #define PWM_CCER                   TIM_CCER_CC3E
 #endif
 
 #if defined(RADIO_BOXER) || defined(RADIO_FAMILY_T20) || defined(RADIO_X9DP2019) || defined (RADIO_V14) || defined(RADIO_V14LCD) || defined(RADIO_GX12)

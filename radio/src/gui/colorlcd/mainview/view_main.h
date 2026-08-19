@@ -45,7 +45,7 @@ class ViewMain : public NavWindow
   void addMainView(WidgetsContainer* view, uint32_t viewId);
 
   void updateTopbarVisibility();
-  bool enableWidgetSelect(bool enable);
+  void enableWidgetSelect(bool enable);
 
   unsigned getMainViewsCount() const;
   unsigned getCurrentMainView() const;
@@ -81,15 +81,13 @@ class ViewMain : public NavWindow
   TopBar* topbar = nullptr;
   BottomDock* dock = nullptr;
   bool widget_select = false;
-  lv_timer_t* widget_select_timer = nullptr;
+  tmr10ms_t widgetSelectCancelTime = 0;
 
   // Set topbar visibility [0.0 -> 1.0]
   void setTopbarVisible(float visible);
   void setEdgeTxButtonVisible(float visible);
 
   void _refreshWidgets();
-
-  static void ws_timer(lv_timer_t* t);
 
 #if defined(HARDWARE_KEYS)
   void doKeyShortcut(event_t event) override;

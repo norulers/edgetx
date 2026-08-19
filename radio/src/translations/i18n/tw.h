@@ -241,6 +241,7 @@
 #define TR_SF_SCREENSHOT               "截屏"
 #define TR_SF_RACING_MODE              "競速模式"
 #define TR_SF_DISABLE_TOUCH            "禁用觸摸"
+#define TR_SF_DISABLE_KEYS             "No Keys"
 #define TR_SF_DISABLE_AUDIO_AMP        "關閉音頻功放"
 #define TR_SF_SET_SCREEN               TR_BW_COL("設置主屏", "選擇主屏")
 #define TR_SF_PUSH_CUST_SWITCH         "Push CS"
@@ -574,8 +575,11 @@
 #define TR_ONE_LOG_PER_DAY             "每日一個日誌"
 #define TR_KEY_LOCK_FMT                "按鍵鎖定 (%s+%s 長按)"
 #define TR_KEYS_LOCKED                 "按鍵已鎖定"
-#define TR_KEYS_LOCKED_FMT             "按鍵已鎖定 (%s+%s)"
+#define TR_KEYS_LOCKED_FMT             TR_BW_COL("%s+%s 解鎖", "按鍵已鎖定 (%s+%s 解鎖)")
 #define TR_KEYS_UNLOCKED               "按鍵已解鎖"
+#define TR_TOUCH_ENABLED               "觸摸屏已啟用"
+#define TR_TOUCH_DISABLED              "觸摸屏已停用"
+
 #define TR_SPLASHSCREEN                "開機圖片"
 #define TR_PLAY_HELLO                  "開機語音"
 #define TR_PWR_ON_DELAY                "開機延遲"
@@ -1261,6 +1265,7 @@
 #define TR_MENU_OTHER                  "其它"
 #define TR_MENU_INVERT                 "反向"
 #define TR_AUDIO_MUTE                  TR("自動靜音","音頻停播時自動靜音")
+#define TR_PWM_OUTPUT                  "PWM output"
 #define TR_JITTER_FILTER               "ADC濾波器"
 #define TR_DEAD_ZONE                   "死區"
 #define TR_RTC_CHECK                   TR("檢查時間電池", "檢查時間驅動電池電壓")

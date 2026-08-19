@@ -55,7 +55,6 @@ bool hpDetected = false;
 
 uint8_t currentBacklightBright = 0;
 uint8_t requiredBacklightBright = 0;
-uint8_t mainRequestFlags = 0;
 
 static bool _usbDisabled = false;
 
@@ -309,6 +308,7 @@ void checkHatsAsKeys()
 // Tick count at which to clear our key-lock message. 0 = no message active.
 static tmr10ms_t s_keysLockMsgUntil = 0;
 static const char* s_keysLockMsg = nullptr;
+static const char* s_keysLockInfo = nullptr;
 #endif
 
 void checkKeysLock()
@@ -331,7 +331,8 @@ void checkKeysLock()
     // couldn't dismiss it. Keep our own deadline and re-arm POPUP_WAIT every
     // tick below — that survives other code clearing warningText (e.g. the
     // GVAR display in view_main.cpp).
-    s_keysLockMsg = areKeysLocked() ? lockedMsg : STR_KEYS_UNLOCKED;
+    s_keysLockMsg = areKeysLocked() ? STR_KEYS_LOCKED : STR_KEYS_UNLOCKED;
+    s_keysLockInfo = areKeysLocked() ? lockedMsg : nullptr;
     s_keysLockMsgUntil = get_tmr10ms() + 150;
 #endif
   }
@@ -344,10 +345,11 @@ void checkKeysLock()
       // may have replaced it in the meantime.
       if (warningText == s_keysLockMsg) CLEAR_POPUP();
       s_keysLockMsg = nullptr;
+      s_keysLockInfo = nullptr;
     } else {
       // Keep the popup fresh every tick — another path (GVAR, etc.) may
       // have cleared warningText; just re-arm it.
-      POPUP_WAIT(s_keysLockMsg);
+      POPUP_WAIT(s_keysLockMsg, s_keysLockInfo);
     }
   }
 #endif
@@ -425,6 +427,8 @@ void periodicTick()
 }
 
 #if defined(GUI) && defined(COLORLCD)
+static LAYOUT_VAL_SCALED(GV_POPUP_WIDTH, 200)
+
 void guiMain(event_t evt)
 {
 #if defined(LUA)
@@ -447,24 +451,6 @@ void guiMain(event_t evt)
   }
 #endif
 
-  bool mainViewRequested = (mainRequestFlags & (1u << REQUEST_MAIN_VIEW));
-  if (mainViewRequested) {
-    auto viewMain = ViewMain::instance();
-    if (g_model.view < viewMain->getMainViewsCount()) {
-      viewMain->setCurrentMainView(g_model.view);
-      storageDirty(EE_MODEL);
-    } else {
-      g_model.view = viewMain->getCurrentMainView();
-    }
-    mainRequestFlags &= ~(1u << REQUEST_MAIN_VIEW);
-  }
-
-  bool screenshotRequested = (mainRequestFlags & (1u << REQUEST_SCREENSHOT));
-  if (screenshotRequested) {
-    writeScreenshot();
-    mainRequestFlags &= ~(1u << REQUEST_SCREENSHOT);
-  }
-
   // For color screens show a popup deferred from another task
   show_ui_popup();
   // Show GVAR popup
@@ -475,7 +461,7 @@ void guiMain(event_t evt)
     p = strAppend(p, g_model.gvars[gvarLastChanged].name, LEN_GVAR_NAME);
     p = strAppend(p, " = ", 3);
     p = strAppendSigned(p, GVAR_VALUE(gvarLastChanged, getGVarFlightMode(mixerCurrentFlightMode, gvarLastChanged)));
-    POPUP_BUBBLE(s, gvarDisplayTimer * 10, 200);
+    POPUP_BUBBLE(s, gvarDisplayTimer * 10, GV_POPUP_WIDTH);
     gvarDisplayTimer = 0;
   }
 }
@@ -574,11 +560,6 @@ void guiMain(event_t evt)
   }
 
   if (refreshNeeded) lcdRefresh();
-
-  if (mainRequestFlags & (1u << REQUEST_SCREENSHOT)) {
-    writeScreenshot();
-    mainRequestFlags &= ~(1u << REQUEST_SCREENSHOT);
-  }
 }
 #endif
 
@@ -605,12 +586,6 @@ void perMain()
   checkTrainerSettings();
   periodicTick();
   DEBUG_TIMER_STOP(debugTimerPerMain1);
-
-  if (mainRequestFlags & (1u << REQUEST_FLIGHT_RESET)) {
-    TRACE("Executing requested Flight Reset");
-    flightReset();
-    mainRequestFlags &= ~(1u << REQUEST_FLIGHT_RESET);
-  }
 
   checkBacklight();
 
@@ -668,6 +643,11 @@ void perMain()
 #if defined(KEYS_GPIO_REG_BIND) && defined(BIND_KEY)
   bindButtonHandler(evt);
 #endif
+
+  if (radioGFEnabled())
+    evalUIFunctions(g_eeGeneral.customFn, globalFunctionsContext);
+  if (modelSFEnabled())
+    evalUIFunctions(g_model.customFn, modelFunctionsContext);
 
 #if defined(GUI)
   DEBUG_TIMER_START(debugTimerGuiMain);

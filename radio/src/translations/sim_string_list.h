@@ -844,6 +844,7 @@
 #define STR_PROTOCOL currentLangStrings->STR_PROTOCOL
 #define STR_PT currentLangStrings->STR_PT
 #define STR_PTS currentLangStrings->STR_PTS
+#define STR_PWM_OUTPUT currentLangStrings->STR_PWM_OUTPUT
 #define STR_PWM_STICKS_POTS_SLIDERS currentLangStrings->STR_PWM_STICKS_POTS_SLIDERS
 #define STR_PWR_AUTO_OFF currentLangStrings->STR_PWR_AUTO_OFF
 #define STR_PWR_OFF_DELAY currentLangStrings->STR_PWR_OFF_DELAY
@@ -924,6 +925,7 @@
 #define STR_SF_BG_MUSIC currentLangStrings->STR_SF_BG_MUSIC
 #define STR_SF_DISABLE_AUDIO_AMP currentLangStrings->STR_SF_DISABLE_AUDIO_AMP
 #define STR_SF_DISABLE_TOUCH currentLangStrings->STR_SF_DISABLE_TOUCH
+#define STR_SF_DISABLE_KEYS currentLangStrings->STR_SF_DISABLE_KEYS
 #define STR_SF_FAILSAFE currentLangStrings->STR_SF_FAILSAFE
 #define STR_SF_HAPTIC currentLangStrings->STR_SF_HAPTIC
 #define STR_SF_INST_TRIM currentLangStrings->STR_SF_INST_TRIM
@@ -961,6 +963,13 @@
 #define STR_SPECTRUM_ANALYSER_EXT currentLangStrings->STR_SPECTRUM_ANALYSER_EXT
 #define STR_SPECTRUM_ANALYSER_INT currentLangStrings->STR_SPECTRUM_ANALYSER_INT
 #define STR_SPLASHSCREEN currentLangStrings->STR_SPLASHSCREEN
+#define STR_ONE_LOG_PER_DAY currentLangStrings->STR_ONE_LOG_PER_DAY
+#define STR_KEY_LOCK_FMT currentLangStrings->STR_KEY_LOCK_FMT
+#define STR_KEYS_LOCKED currentLangStrings->STR_KEYS_LOCKED
+#define STR_KEYS_LOCKED_FMT currentLangStrings->STR_KEYS_LOCKED_FMT
+#define STR_KEYS_UNLOCKED currentLangStrings->STR_KEYS_UNLOCKED
+#define STR_TOUCH_ENABLED currentLangStrings->STR_TOUCH_ENABLED
+#define STR_TOUCH_DISABLED currentLangStrings->STR_TOUCH_DISABLED
 #define STR_SPORT_UPDATE_POWER_MODE currentLangStrings->STR_SPORT_UPDATE_POWER_MODE
 #define STR_SRC_BTN currentLangStrings->STR_SRC_BTN
 #define STR_SRC_BATT currentLangStrings->STR_SRC_BATT

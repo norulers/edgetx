@@ -243,6 +243,7 @@
 #define TR_SF_SCREENSHOT               "截屏"
 #define TR_SF_RACING_MODE              "竞速模式"
 #define TR_SF_DISABLE_TOUCH            "禁用触摸"
+#define TR_SF_DISABLE_KEYS             "No Keys"
 #define TR_SF_DISABLE_AUDIO_AMP        "关闭音频功放"
 #define TR_SF_SET_SCREEN               TR_BW_COL("设置主屏", "选择主屏")
 #define TR_SF_PUSH_CUST_SWITCH         "Push CS"
@@ -580,8 +581,10 @@
 #define TR_ONE_LOG_PER_DAY             "每天一个日志"
 #define TR_KEY_LOCK_FMT                "按键锁定 (%s+%s 长按)"
 #define TR_KEYS_LOCKED                 "按键已锁定"
-#define TR_KEYS_LOCKED_FMT             "按键已锁定 (%s+%s)"
+#define TR_KEYS_LOCKED_FMT             TR_BW_COL("%s+%s 解锁", "按键已锁定 (%s+%s 解锁)")
 #define TR_KEYS_UNLOCKED               "按键已解锁"
+#define TR_TOUCH_ENABLED               "触摸屏已启用"
+#define TR_TOUCH_DISABLED              "触摸屏已禁用"
 #define TR_SPLASHSCREEN                "开机图片"
 #define TR_PLAY_HELLO                  "开机语音"
 #define TR_PWR_ON_DELAY                "开机延迟"
@@ -1417,6 +1420,7 @@
 #define TR_MENU_OTHER                  "其它"
 #define TR_MENU_INVERT                 "反向"
 #define TR_AUDIO_MUTE                  TR("自动静音","音频停播时自动静音")
+#define TR_PWM_OUTPUT                  "PWM output"
 #define TR_JITTER_FILTER               "ADC滤波器"
 #define TR_DEAD_ZONE                   "死区"
 #define TR_RTC_CHECK                   TR("RTC电池", "RTC纽扣电池电压")
