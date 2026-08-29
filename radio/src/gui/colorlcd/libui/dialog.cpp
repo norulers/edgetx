@@ -247,8 +247,8 @@ LabelDialog::LabelDialog(const char *label, int length, const char* title,
   lv_obj_set_style_border_width(cancelBtn->getLvObj(), 0, LV_PART_MAIN | LV_STATE_FOCUS_KEY);
 
   auto saveBtn = new TextButton(box, rect_t{0, 0, 96, 0}, STR_SAVE, [=]() {
-    if (saveHandler != nullptr) saveHandler(this->label);
     deleteLater();
+    if (saveHandler != nullptr) saveHandler(this->label);
     return 0;
   });
   lv_obj_set_style_bg_color(saveBtn->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);

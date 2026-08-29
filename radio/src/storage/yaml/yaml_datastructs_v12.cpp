@@ -87,6 +87,7 @@ const struct YamlIdStr enum_Functions[] = {
   {  FUNC_DISABLE_AUDIO_AMP, "DISABLE_AUDIO_AMP"  },
   {  FUNC_RGB_LED, "RGB_LED"  },
   {  FUNC_PUSH_CUST_SWITCH, "PUSH_CUST_SWITCH"  },
+  {  FUNC_DISABLE_KEYS, "DISABLE_KEYS"  },
   {  FUNC_TEST, "TEST"  },
   {  0, NULL  }
 };
@@ -1020,8 +1021,9 @@ static const struct YamlNode struct_ModelData[] = {
   YAML_END
 };
 static const struct YamlNode struct_PartialModel[] = {
+  YAML_CUSTOM("semver",nullptr,w_semver),
   YAML_STRUCT("header", 1048, struct_ModelHeader, NULL),
-  YAML_ARRAY("timers", 136, 3, struct_TimerData, NULL),
+  YAML_ARRAY("moduleData", 232, 2, struct_ModuleData, NULL),
   YAML_END
 };
 

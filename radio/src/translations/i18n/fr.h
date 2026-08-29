@@ -936,6 +936,9 @@
 #define TR_GET_READY                   "Tenez-vous prêt..."
 #define TR_SAVED                       "Enregistré:"
 #define TR_SAVE_AS                     "Enregistrer sous"
+#define TR_AUTO_TRIM                   "Auto-rogner"
+#define TR_TRIM_START                  "Rogner début"
+#define TR_TRIM_END                    "Rogner fin"
 #define TR_OPEN_ERROR                  "Erreur ouverture"
 #define TR_TURN_OFF_RECEIVER           "Éteindre Récepteur."
 #define TR_STOPPING                    "Arrêt..."
@@ -944,6 +947,7 @@
 #define TR_SENSOR                      "CAPTEUR"
 #define TR_COUNTRY_CODE                 TR("Zone géo.", "Zone géographique")
 #define TR_USBMODE                     "Mode USB"
+#define TR_USB_CHARGE                  "Charge radio allumée"
 #define TR_JACK_MODE                   "Mode Jack"
 #define TR_VOICE_LANGUAGE               TR("Langue voix", "Langue annonces vocales")
 #define TR_TEXT_LANGUAGE               "Text language"

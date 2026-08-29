@@ -484,7 +484,8 @@ static const struct YamlNode struct_RadioData[] = {
   YAML_UNSIGNED( "favMultiMode", 1 ),
   YAML_UNSIGNED( "modelSelectLayout", 2 ),
   YAML_UNSIGNED( "radioThemesDisabled", 1 ),
-  YAML_PADDING( 7 ),
+  YAML_UNSIGNED( "usbChargeDisabled", 1 ),
+  YAML_PADDING( 6 ),
   YAML_UNSIGNED( "pwrOffIfInactive", 8 ),
   YAML_ARRAY("keyShortcuts", 8, 6, struct_KeyShortcut, NULL),
   YAML_ARRAY("qmFavorites", 8, 12, struct_QMFavorite, NULL),
@@ -1026,8 +1027,9 @@ static const struct YamlNode struct_ModelData[] = {
   YAML_END
 };
 static const struct YamlNode struct_PartialModel[] = {
+  YAML_CUSTOM("semver",nullptr,w_semver),
   YAML_STRUCT("header", 1048, struct_ModelHeader, NULL),
-  YAML_ARRAY("timers", 136, 3, struct_TimerData, NULL),
+  YAML_ARRAY("moduleData", 232, 2, struct_ModuleData, NULL),
   YAML_END
 };
 

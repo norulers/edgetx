@@ -939,6 +939,9 @@
 #define TR_GET_READY                   "Preparati..."
 #define TR_SAVED                       "Salvato:"
 #define TR_SAVE_AS                     "Salva come"
+#define TR_AUTO_TRIM                   "Auto-taglio"
+#define TR_TRIM_START                  "Taglia inizio"
+#define TR_TRIM_END                    "Taglia fine"
 #define TR_OPEN_ERROR                  "Errore apertura"
 #define TR_TURN_OFF_RECEIVER            "Spegni la RX"
 #define TR_STOPPING                     "Fermando..."
@@ -947,6 +950,7 @@
 #define TR_SENSOR                       "SENSORE"
 #define TR_COUNTRY_CODE                 TR("Cod. Paese", "Codice del Paese")
 #define TR_USBMODE                      "Modo USB"
+#define TR_USB_CHARGE                   "Carica con radio accesa"
 #define TR_JACK_MODE                    "Modo JACK"
 #define TR_VOICE_LANGUAGE               "Lingua vocale"
 #define TR_TEXT_LANGUAGE               "Lingua testo"

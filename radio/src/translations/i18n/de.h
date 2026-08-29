@@ -939,6 +939,9 @@
 #define TR_GET_READY                   "Bereit machen..."
 #define TR_SAVED                       "Gespeichert:"
 #define TR_SAVE_AS                     "Speichern als"
+#define TR_AUTO_TRIM                   "Auto-Schnitt"
+#define TR_TRIM_START                  "Anfang kürzen"
+#define TR_TRIM_END                    "Ende kürzen"
 #define TR_OPEN_ERROR                  "Öffnungsfehler"
 #define TR_TURN_OFF_RECEIVER           "Empf. ausschalten"
 #define TR_STOPPING                    "Stoppe..."
@@ -947,6 +950,7 @@
 #define TR_SENSOR                      TR_BW_COL("SENSOR", "Sensor")
 #define TR_COUNTRY_CODE                "Landescode"
 #define TR_USBMODE                     "USB Modus"
+#define TR_USB_CHARGE                  "Laden wenn Sender an"
 #define TR_JACK_MODE                   "Klinken-Modus"
 #define TR_VOICE_LANGUAGE              "Sprachansagen"
 #define TR_TEXT_LANGUAGE               "Textsprache"
