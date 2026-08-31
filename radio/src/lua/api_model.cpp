@@ -237,6 +237,8 @@ static int luaModelSetModule(lua_State *L)
   if (idx < NUM_MODULES) {
     int protocol = -1;
     int subprotocol = -1;
+    (void)protocol;
+    (void)subprotocol;
 
     ModuleData & module = g_model.moduleData[idx];
     luaL_checktype(L, -1, LUA_TTABLE);

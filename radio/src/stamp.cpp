@@ -78,7 +78,7 @@
  * Retrieves the version of the bootloader or firmware
  * @return
  */
-#if defined(STM32) && !defined(SIMU)
+#if (defined(STM32) || defined(AT32F435)) && !defined(SIMU)
   #if defined(COLORLCD)
     #if defined(VERSION_TAG)
 __SECTION_USED(".fwversiondata")   const char firmware_version[] = "edgetx-" FLAVOUR "-" WITH_FACTORY_RELEASE(VERSION_TAG) " (" GIT_STR ")";

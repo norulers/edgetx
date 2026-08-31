@@ -634,7 +634,7 @@ static_assert(sizeof(potwarnen_t) * 8 >= MAX_POTS,
   #define TOPBAR_DATA
 #endif
 
-#if defined(PCBHORUS) || defined(PCBTARANIS) || defined(PCBPL18) || defined(PCBST16) || defined(PCBC14)
+#if defined(PCBHORUS) || defined(PCBTARANIS) || defined(PCBPL18) || defined(PCBST16) || defined(PCBC14) || defined(RADIO_AT32F435)
   #define SCRIPT_DATA \
     NOBACKUP(ScriptData scriptsData[MAX_SCRIPTS]);
 #else

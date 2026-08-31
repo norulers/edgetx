@@ -117,6 +117,8 @@ elseif(PCB STREQUAL H750DEV)
   include(targets/h750dev/CMakeLists.txt)
 elseif(PCB STREQUAL STM32H7S78_DK)
   include(targets/stm32h7s78-dk/CMakeLists.txt)
+elseif(PCB STREQUAL AT32F435)
+  include(targets/at32f435/CMakeLists.txt)
 elseif(PCB STREQUAL X9E OR PCB STREQUAL X9D+ OR PCB STREQUAL X9D OR PCB STREQUAL X7 OR PCB STREQUAL X9LITE OR PCB STREQUAL X9LITES OR PCB STREQUAL XLITE OR PCB STREQUAL XLITES)
   include(targets/taranis/CMakeLists.txt)
 else()
@@ -177,6 +179,10 @@ endif()
 
 if(CPU_TYPE STREQUAL STM32F2)
   include(targets/common/arm/stm32/f2/CMakeLists.txt)
+endif()
+
+if(CPU_TYPE STREQUAL AT32F435)
+  include(targets/common/arm/at32/CMakeLists.txt)
 endif()
 
 if(CPU_FAMILY STREQUAL STM32)
@@ -713,9 +719,13 @@ if(ARCH STREQUAL ARM)
 endif()
 
 target_compile_definitions(board PUBLIC FREE_RTOS)
-target_compile_definitions(board_lib PUBLIC FREE_RTOS)
+if(TARGET board_lib)
+  target_compile_definitions(board_lib PUBLIC FREE_RTOS)
+endif()
 target_compile_definitions(firmware PUBLIC FREE_RTOS)
-target_compile_definitions(stm32_drivers_w_dbg_fw PUBLIC FREE_RTOS)
+if(TARGET stm32_drivers_w_dbg_fw)
+  target_compile_definitions(stm32_drivers_w_dbg_fw PUBLIC FREE_RTOS)
+endif()
 
 target_sources(firmware PUBLIC
   os/async_freertos.cpp
@@ -728,7 +738,9 @@ target_sources(firmware PUBLIC
 if(DEBUG)
   target_compile_definitions(board PRIVATE -DDEBUG)
   target_compile_definitions(firmware PRIVATE -DDEBUG)
-  target_compile_definitions(stm32_drivers_w_dbg_fw PRIVATE -DDEBUG)
+  if(TARGET stm32_drivers_w_dbg_fw)
+    target_compile_definitions(stm32_drivers_w_dbg_fw PRIVATE -DDEBUG)
+  endif()
 endif()
 
 set(LINKER_SCRIPT firmware.ld)

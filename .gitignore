@@ -28,3 +28,6 @@ _wasi_sdk_fetch
 output/
 *.dmg
 .devcontainer/devcontainer-lock.json
+
+# Vendor documentation / help files (not needed for build)
+*.chm

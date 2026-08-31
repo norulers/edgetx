@@ -1348,7 +1348,7 @@
 #define TR_ABOUTUS                     TR(" ABOUT ", "ABOUT")
 
 #define TR_CHR_HOUR                    'h'
-#define TR_CHR_INPUT                   'I'   // Values between A-I will work
+#define TR_CHR_INPUT                   "I"   // Values between A-I will work
 
 #define TR_BEEP_VOLUME                 "Beep volume"
 #define TR_WAV_VOLUME                  "Wav volume"

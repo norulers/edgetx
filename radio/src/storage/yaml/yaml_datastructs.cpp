@@ -66,6 +66,8 @@
  #include "yaml_datastructs_c14.cpp"
 #elif defined(PCBPA01)
  #include "yaml_datastructs_pa01.cpp"
+#elif defined(RADIO_AT32F435)
+ #include "yaml_datastructs_t20.cpp"
 #elif defined(PCBX7)
  #if defined(RADIO_TPRO) || defined(RADIO_TPROV2) || defined(RADIO_BUMBLEBEE)
   #include "yaml_datastructs_tpro.cpp"

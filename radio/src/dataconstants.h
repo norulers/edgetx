@@ -87,6 +87,21 @@
   #define DEF_TRAINER_CHANNELS         8
   #define MAX_TRAINER_CHANNELS         16
   #define MAX_TELEMETRY_SENSORS        40
+#elif defined(AT32F435)
+  // AT32F435ZMT7 monochrome target (T20V2 consistent): same limits as taranis
+  #define MAX_MODELS                   60
+  #define MAX_OUTPUT_CHANNELS          32 // number of real output channels CH1-CH32
+  #define MAX_FLIGHT_MODES             9
+  #define MAX_MIXERS                   64
+  #define MAX_EXPOS                    64
+  #define MAX_LOGICAL_SWITCHES         64
+  #define MAX_SPECIAL_FUNCTIONS        64 // number of functions assigned to switches
+  #define MAX_SCRIPTS                  7
+  #define MAX_INPUTS                   32
+  #define MIN_TRAINER_CHANNELS         4
+  #define DEF_TRAINER_CHANNELS         8
+  #define MAX_TRAINER_CHANNELS         16
+  #define MAX_TELEMETRY_SENSORS        40
 #else
   #warning "Unknown board!"
 #endif
@@ -115,7 +130,7 @@ enum CurveType {
   #define LEN_FUNCTION_NAME            8
   #define MAX_CURVES                   32
   #define MAX_CURVE_POINTS             512
-#elif LCD_W == 212
+#elif (LCD_W == 212) || defined(AT32F435)
   #define LEN_MODEL_NAME               12
   #define LEN_TIMER_NAME               8
   #define LEN_FLIGHT_MODE_NAME         10
