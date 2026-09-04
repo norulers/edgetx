@@ -19,6 +19,8 @@
  * GNU General Public License for more details.
  */
 
+#include "stm32_hal.h"
+
 #include "boot.h"
 #include "hal/usb_driver.h"
 #include "os/time.h"
