@@ -64,7 +64,7 @@ TIM17:	ROTARY_ENCODER_TIMER
 USART1: TELEMETRY_USART
 USART2: EXTMODULE_USART
 USART3: AUX2_SERIAL_USART
-USART4:
+USART4: FLYSKY_HALL_SERIAL_USART (FLYSKY_GIMBAL)
 USART5: AUX_SERIAL_USART
 USART6: INTMODULE_USART
  */
@@ -304,6 +304,18 @@ USART6: INTMODULE_USART
 
 // PH.11 = HALL_SYNC removed (no Hall gimbal on dev board)
 
+#if defined(FLYSKY_GIMBAL)
+// FlySky Hall Sticks. PA0/PA1 (used on other boards) conflict with
+// LED_STRIP_GPIO here, so use PC10/PC11 (UART4, free on this board) instead.
+#define FLYSKY_HALL_SERIAL_USART                 UART4
+#define FLYSKY_HALL_SERIAL_TX_GPIO               GPIO_PIN(GPIOC, 10) // PC.10
+#define FLYSKY_HALL_SERIAL_RX_GPIO               GPIO_PIN(GPIOC, 11) // PC.11
+#define FLYSKY_HALL_SERIAL_USART_IRQn            UART4_IRQn
+#define FLYSKY_HALL_SERIAL_DMA                   DMA1
+#define FLYSKY_HALL_DMA_Stream_RX                LL_DMA_STREAM_2
+#define FLYSKY_HALL_DMA_Channel                  LL_DMAMUX1_REQ_UART4_RX
+#endif
+
 #define USE_EXTI9_5_IRQ // used for I2C port extender interrupt
 #define EXTI9_5_IRQ_Priority 5
 
@@ -473,7 +485,7 @@ USART6: INTMODULE_USART
 #define LED_STRIP_REFRESH_PERIOD          50 //ms
 
 // Dev board has one RGB-capable LED row; GREEN and BLUE on free header pins
-#define STATUS_LEDS
+#define STATUS_LEDS true
 #define GPIO_LED_GPIO_ON                  gpio_set
 #define GPIO_LED_GPIO_OFF                 gpio_clear
 #define LED_RED_GPIO                      GPIO_PIN(GPIOI, 8)   // PI.08
@@ -610,7 +622,7 @@ USART6: INTMODULE_USART
 #define ROTARY_ENCODER_GPIO_PIN_A       LL_GPIO_PIN_7   // PI.07 (P3-45)
 #define ROTARY_ENCODER_GPIO_B           GPIOI
 #define ROTARY_ENCODER_GPIO_PIN_B       LL_GPIO_PIN_4   // PI.04 (P3-47)
-#define ROTARY_ENCODER_POSITION()       (((ROTARY_ENCODER_GPIO_A->IDR >> 7) & 0x01)|((ROTARY_ENCODER_GPIO_B->IDR >> 3) & 0x02))
+#define ROTARY_ENCODER_POSITION         (((ROTARY_ENCODER_GPIO_A->IDR >> 7) & 0x01)|((ROTARY_ENCODER_GPIO_B->IDR >> 3) & 0x02))
 #define ROTARY_ENCODER_EXTI_LINE1       LL_EXTI_LINE_7
 #define ROTARY_ENCODER_EXTI_LINE2       LL_EXTI_LINE_4
 #if !defined(USE_EXTI7_IRQ)
