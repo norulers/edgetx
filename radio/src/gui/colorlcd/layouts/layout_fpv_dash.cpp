@@ -1108,43 +1108,47 @@ void FpvDashLayout::updateModelInfo()
     }
   }
 
-  // Arm state — wizard arm switch, CRSF arming mode, or CH5 fallback
+  // Arm state — explicit CRSF/ELRS arming setup wins over wizard SF and CH5
   bool armed = false;
-  bool hasWizArm = false;
+  bool resolved = false;
 
-  // Priority 1: wizard-style arm switch (FUNC_OVERRIDE_CHANNEL with non-NONE switch)
-  for (int i = 0; i < MAX_SPECIAL_FUNCTIONS; i++) {
-    auto* cfn = &g_model.customFn[i];
-    if (CFN_ACTIVE(cfn) && CFN_FUNC(cfn) == FUNC_OVERRIDE_CHANNEL &&
-        CFN_SWITCH(cfn) != SWSRC_NONE) {
-      armed = !getSwitch(CFN_SWITCH(cfn), 0);
-      hasWizArm = true;
-      break;
-    }
-  }
-
-  if (!hasWizArm) {
-    // Priority 2: CRSF arming mode from module settings
-    int armModuleIdx = -1;
-
+  // Resolve the same module the arm setup popup writes to
+  int armModuleIdx = getElrsModuleIdx();
+  if (armModuleIdx < 0) {
     if (isModuleCrossfire(INTERNAL_MODULE))
       armModuleIdx = INTERNAL_MODULE;
     else if (isModuleCrossfire(EXTERNAL_MODULE))
       armModuleIdx = EXTERNAL_MODULE;
+  }
 
-    if (armModuleIdx >= 0) {
-      ModuleData* md = &g_model.moduleData[armModuleIdx];
-      if (md->crsf.crsfArmingMode == ARMING_MODE_CH5) {
-        armed = (channelOutputs[4] > 0);
-      } else {
-        swsrc_t sw = md->crsf.crsfArmingTrigger;
-        armed = (sw != SWSRC_NONE) && getSwitch(sw, 0);
+  if (armModuleIdx >= 0) {
+    ModuleData* md = &g_model.moduleData[armModuleIdx];
+    if (md->crsf.crsfArmingMode == ARMING_MODE_SWITCH) {
+      swsrc_t sw = md->crsf.crsfArmingTrigger;
+      if (sw != SWSRC_NONE) {
+        armed = getSwitch(sw, 0);
+        resolved = true;
       }
     } else {
-      // Priority 3: fall back to CH5
       armed = (channelOutputs[4] > 0);
+      resolved = true;
     }
   }
+
+  // Fallback: wizard-style safety switch (FUNC_OVERRIDE_CHANNEL holds motor low)
+  if (!resolved) {
+    for (int i = 0; i < MAX_SPECIAL_FUNCTIONS; i++) {
+      auto* cfn = &g_model.customFn[i];
+      if (CFN_ACTIVE(cfn) && CFN_FUNC(cfn) == FUNC_OVERRIDE_CHANNEL &&
+          CFN_SWITCH(cfn) != SWSRC_NONE) {
+        armed = !getSwitch(CFN_SWITCH(cfn), 0);
+        resolved = true;
+        break;
+      }
+    }
+  }
+
+  if (!resolved) armed = (channelOutputs[4] > 0);
 
   _lastArmed = armed;
 
@@ -1217,12 +1221,12 @@ void FpvDashLayout::showArmSetupPopup()
   auto* menu = new Menu();
   menu->setTitle(STR_CRSF_ARMING_MODE);
 
-  menu->addLine("CH5", [=]() {
+  menu->addLine(STR_CRSF_ARMING_MODES[ARMING_MODE_CH5], [=]() {
     md->crsf.crsfArmingMode = ARMING_MODE_CH5;
     storageDirty(EE_MODEL);
   }, [=]() { return md->crsf.crsfArmingMode == ARMING_MODE_CH5; });
 
-  menu->addLine("SWITCH", [=]() {
+  menu->addLine(STR_CRSF_ARMING_MODES[ARMING_MODE_SWITCH], [=]() {
     md->crsf.crsfArmingMode = ARMING_MODE_SWITCH;
     storageDirty(EE_MODEL);
     // Use SwitchChoice for categorized switch picker (matches built-in RF menu)
@@ -1352,9 +1356,8 @@ void FpvDashLayout::updateElrsHeader()
   bool hasCrsfModule = (isModuleCrossfire(INTERNAL_MODULE) ||
                         isModuleCrossfire(EXTERNAL_MODULE));
 
-  // ── Break chicken-and-egg: send a PING every 2 s until the module
-  //     replies with DEVICE_INFO and sets isELRS = true.  Once ELRS is
-  //     confirmed the inline loader takes over. ─────────────────────────
+  // ── Break chicken-and-egg: PING until the module replies with DEVICE_INFO
+  //     and sets isELRS = true.  Once ELRS is confirmed the loader takes over.
   if (hasCrsfModule && !isModuleELRS(INTERNAL_MODULE) &&
       !isModuleELRS(EXTERNAL_MODULE)) {
     tmr10ms_t now = get_tmr10ms();
@@ -1385,27 +1388,59 @@ void FpvDashLayout::updateElrsHeader()
     static tmr10ms_t _nextRetry = 0;
     tmr10ms_t now = get_tmr10ms();
     if (now >= _nextRetry) {
-      _nextRetry = now + 100;  // retry every 1 s
+      _nextRetry = now + 30;  // retry every 300 ms
       ElrsParamBrowser::triggerCacheLoad();
     }
   }
 
   int elrsIdx = getElrsModuleIdx();
-  if (elrsIdx < 0) {
-    lv_label_set_text(hdrElrsLabel, hasCrsfModule ? "ELRS..." : "no ELRS");
+  if (!hasCrsfModule && elrsIdx < 0) {
+    lv_label_set_text(hdrElrsLabel, "no ELRS");
     return;
   }
 
-  // ── Keep showing "ELRS..." while background loader populates cache ──
-  if (!g_elrsCache.valid || g_elrsCache.fields.empty()) {
-    if (strcmp(lv_label_get_text(hdrElrsLabel), "ELRS...") != 0)
-      lv_label_set_text(hdrElrsLabel, "ELRS...");
-    return;
+  // ── Fast path — available long before the parameter cache is populated:
+  //     the mixer scheduler period gives the packet rate once the module
+  //     reports its refresh rate, TPWR arrives with the first LinkStatistics
+  //     frame. The cache only refines these values below. ────────────────
+  char     rateStr[16] = "-Hz";
+  uint32_t txPowerMw   = 0;
+  bool     pwFound     = false;
+
+  // Until the module syncs, the scheduler still runs at the baudrate-derived
+  // default, which has nothing to do with the actual RF packet rate.
+  int crsfIdx = isModuleCrossfire(INTERNAL_MODULE)   ? INTERNAL_MODULE
+              : isModuleCrossfire(EXTERNAL_MODULE)   ? EXTERNAL_MODULE
+                                                     : -1;
+  if (crsfIdx >= 0 && getModuleSyncStatus(crsfIdx).isValid()) {
+    uint32_t period = getMixerSchedulerPeriod();
+    if (period) {
+      unsigned rateHz = 1000000U / period;
+      if (rateHz > 0) snprintf(rateStr, sizeof(rateStr), "%uHz", rateHz);
+    }
   }
 
-  // ── Rate: cache Packet Rate → mixer scheduler period fallback ──────
-  char rateStr[16] = "-Hz";
+  // TPWR sensor already holds mW (CRSF power index is mapped in crossfire.cpp)
+  if (elrsTpwrIdx < 0) {
+    tmr10ms_t now = get_tmr10ms();
+    if (now - _lastTpwrScan >= 50) {  // rescan every 500 ms until found
+      _lastTpwrScan = now;
+      for (int i = 0; i < MAX_TELEMETRY_SENSORS; i++) {
+        if (!telemetryItems[i].isAvailable() && !telemetryItems[i].isFresh())
+          continue;
+        if (strncmp(g_model.telemetrySensors[i].label, "TPWR", TELEM_LABEL_LEN) == 0) {
+          elrsTpwrIdx = i;
+          break;
+        }
+      }
+    }
+  }
+  if (elrsTpwrIdx >= 0 && telemetryItems[elrsTpwrIdx].isAvailable()) {
+    txPowerMw = (uint32_t)telemetryItems[elrsTpwrIdx].value;
+    pwFound = true;
+  }
 
+  // ── Rate: refine with the cached Packet Rate label when available ──────
   if (g_elrsCache.valid && !g_elrsCache.fields.empty()) {
     for (auto& f : g_elrsCache.fields) {
       std::string lower = f.name;
@@ -1414,13 +1449,12 @@ void FpvDashLayout::updateElrsHeader()
           && lower.find("rate") == std::string::npos) continue;
       if (f.value >= 0 && (size_t)f.value < f.options.size()) {
         std::string label = f.options[f.value];
-        if (label.size() > 1 && (label[0] == 'D' || label[0] == 'd')
-            && label[1] >= '0' && label[1] <= '9')
-          label.erase(0, 1);
+        // Keep the "D" prefix — D250Hz (DVDA) is not the same as plain 250Hz
         // Strip sensitivity suffix e.g. "(-105dBm)"
         auto paren = label.find('(');
         if (paren != std::string::npos)
           label.erase(paren);
+        while (!label.empty() && label.back() == ' ') label.pop_back();
         strncpy(rateStr, label.c_str(), sizeof(rateStr) - 1);
         rateStr[sizeof(rateStr) - 1] = '\0';
       }
@@ -1428,16 +1462,7 @@ void FpvDashLayout::updateElrsHeader()
     }
   }
 
-  if (rateStr[0] == '-') {
-    uint16_t rateHz = getMixerSchedulerPeriod() ? (1000000U / getMixerSchedulerPeriod()) : 0;
-    if (rateHz > 0)
-      snprintf(rateStr, sizeof(rateStr), "%uHz", (unsigned)rateHz);
-  }
-
-  // ── Power: cache Power field only (auto-discovered in background) ────
-  uint32_t txPowerMw = 0;
-  bool     pwFound   = false;
-
+  // ── Power: refine with the cached Power field when available ──────────
   if (g_elrsCache.valid && !g_elrsCache.fields.empty()) {
     for (auto& f : g_elrsCache.fields) {
       if (f.type != ElrsParamBrowser::FT_SELECT) continue;
@@ -1453,9 +1478,11 @@ void FpvDashLayout::updateElrsHeader()
     }
   }
 
-  if (strcmp(rateStr, lastElrsRateStr) != 0 || txPowerMw != lastElrsTxPower) {
+  if (strcmp(rateStr, lastElrsRateStr) != 0 || txPowerMw != lastElrsTxPower ||
+      pwFound != lastElrsPwFound) {
     strncpy(lastElrsRateStr, rateStr, sizeof(lastElrsRateStr) - 1);
     lastElrsTxPower = txPowerMw;
+    lastElrsPwFound = pwFound;
 
     char buf[48];
     if (pwFound) {

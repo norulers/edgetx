@@ -88,6 +88,9 @@ class FpvDashLayout : public Layout
   int16_t     lastHdrBatt     = -1;
   char        lastElrsRateStr[16] = {};
   uint32_t    lastElrsTxPower = UINT32_MAX;
+  bool        lastElrsPwFound = false;
+  int         elrsTpwrIdx     = -1;    // TPWR telemetry sensor index
+  tmr10ms_t   _lastTpwrScan   = 0;
 
   // ---- Timer (secondary, above primary) ---------------------------------
   lv_obj_t* timer2Label  = nullptr;

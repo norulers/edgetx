@@ -953,6 +953,13 @@ void ModelWizard::buildSummaryPage()
 {
   imageArea->clear();
 
+  // Switch count is board dependent, so always resolve names via the HAL
+  char swName[8];
+  auto swStr = [&swName](int sw) -> const char* {
+    getSwitchName(swName, sw);
+    return swName;
+  };
+
   // Review text on RIGHT side (matches Lua: children2)
   auto reviewLbl = lv_label_create(imageArea->getLvObj());
   lv_label_set_text(reviewLbl, STR_WIZARD_REVIEW);
@@ -997,7 +1004,7 @@ void ModelWizard::buildSummaryPage()
           makeSummaryRow(settingsArea, STR_WIZARD_VTAIL_L, channelNames[wizardData.tailChB]);
         }
         if (wizardData.hasGear) {
-          makeSummaryRow(settingsArea, STR_WIZARD_GEAR_SW_LABEL, switchNames[wizardData.gearSwitch]);
+          makeSummaryRow(settingsArea, STR_WIZARD_GEAR_SW_LABEL, swStr(wizardData.gearSwitch));
           makeSummaryRow(settingsArea, STR_WIZARD_GEAR_CH_LABEL, channelNames[wizardData.gearChannel]);
         }
       }
@@ -1006,7 +1013,7 @@ void ModelWizard::buildSummaryPage()
       makeSummaryRow(settingsArea, STR_WIZARD_EXPO_LABEL, expoStr);
       makeSummaryRow(settingsArea, STR_WIZARD_DUAL_RATE_LABEL, wizardData.dualRate ? STR_WIZARD_YES : STR_WIZARD_NO);
       if (wizardData.hasMotor && wizardData.hasArmSwitch)
-        makeSummaryRow(settingsArea, STR_WIZARD_SAFETY_SW, switchNames[wizardData.armSwitch]);
+        makeSummaryRow(settingsArea, STR_WIZARD_SAFETY_SW, swStr(wizardData.armSwitch));
       break;
     }
     case WIZARD_TYPE_HELI: {
@@ -1017,10 +1024,10 @@ void ModelWizard::buildSummaryPage()
       }
       const char* styleNames[] = {STR_WIZARD_STYLE_SPORT, STR_WIZARD_STYLE_3D_LIGHT, STR_WIZARD_STYLE_3D_FULL};
       makeSummaryRow(settingsArea, STR_WIZARD_HELI_STYLE, styleNames[wizardData.flyingStyle]);
-      makeSummaryRow(settingsArea, STR_WIZARD_FM_LABEL, switchNames[wizardData.fmSwitch]);
-      makeSummaryRow(settingsArea, STR_WIZARD_TH_HOLD_LABEL, switchNames[wizardData.throttleHoldSwitch]);
+      makeSummaryRow(settingsArea, STR_WIZARD_FM_LABEL, swStr(wizardData.fmSwitch));
+      makeSummaryRow(settingsArea, STR_WIZARD_TH_HOLD_LABEL, swStr(wizardData.throttleHoldSwitch));
       if (wizardData.heliType == 1)
-        makeSummaryRow(settingsArea, STR_WIZARD_TAIL_GAIN_LABEL, switchNames[wizardData.tailGainSwitch]);
+        makeSummaryRow(settingsArea, STR_WIZARD_TAIL_GAIN_LABEL, swStr(wizardData.tailGainSwitch));
       makeSummaryRow(settingsArea, STR_WIZARD_THR_CH_LABEL, channelNames[wizardData.heliThrCh]);
       makeSummaryRow(settingsArea, STR_WIZARD_ROLL_CH_LABEL, channelNames[wizardData.heliAilCh]);
       makeSummaryRow(settingsArea, STR_WIZARD_NICK_CH, channelNames[wizardData.heliNickCh]);
@@ -1032,9 +1039,9 @@ void ModelWizard::buildSummaryPage()
       makeSummaryRow(settingsArea, STR_WIZARD_ASSIGN_ROLL, channelNames[wizardData.multiRollCh]);
       makeSummaryRow(settingsArea, STR_WIZARD_ASSIGN_PITCH, channelNames[wizardData.multiPitchCh]);
       makeSummaryRow(settingsArea, STR_WIZARD_ASSIGN_YAW, channelNames[wizardData.multiYawCh]);
-      makeSummaryRow(settingsArea, STR_WIZARD_ASSIGN_ARM, switchNames[wizardData.multiArmSwitch]);
-      makeSummaryRow(settingsArea, STR_WIZARD_ASSIGN_BEEPER, switchNames[wizardData.multiBeeperSwitch]);
-      makeSummaryRow(settingsArea, STR_WIZARD_ASSIGN_MODE, switchNames[wizardData.multiModeSwitch]);
+      makeSummaryRow(settingsArea, STR_WIZARD_ASSIGN_ARM, swStr(wizardData.multiArmSwitch));
+      makeSummaryRow(settingsArea, STR_WIZARD_ASSIGN_BEEPER, swStr(wizardData.multiBeeperSwitch));
+      makeSummaryRow(settingsArea, STR_WIZARD_ASSIGN_MODE, swStr(wizardData.multiModeSwitch));
       break;
     }
   }
@@ -1154,10 +1161,23 @@ static int16_t switchSource(uint8_t sw)
   return MIXSRC_FIRST_SWITCH + sw;
 }
 
+// Remove every input line of a given input channel.
+// Matches the Lua wizard's model.deleteInput(channel, 0) for the wing type,
+// which drops the unused Rudder input so the model stays clean.
+static void deleteInputLines(int chn)
+{
+  for (int i = 0; i < MAX_EXPOS; i++) {
+    ExpoData* expo = expoAddress(i);
+    if (expo->srcRaw && expo->chn == chn) {
+      deleteExpo(i);
+      i--;  // re-check the slot that shifted into place
+    }
+  }
+}
+
 // Add a mix line matching Lua model-config.lua addMix()
-// mltpxIdx=0 → MLTPX_REPL (first line), mltpxIdx>=1 → MLTPX_ADD
 static void addWizardMix(uint8_t channel, int16_t source, const char* name,
-                         int weight = 100, int mltpxIdx = 0)
+                         int weight = 100, uint8_t mltpx = MLTPX_ADD)
 {
   uint8_t idx = getMixCount();
   insertMix(idx, channel);
@@ -1165,8 +1185,9 @@ static void addWizardMix(uint8_t channel, int16_t source, const char* name,
   if (!mix) return;
 
   mix->srcRaw = source;
-  mix->weight = weight;
-  if (mltpxIdx >= 1) mix->mltpx = MLTPX_ADD;
+  // weight is a SourceNumVal bitfield — a raw negative value would set isSource
+  mix->weight = makeSourceNumVal(weight);
+  mix->mltpx = mltpx;
   setMixName(idx, name);
 }
 
@@ -1219,18 +1240,21 @@ void ModelWizard::applyModelConfig()
       break;
   }
 
-  // Sort mixes by destCh — the mixer page requires ascending channel order
+  // Sort mixes by destCh — the mixer page requires ascending channel order.
+  // A stable (adjacent-only) sort keeps the relative order of mixes on the
+  // same channel, which matters for elevons: the first mix on a channel is
+  // the REPL base, later ones use their multiplex flag. Reordering them would
+  // make one of the two control surfaces override the other.
   uint8_t n = getMixCount();
   for (uint8_t i = 0; i < n; i++) {
-    for (uint8_t j = i + 1; j < n; j++) {
-      auto a = mixAddress(i);
-      auto b = mixAddress(j);
+    for (uint8_t j = 0; j + 1 < n - i; j++) {
+      auto a = mixAddress(j);
+      auto b = mixAddress(j + 1);
       if (a->destCh > b->destCh) {
-        // Swap mixes: save a, move b→a, restore a→b
         MixData tmp;
-        memcpy(&tmp, a, sizeof(MixData));   // tmp = a
-        memcpy(a, b, sizeof(MixData));       // a = b
-        memcpy(b, &tmp, sizeof(MixData));    // b = tmp
+        memcpy(&tmp, a, sizeof(MixData));
+        memcpy(a, b, sizeof(MixData));
+        memcpy(b, &tmp, sizeof(MixData));
       }
     }
   }
@@ -1290,6 +1314,11 @@ void ModelWizard::applyFixedWing()
   int eleCh = defaultInputForStick(STICK_ELE);
   int rudCh = defaultInputForStick(STICK_RUD);
 
+  // A wing has no rudder; remove the unused input line (matches the Lua
+  // wizard's model.deleteInput(defaultChannel(STICK_NUMBER_RUD), 0)).
+  if (wizardType == WIZARD_TYPE_WING && rudCh >= 0)
+    deleteInputLines(rudCh);
+
   if (hasDualRate) {
     // Aileron: 3 lines (UP=100%, MID=75%, DOWN=50%)
     int ailFirst = getFirstInput(ailCh);
@@ -1339,15 +1368,15 @@ void ModelWizard::applyFixedWing()
       addWizardMix(wizardData.ailChA, inputSourceForStick(STICK_AIL),
                    wizardData.ailCount == 1 ? "Ail" : "Ail-R");
       if (wizardData.ailCount == 2) {
-        addWizardMix(wizardData.ailChB, inputSourceForStick(STICK_AIL), "Ail-L", 100);
+        addWizardMix(wizardData.ailChB, inputSourceForStick(STICK_AIL), "Ail-L", -100);
       }
     }
   } else {
-    // Wing delta mix — matches Lua: MLTPX_ADD for 2nd line
-    addWizardMix(wizardData.ailChA, inputSourceForStick(STICK_ELE), "ele-R", 50, 0);
-    addWizardMix(wizardData.ailChA, inputSourceForStick(STICK_AIL), "ail-R", -50, 1);
-    addWizardMix(wizardData.ailChB, inputSourceForStick(STICK_ELE), "ele-L", 50, 0);
-    addWizardMix(wizardData.ailChB, inputSourceForStick(STICK_AIL), "ail-L", 50, 1);
+    // Wing delta mix
+    addWizardMix(wizardData.ailChA, inputSourceForStick(STICK_ELE), "ele-R", 50);
+    addWizardMix(wizardData.ailChA, inputSourceForStick(STICK_AIL), "ail-R", -50);
+    addWizardMix(wizardData.ailChB, inputSourceForStick(STICK_ELE), "ele-L", 50);
+    addWizardMix(wizardData.ailChB, inputSourceForStick(STICK_AIL), "ail-L", 50);
   }
 
   // Flaps
@@ -1373,17 +1402,16 @@ void ModelWizard::applyFixedWing()
       addWizardMix(wizardData.tailChB, inputSourceForStick(STICK_RUD), "Rudder");
       addWizardMix(wizardData.tailChC, inputSourceForStick(STICK_ELE), "Elev-L");
     } else if (wizardData.tailType == 3) {
-      // V-Tail — matches Lua: MLTPX_ADD for 2nd line on each channel
-      addWizardMix(wizardData.tailChA, inputSourceForStick(STICK_ELE), "V-EleR", 50, 0);
-      addWizardMix(wizardData.tailChA, inputSourceForStick(STICK_RUD), "V-RudR", 50, 1);
-      addWizardMix(wizardData.tailChB, inputSourceForStick(STICK_ELE), "V-EleL", 50, 0);
-      addWizardMix(wizardData.tailChB, inputSourceForStick(STICK_RUD), "V-RudL", -50, 1);
+      addWizardMix(wizardData.tailChA, inputSourceForStick(STICK_ELE), "V-EleR", 50);
+      addWizardMix(wizardData.tailChA, inputSourceForStick(STICK_RUD), "V-RudR", 50);
+      addWizardMix(wizardData.tailChB, inputSourceForStick(STICK_ELE), "V-EleL", 50);
+      addWizardMix(wizardData.tailChB, inputSourceForStick(STICK_RUD), "V-RudL", -50);
     }
   }
 
   // Gear
   if (wizardType != WIZARD_TYPE_WING && wizardData.hasGear) {
-    addWizardMix(wizardData.gearChannel, switchSource(wizardData.gearSwitch), "Gear", 100, 0);
+    addWizardMix(wizardData.gearChannel, switchSource(wizardData.gearSwitch), "Gear");
   }
 
   // Arm switch special function — matches Lua: FUNC_OVERRIDE_CHANNEL
@@ -1486,21 +1514,22 @@ void ModelWizard::applyHelicopter()
   setStdCurve(3, "THD", {-100, -100, -100});
 
   // ── Throttle Mixes ──
-  // Th0: always active, use TC0 (curve index 0)
-  addWizardMix(thrCh, inputSourceForStick(STICK_THR), "Th0", 100, 0);
-  { auto m = mixAddress(getMixCount() - 1); if (m) { m->curve.type = 3; m->curve.value = 0; } }
+  // CURVE_REF_CUSTOM values are 1-based: 1=TC0, 2=TC1, 3=TC2, 4=THD
+  // Th0: always active, TC0
+  addWizardMix(thrCh, inputSourceForStick(STICK_THR), "Th0");
+  { auto m = mixAddress(getMixCount() - 1); if (m) { m->curve.type = CURVE_REF_CUSTOM; m->curve.value = makeSourceNumVal(1); } }
 
-  // Th1: active when FM switch is UP, use TC1 (curve index 1), MLTPX_ADD
-  addWizardMix(thrCh, inputSourceForStick(STICK_THR), "Th1", 100, 1);
-  { auto m = mixAddress(getMixCount() - 1); if (m) { m->curve.type = 3; m->curve.value = 1; m->swtch = swUp(fmSw); } }
+  // Th1: replaces when FM switch is MID, TC1
+  addWizardMix(thrCh, inputSourceForStick(STICK_THR), "Th1", 100, MLTPX_REPL);
+  { auto m = mixAddress(getMixCount() - 1); if (m) { m->curve.type = CURVE_REF_CUSTOM; m->curve.value = makeSourceNumVal(2); m->swtch = swMid(fmSw); } }
 
-  // Th2: active when FM switch is MID, use TC2 (curve index 2), MLTPX_ADD
-  addWizardMix(thrCh, inputSourceForStick(STICK_THR), "Th2", 100, 1);
-  { auto m = mixAddress(getMixCount() - 1); if (m) { m->curve.type = 3; m->curve.value = 2; m->swtch = swMid(fmSw); } }
+  // Th2: replaces when FM switch is UP, TC2
+  addWizardMix(thrCh, inputSourceForStick(STICK_THR), "Th2", 100, MLTPX_REPL);
+  { auto m = mixAddress(getMixCount() - 1); if (m) { m->curve.type = CURVE_REF_CUSTOM; m->curve.value = makeSourceNumVal(3); m->swtch = swUp(fmSw); } }
 
-  // Hld: active when Hold switch is DOWN, offset -15, use THD (curve index 3), MLTPX_ADD
-  addWizardMix(thrCh, inputSourceForStick(STICK_THR), "Hld", 100, 1);
-  { auto m = mixAddress(getMixCount() - 1); if (m) { m->curve.type = 3; m->curve.value = 3; m->swtch = swDown(holdSw); m->offset = luaIntToSourceNumval(-15); } }
+  // Hld: replaces when Hold switch is DOWN, offset -15, THD
+  addWizardMix(thrCh, inputSourceForStick(STICK_THR), "Hld", 100, MLTPX_REPL);
+  { auto m = mixAddress(getMixCount() - 1); if (m) { m->curve.type = CURVE_REF_CUSTOM; m->curve.value = makeSourceNumVal(4); m->swtch = swDown(holdSw); m->offset = makeSourceNumVal(-15); } }
 
   // Set throttle output name
   if (thrCh < MAX_OUTPUT_CHANNELS) {
@@ -1542,9 +1571,9 @@ void ModelWizard::applyHelicopter()
   if (wizardData.heliType == 0) { // FBL: Tail Gain
     addWizardMix(gyroCh, MIXSRC_FIRST_POT + 5, "T.Gain", 25);
   } else { // FB: HHold + Rate switching
-    addWizardMix(gyroCh, MIXSRC_FIRST_POT + 5, "HHold", 25, 0);
-    addWizardMix(gyroCh, MIXSRC_FIRST_POT + 5, "Rate", -25, 1);
-    { auto m = mixAddress(getMixCount() - 1); if (m) m->swtch = swUp(gyroSw); }
+    addWizardMix(gyroCh, MIXSRC_FIRST_POT + 5, "HHold", 25);
+    addWizardMix(gyroCh, MIXSRC_FIRST_POT + 5, "Rate", -25, MLTPX_REPL);
+    { auto m = mixAddress(getMixCount() - 1); if (m) m->swtch = swDown(gyroSw); }
   }
   if (gyroCh < MAX_OUTPUT_CHANNELS) {
     auto lim = limitAddress(gyroCh);
