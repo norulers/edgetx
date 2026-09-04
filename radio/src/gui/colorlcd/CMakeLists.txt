@@ -214,3 +214,8 @@ set(SRC ${SRC}
 )
 
 add_definitions(-DCOLORLCD)
+
+option(UI_SCREENS_SEPARATE_STORAGE "Keep the main view configuration in /SCREENS instead of the model file, so the SD card can be shared with stock EdgeTX" ON)
+if(UI_SCREENS_SEPARATE_STORAGE)
+  add_definitions(-DUI_SCREENS_SEPARATE_STORAGE)
+endif()

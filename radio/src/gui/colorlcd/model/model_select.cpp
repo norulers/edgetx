@@ -30,6 +30,7 @@
 #include "model_wizard.h"
 #include "screen_setup.h"
 #include "standalone_lua.h"
+#include "storage/ui_screens_yaml.h"
 #include "view_channels.h"
 #include "view_main.h"
 
@@ -427,6 +428,7 @@ class ModelsPageBody : public Window
                                 MODELS_PATH)) {
             sdCopyFile(model->modelFilename, MODELS_PATH, duplicatedFilename,
                        MODELS_PATH);
+            uiScreensCopy(model->modelFilename, duplicatedFilename);
             // Make a new model which is a copy of the selected one, set the
             // same labels
             auto new_model =

@@ -849,6 +849,8 @@ PACK(struct ModelData {
   LayoutPersistentData* getScreenLayoutData(int screenNum);
   WidgetPersistentData* getWidgetData(int screenNum, int zoneNum);
   void removeScreenLayout(int idx);
+  // Exchanges the live main-view configuration with the caller's copy.
+  void swapScreenData(CustomScreenData** screens, TopBarPersistentData* topbar);
 #else
   uint8_t screensType SKIP; /* 2bits per screen (None/Gauges/Numbers/Script) */
   TelemetryScreenData screens[MAX_TELEMETRY_SCREENS];

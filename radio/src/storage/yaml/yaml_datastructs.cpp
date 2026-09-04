@@ -97,3 +97,25 @@
 #else
 #error "Board not supported by YAML storage"
 #endif
+
+#if defined(COLORLCD)
+// Root node describing only the main-view configuration. It reuses the
+// sub-node tables emitted by the code generator above, so nothing needs to be
+// regenerated. The screen/topbar nodes carry a bit size of 0 and their
+// read/write callbacks address g_model directly, so only topbarWidgetWidth and
+// view are read from / written to the buffer passed to the tree walker.
+static const struct YamlNode struct_ScreensData[] = {
+  YAML_ARRAY("screenData", 0, MAX_CUSTOM_SCREENS, struct_CustomScreenData, screen_is_active),
+  YAML_STRUCT("topbarData", 0, struct_TopBarPersistentData, isAlwaysActive),
+  YAML_ARRAY("topbarWidgetWidth", 8, MAX_TOPBAR_ZONES, struct_unsigned_8, NULL),
+  YAML_UNSIGNED( "view", 8 ),
+  YAML_END
+};
+
+static const struct YamlNode __ScreensData_root_node = YAML_ROOT( struct_ScreensData );
+
+const YamlNode* get_screensdata_nodes()
+{
+  return &__ScreensData_root_node;
+}
+#endif

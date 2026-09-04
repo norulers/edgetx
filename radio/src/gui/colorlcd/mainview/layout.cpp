@@ -91,36 +91,35 @@ const LayoutFactory* LayoutFactory::getLayoutFactory(const char* name)
   return nullptr;
 }
 
+static const char* const _privateLayouts[] = {
+    "LayoutFpvDash",
+};
+
+bool LayoutFactory::isPrivateLayout(const char* id)
+{
+  if (!id) return false;
+  for (auto privateId : _privateLayouts)
+    if (!strcmp(id, privateId)) return true;
+  return false;
+}
+
 //
 // Loads a layout, but does not attach it to any window
 //
 WidgetsContainer* LayoutFactory::loadLayout(
     Window* parent, int screenNum)
 {
-  const LayoutFactory* factory = getLayoutFactory(g_model.getScreenLayoutId(screenNum));
-  if (factory) {
-    // Auto-migrate: if the stored layout is the old compile-time default
-    // (Layout2P1), silently upgrade it to FPV Dashboard so that all
-    // existing models benefit from the new default without any manual step.
-    if (factory == defaultLayout) {
-      const LayoutFactory* fpv = getLayoutFactory("LayoutFpvDash");
-      if (fpv) {
-        factory = fpv;
-        g_model.setScreenLayoutId(screenNum, factory->getId());
-        // Reset decoration options so FPV layout starts clean
-        // (old layout may have had topbar/sliders/FM = true)
-        auto* opts = g_model.getScreenLayoutData(screenNum)->options;
-        opts[LAYOUT_OPTION_TOPBAR].value.boolValue  = false;
-        opts[LAYOUT_OPTION_FM].value.boolValue      = false;
-        opts[LAYOUT_OPTION_SLIDERS].value.boolValue = false;
-        // Keep TRIMS enabled — FPV layout shows trims for stick feedback
-        opts[LAYOUT_OPTION_TRIMS].value.boolValue   = true;
-        storageDirty(EE_MODEL);
-      }
-    }
-    return factory->load(parent, screenNum);
-  }
-  return nullptr;
+  const char* id = g_model.getScreenLayoutId(screenNum);
+  if (!id || !id[0]) return nullptr;  // no more screens
+
+  const LayoutFactory* factory = getLayoutFactory(id);
+
+  // A layout built into another firmware build must not leave the main view
+  // empty; fall back to the default one instead. The stored id is left alone.
+  if (!factory) factory = defaultLayout;
+  if (!factory) return nullptr;
+
+  return factory->load(parent, screenNum);
 }
 
 //

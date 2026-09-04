@@ -27,6 +27,7 @@ using std::list;
 
 #include "edgetx.h"
 #include "storage/sdcard_yaml.h"
+#include "storage/ui_screens_yaml.h"
 #include "yaml/yaml_datastructs.h"
 #include "yaml/yaml_labelslist.h"
 #include "yaml/yaml_modelslist.h"
@@ -293,9 +294,6 @@ LabelsVector ModelMap::getLabels()
 int ModelMap::addLabel(std::string lbl)
 {
   if (lbl == STR_UNLABELEDMODEL) return -1;
-
-  // Migrate legacy English "Favorites" label to the current locale
-  if (lbl == "Favorites") lbl = STR_FAVORITE_LABEL;
 
   // Limit maximum label length, TODO... Truncate UTF8 Properly
   removeYAMLChars(lbl);
@@ -1331,6 +1329,8 @@ bool ModelsList::removeModel(ModelCell *model)
     TRACE("Labels: Unable to move file");
     return true;
   }
+
+  uiScreensDelete(model->modelFilename);
 
   // Free memory
   delete(model);
