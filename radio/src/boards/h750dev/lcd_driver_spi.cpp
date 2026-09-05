@@ -78,27 +78,30 @@ static void spi5Init(void)
 
 #define SPI5_DWT_1MS  (480000U)  // 1 ms @ 480 MHz
 
+static bool _spi5_wait_flag(uint32_t flag, uint32_t timeout)
+{
+  uint32_t t0 = DWT->CYCCNT;
+  while (!(SPI5->SR & flag)) {
+    if ((DWT->CYCCNT - t0) > timeout) return false;
+  }
+  return true;
+}
+
 static bool _spi5_tx8(uint8_t byte)
 {
   SPI5->CR2 = 1;
   SET_BIT(SPI5->CR1, SPI_CR1_SPE);
   SET_BIT(SPI5->CR1, SPI_CR1_CSTART);
 
-  uint32_t t0 = DWT->CYCCNT;
-  while (!(SPI5->SR & SPI_SR_TXP)) {
-    if ((DWT->CYCCNT - t0) > SPI5_DWT_1MS) {
-      CLEAR_BIT(SPI5->CR1, SPI_CR1_SPE);
-      return false;
-    }
+  if (!_spi5_wait_flag(SPI_SR_TXP, SPI5_DWT_1MS)) {
+    CLEAR_BIT(SPI5->CR1, SPI_CR1_SPE);
+    return false;
   }
   *(__IO uint8_t *)&SPI5->TXDR = byte;
 
-  t0 = DWT->CYCCNT;
-  while (!(SPI5->SR & SPI_SR_EOT)) {
-    if ((DWT->CYCCNT - t0) > SPI5_DWT_1MS) {
-      CLEAR_BIT(SPI5->CR1, SPI_CR1_SPE);
-      return false;
-    }
+  if (!_spi5_wait_flag(SPI_SR_EOT, SPI5_DWT_1MS)) {
+    CLEAR_BIT(SPI5->CR1, SPI_CR1_SPE);
+    return false;
   }
   SPI5->IFCR = SPI_IFCR_EOTC | SPI_IFCR_TXTFC;
   CLEAR_BIT(SPI5->CR1, SPI_CR1_SPE);
@@ -111,23 +114,30 @@ static inline void _spi5_tx16(uint16_t val)
   _spi5_tx8((uint8_t)(val & 0xFF));
 }
 
+// EOT wait: a full chunk (up to 0xFFFF 16-bit frames) takes ~26 ms at 41 MHz
+// SCK, so allow up to 40 ms (vs. 1 ms for the per-frame TXP wait).
+#define SPI5_DWT_EOT  (SPI5_DWT_1MS * 40)
+
 // Bulk fill: switches to 16-bit frames, then restores 8-bit
 static void _spi5_fill16(uint16_t color, uint32_t count)
 {
   if (!count) return;
+  bool ok = true;
   CLEAR_BIT(SPI5->CR1, SPI_CR1_SPE);
   MODIFY_REG(SPI5->CFG1, SPI_CFG1_DSIZE_Msk, 0x0FUL << SPI_CFG1_DSIZE_Pos);
-  while (count > 0) {
+  while (count > 0 && ok) {
     uint32_t chunk = (count > 0xFFFFU) ? 0xFFFFU : count;
     SPI5->CR2 = chunk;
     SET_BIT(SPI5->CR1, SPI_CR1_SPE);
     SET_BIT(SPI5->CR1, SPI_CR1_CSTART);
     for (uint32_t i = 0; i < chunk; i++) {
-      while (!(SPI5->SR & SPI_SR_TXP)) {}
+      if (!_spi5_wait_flag(SPI_SR_TXP, SPI5_DWT_1MS)) { ok = false; break; }
       *(__IO uint16_t *)&SPI5->TXDR = color;
     }
-    while (!(SPI5->SR & SPI_SR_EOT)) {}
-    SPI5->IFCR = SPI_IFCR_EOTC | SPI_IFCR_TXTFC;
+    if (ok && !_spi5_wait_flag(SPI_SR_EOT, SPI5_DWT_EOT)) ok = false;
+    if (ok) {
+      SPI5->IFCR = SPI_IFCR_EOTC | SPI_IFCR_TXTFC;
+    }
     CLEAR_BIT(SPI5->CR1, SPI_CR1_SPE);
     count -= chunk;
   }
@@ -138,19 +148,22 @@ static void _spi5_fill16(uint16_t color, uint32_t count)
 static void _spi5_buf16(const uint16_t *buf, uint32_t count)
 {
   if (!count) return;
+  bool ok = true;
   CLEAR_BIT(SPI5->CR1, SPI_CR1_SPE);
   MODIFY_REG(SPI5->CFG1, SPI_CFG1_DSIZE_Msk, 0x0FUL << SPI_CFG1_DSIZE_Pos);
-  while (count > 0) {
+  while (count > 0 && ok) {
     uint32_t chunk = (count > 0xFFFFU) ? 0xFFFFU : count;
     SPI5->CR2 = chunk;
     SET_BIT(SPI5->CR1, SPI_CR1_SPE);
     SET_BIT(SPI5->CR1, SPI_CR1_CSTART);
     for (uint32_t i = 0; i < chunk; i++) {
-      while (!(SPI5->SR & SPI_SR_TXP)) {}
+      if (!_spi5_wait_flag(SPI_SR_TXP, SPI5_DWT_1MS)) { ok = false; break; }
       *(__IO uint16_t *)&SPI5->TXDR = buf[i];
     }
-    while (!(SPI5->SR & SPI_SR_EOT)) {}
-    SPI5->IFCR = SPI_IFCR_EOTC | SPI_IFCR_TXTFC;
+    if (ok && !_spi5_wait_flag(SPI_SR_EOT, SPI5_DWT_EOT)) ok = false;
+    if (ok) {
+      SPI5->IFCR = SPI_IFCR_EOTC | SPI_IFCR_TXTFC;
+    }
     CLEAR_BIT(SPI5->CR1, SPI_CR1_SPE);
     buf   += chunk;
     count -= chunk;

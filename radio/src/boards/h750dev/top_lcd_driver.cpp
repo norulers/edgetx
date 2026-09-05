@@ -26,6 +26,17 @@
 #include "lcd_driver_spi.h"
 #include "board.h"
 
+// The top-LCD connector has no SDO/MISO, so panel presence can't be probed over
+// SPI at runtime. Use the TOPLCD build option instead: set it ON once the panel
+// is physically attached, then rebuild & flash. When OFF the whole SPI top-LCD
+// subsystem is skipped entirely (no SPI writes -> no UI stutter on the dev
+// board). Must be defined before any BOOT guard so the bootloader compiles too.
+#if defined(TOPLCD)
+  #define TOPLCD_ENABLED true
+#else
+  #define TOPLCD_ENABLED false
+#endif
+
 #ifndef BOOT
 #include "edgetx.h"
 #include <lvgl/lvgl.h>
@@ -62,6 +73,12 @@ static lv_obj_t* _bar_bat    = nullptr;
 static lv_obj_t* _lbl_optime = nullptr;
 static lv_obj_t* _lbl_model  = nullptr;
 static lv_obj_t* _lbl_footer = nullptr;
+
+// Throttle the (optional) SPI top-LCD refresh so it doesn't run on every main
+// GUI cycle. When no panel is connected this avoids re-rendering/SPI-writes
+// every loop (which caused visible UI stutter).
+static uint8_t _refresh_cnt = 0;
+#define TOPLCD_REFRESH_DIV  4
 
 // ---------------------------------------------------------------------------
 // Flush callback — LVGL → SPI hardware
@@ -325,17 +342,20 @@ static uint8_t  _blink_phase = 0xFF;
 
 void toplcdInit(void)
 {
+  if (!TOPLCD_ENABLED) return;
   lcdSpiInit();
   lcdSpiClear(0x0000);
 }
 
 void toplcdOff(void)
 {
+  if (!TOPLCD_ENABLED) return;
   lcdSpiClear(0x0000);
 }
 
 void toplcdRefreshStart(void)
 {
+  if (!TOPLCD_ENABLED) return;
   _blinkCtr++;
   uint8_t phase = (_blinkCtr >> 2) & 1;
 #ifndef BOOT
@@ -351,8 +371,9 @@ void toplcdRefreshStart(void)
 
 void toplcdRefreshEnd(void)
 {
+  if (!TOPLCD_ENABLED) return;
 #ifndef BOOT
-  // Lazy LVGL registration — deferred because lv_init() runs after boardInit()
+  // Lazy LVGL registration — deferred because lv_init() runs after boardInit().
   if (!_disp && lv_is_initialized()) {
     lvgl_init_secondary();
   }
@@ -370,8 +391,9 @@ void toplcdRefreshEnd(void)
       lv_label_set_text(_lbl_footer, footer);
     }
   }
-  // Only render once the screen is fully constructed
-  if (_disp && _screen_ready) {
+  // Only render once the screen is fully constructed, and throttle to avoid
+  // SPI-writes every GUI cycle (caused visible UI stutter when no panel).
+  if (_disp && _screen_ready && (++_refresh_cnt % TOPLCD_REFRESH_DIV) == 0) {
     lv_refr_now(_disp);
   }
 #endif

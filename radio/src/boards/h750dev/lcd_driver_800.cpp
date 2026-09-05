@@ -39,8 +39,6 @@ static const uint16_t lcd_phys_h = LCD_PHYS_H;
 static LTDC_HandleTypeDef hltdc;
 static void* initialFrameBuffer = nullptr;
 
-static volatile uint8_t _frame_addr_reloaded = 0;
-
 static void startLcdRefresh(lv_disp_drv_t *disp_drv, uint16_t *buffer,
                             const rect_t &copy_area)
 {
@@ -50,17 +48,12 @@ static void startLcdRefresh(lv_disp_drv_t *disp_drv, uint16_t *buffer,
   SCB_CleanDCache();
 
   LTDC_Layer1->CFBAR = (uint32_t)buffer;
-  _frame_addr_reloaded = 0;
+
+  // Reload shadow registers on the next vertical blank and return immediately.
+  // The LTDC line interrupt calls lcdFlushed() once the reload is done and the
+  // scan has passed the active area (fully asynchronous, same as pl18/st16).
   LTDC->SRCR = LTDC_SRCR_VBR;
-
   __HAL_LTDC_ENABLE_IT(&hltdc, LTDC_IT_LI);
-
-  // Wait for LTDC to reload the frame buffer at the next vertical blank.
-  // DWT cycle counter gives a reliable 100 ms timeout (~5 frames at 56 fps).
-  uint32_t t0 = DWT->CYCCNT;
-  while (!_frame_addr_reloaded) {
-    if ((uint32_t)(DWT->CYCCNT - t0) > 48000000UL) break;  // 100 ms @ 480 MHz
-  }
 }
 
 static void LCD_AF_GPIOConfig(void)
@@ -181,6 +174,5 @@ extern "C" void LTDC_IRQHandler(void)
   __HAL_LTDC_CLEAR_FLAG(&hltdc, LTDC_FLAG_LI);
   __HAL_LTDC_DISABLE_IT(&hltdc, LTDC_IT_LI);
 
-  _frame_addr_reloaded = 1;
   lcdFlushed();
 }

@@ -32,26 +32,26 @@ Stream0:  LED_STRIP_TIMER_DMA_STREAM
 Stream1:  INTMODULE_DMA_STREAM
 Stream2:  FLYSKY_HALL_DMA_Stream_RX
 Stream3:  TELEMETRY_DMA_Stream_RX
-Stream4:  I2S_DMA_Stream
+Stream4:  FLYSKY_HALL_DMA_Stream_TX
 Stream5:  INTMODULE_RX_DMA_STREAM
-Stream6:  AUX2_SERIAL_DMA_RX_STREAM
+Stream6:  I2S_DMA_Stream (audio)
 Stream7:  TELEMETRY_DMA_Stream_TX
 
 DMA2
 Stream0:  ADC_EXT_DMA_STREAM (do not move)
 Stream1:  AUX_SERIAL_DMA_TX_STREAM
 Stream2:  AUX_SERIAL_DMA_RX_STREAM
-Stream3:  EXTMODULE_TIMER_DMA_STREAM
+Stream3:  (free)
 Stream4:  ADC_DMA_STREAM (do not move)
 Stream5:  EXTMODULE_USART_RX_DMA_STREAM
 Stream6:  EXTMODULE_USART_TX_DMA_STREAM
-Stream7:  AUX2_SERIAL_DMA_TX_STREAM
+Stream7:  (free)
 
 TIM1:
 TIM2:	LED_STRIP_TIMER
 TIM3:	HAPTIC_GPIO_TIMER
 TIM4:
-TIM5:	EXTMODULE_TIMER
+TIM5:	(free)
 TIM7:
 TIM8:	TRAINER_TIMER
 TIM4:	MIXER_SCHEDULER_TIMER
@@ -62,9 +62,9 @@ TIM16:
 TIM17:	ROTARY_ENCODER_TIMER
 
 USART1: TELEMETRY_USART
-USART2: EXTMODULE_USART
-USART3: AUX2_SERIAL_USART
-USART4: FLYSKY_HALL_SERIAL_USART (FLYSKY_GIMBAL)
+USART2: FLYSKY_HALL_SERIAL_USART (FLYSKY_GIMBAL)
+USART3: EXTMODULE_USART
+USART4: (free)
 USART5: AUX_SERIAL_USART
 USART6: INTMODULE_USART
  */
@@ -305,15 +305,18 @@ USART6: INTMODULE_USART
 // PH.11 = HALL_SYNC removed (no Hall gimbal on dev board)
 
 #if defined(FLYSKY_GIMBAL)
-// FlySky Hall Sticks. PA0/PA1 (used on other boards) conflict with
-// LED_STRIP_GPIO here, so use PC10/PC11 (UART4, free on this board) instead.
-#define FLYSKY_HALL_SERIAL_USART                 UART4
-#define FLYSKY_HALL_SERIAL_TX_GPIO               GPIO_PIN(GPIOC, 10) // PC.10
-#define FLYSKY_HALL_SERIAL_RX_GPIO               GPIO_PIN(GPIOC, 11) // PC.11
-#define FLYSKY_HALL_SERIAL_USART_IRQn            UART4_IRQn
+// FlySky Hall Sticks on USART2 (PD.05/PD.06, same as PA01/ST16). USART2 is free
+// now that the external module moved to USART3; SD2 (SDMMC2) is not used on this
+// board so PD.06 is available. TX uses DMA1 Stream4 (matching PA01/ST16); the
+// audio I2S was moved to DMA1 Stream6.
+#define FLYSKY_HALL_SERIAL_USART                 USART2
+#define FLYSKY_HALL_SERIAL_TX_GPIO               GPIO_PIN(GPIOD, 5) // PD.05
+#define FLYSKY_HALL_SERIAL_RX_GPIO               GPIO_PIN(GPIOD, 6) // PD.06
+#define FLYSKY_HALL_SERIAL_USART_IRQn            USART2_IRQn
 #define FLYSKY_HALL_SERIAL_DMA                   DMA1
 #define FLYSKY_HALL_DMA_Stream_RX                LL_DMA_STREAM_2
-#define FLYSKY_HALL_DMA_Channel                  LL_DMAMUX1_REQ_UART4_RX
+#define FLYSKY_HALL_DMA_Stream_TX                LL_DMA_STREAM_4
+#define FLYSKY_HALL_DMA_Channel                  LL_DMAMUX1_REQ_USART2_RX
 #endif
 
 #define USE_EXTI9_5_IRQ // used for I2C port extender interrupt
@@ -438,10 +441,10 @@ USART6: INTMODULE_USART
 #define AUDIO_RESET_PIN                 GPIO_PIN(GPIOH, 10)
 #define AUDIO_HP_DETECT_PIN             GPIO_PIN(GPIOH, 14)
 #define I2S_DMA                   		DMA1
-#define I2S_DMA_Stream            		LL_DMA_STREAM_4
+#define I2S_DMA_Stream            		LL_DMA_STREAM_6
 #define I2S_DMA_Stream_Request    		LL_DMAMUX1_REQ_SPI2_TX
-#define I2S_DMA_Stream_IRQn       		DMA1_Stream4_IRQn
-#define I2S_DMA_Stream_IRQHandler 		DMA1_Stream4_IRQHandler
+#define I2S_DMA_Stream_IRQn       		DMA1_Stream6_IRQn
+#define I2S_DMA_Stream_IRQHandler 		DMA1_Stream6_IRQHandler
 
 // I2C Bus
 #define I2C_B1                          I2C4
@@ -513,38 +516,24 @@ USART6: INTMODULE_USART
 #define INTMODULE_RX_DMA_Stream_IRQn    DMA1_Stream5_IRQn
 #define INTMODULE_RX_DMA_Stream_IRQHandler DMA1_Stream5_IRQHandler
 
-// External Module
+// External Module (serial only; moved to USART3 - PB.10/PB.11 freed from AUX2)
 #define EXTMODULE
 #define EXTMODULE_PULSES
 #define EXTMODULE_PWR_GPIO              GPIO_PIN(GPIOD, 4) // PD.04
-#define EXTMODULE_TX_GPIO               GPIO_PIN(GPIOA, 2) // TIM2_CH3, TIM5_CH3,TIM15_CH1,
-#define EXTMODULE_RX_GPIO               GPIO_PIN(GPIOA, 3)
-#define EXTMODULE_TX_GPIO_AF            LL_GPIO_AF_3 // TIM5_CH3
-#define EXTMODULE_TIMER                 TIM5
-#define EXTMODULE_TIMER_32BITS
-#define EXTMODULE_TIMER_Channel         LL_TIM_CHANNEL_CH3
-#define EXTMODULE_TIMER_IRQn            TIM5_IRQn
-#define EXTMODULE_TIMER_IRQHandler      TIM5_IRQHandler
-#define EXTMODULE_TIMER_FREQ            (PERI2_FREQUENCY * TIMER_MULT_APB2)
-#define EXTMODULE_TIMER_TX_GPIO_AF      LL_GPIO_AF_2
+#define EXTMODULE_TX_GPIO               GPIO_PIN(GPIOB, 10) // PB.10 / USART3_TX
+#define EXTMODULE_RX_GPIO               GPIO_PIN(GPIOB, 11) // PB.11 / USART3_RX
+#define EXTMODULE_TX_GPIO_AF            LL_GPIO_AF_7
 
 
 //USART
-#define EXTMODULE_USART                    USART2
+#define EXTMODULE_USART                    USART3
 #define EXTMODULE_USART_TX_DMA             DMA2
-#define EXTMODULE_USART_TX_DMA_CHANNEL     LL_DMAMUX1_REQ_USART2_TX
+#define EXTMODULE_USART_TX_DMA_CHANNEL     LL_DMAMUX1_REQ_USART3_TX
 #define EXTMODULE_USART_TX_DMA_STREAM      LL_DMA_STREAM_6
-#define EXTMODULE_USART_RX_DMA_CHANNEL     LL_DMAMUX1_REQ_USART2_RX
+#define EXTMODULE_USART_RX_DMA_CHANNEL     LL_DMAMUX1_REQ_USART3_RX
 #define EXTMODULE_USART_RX_DMA_STREAM      LL_DMA_STREAM_5
-#define EXTMODULE_USART_IRQHandler         USART2_IRQHandler
-#define EXTMODULE_USART_IRQn               USART2_IRQn
-
-//TIMER
-#define EXTMODULE_TIMER_DMA_CHANNEL        LL_DMAMUX1_REQ_TIM5_UP
-#define EXTMODULE_TIMER_DMA                DMA2
-#define EXTMODULE_TIMER_DMA_STREAM         LL_DMA_STREAM_6
-#define EXTMODULE_TIMER_DMA_STREAM_IRQn    DMA2_Stream6_IRQn
-#define EXTMODULE_TIMER_DMA_IRQHandler     DMA2_Stream6_IRQHandler
+#define EXTMODULE_USART_IRQHandler         USART3_IRQHandler
+#define EXTMODULE_USART_IRQn               USART3_IRQn
 
 // Trainer Port — NOT populated on dev board
 // TRAINER_IN_GPIO / TRAINER_OUT_GPIO intentionally not defined:

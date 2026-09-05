@@ -52,7 +52,7 @@ void audioSetVolume(uint8_t volume)
   (void)volume;
 }
 
-extern "C" void DMA1_Stream4_IRQHandler(void)
+extern "C" void DMA1_Stream6_IRQHandler(void)
 {
   // DMA IRQ not enabled (enable_dma_irqs() not called), should never fire.
 }

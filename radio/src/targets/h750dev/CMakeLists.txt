@@ -10,6 +10,7 @@ option(LUA_MIXER "Enable LUA mixer/model scripts support" ON)
 option(DISK_CACHE "Enable SD card disk cache" ON)
 option(INTERNAL_GPS "Support for internal GPS" ON)
 option(KCX_BTAUDIO "KCX_BTAUDIO audio emitter installed" OFF)
+option(TOPLCD "SPI ST7789 top LCD (LCD1 connector; no SDO so it can't be auto-detected)" OFF)
 
 set(FIRMWARE_QSPI YES)
 set(FIRMWARE_FORMAT_UF2 YES)
@@ -73,11 +74,8 @@ set(SOFTWARE_KEYBOARD ON)
 set(FUNCTION_SWITCHES ON)
 set(USB_CHARGER YES)
 set(AUX_SERIAL YES)
-if(KCX_BTAUDIO)
-  set(AUX2_SERIAL NO)
-else()
-  set(AUX2_SERIAL YES)
-endif()
+# AUX2 disabled: USART3 / PB.10-11 are reused by the external module
+set(AUX2_SERIAL NO)
 add_definitions(
   -DSTM32H750XBTx -DSTM32H750xx
   -DSDRAM -DSDRAM_32M -DCCMRAM
@@ -97,6 +95,15 @@ endif()
 
 if(NOT UNEXPECTED_SHUTDOWN)
   add_definitions(-DNO_UNEXPECTED_SHUTDOWN)
+endif()
+
+# SPI ST7789 top LCD. The LCD1 connector has no SDO/MISO, so it can't be
+# auto-detected at runtime. Enable once the panel is physically connected,
+# then rebuild & flash. When OFF, the top-LCD subsystem is skipped entirely
+# (no SPI writes -> no UI stutter on the dev board).
+if(TOPLCD)
+  add_definitions(-DTOPLCD)
+  message("-- SPI top LCD (ST7789) enabled")
 endif()
 
 if(DISK_CACHE)
