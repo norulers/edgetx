@@ -32,12 +32,10 @@ class TemplatePage : public Page
     TemplatePage();
 
     void updateInfo();
+    void setInfo(const char* text);
+    void setHeaderTitle(const char* title) { header->setTitle(title); }
+    void setHeaderTitle2(const char* title) { header->setTitle2(title); }
 
-#if defined(DEBUG_WINDOWS)
-    std::string getName() const override { return "TemplatePage"; }
-#endif
-
-  protected:
     Window* listWindow = nullptr;
     lv_obj_t* infoLabel = nullptr;
 

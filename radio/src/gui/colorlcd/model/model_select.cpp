@@ -27,8 +27,10 @@
 #include "etx_lv_theme.h"
 #include "menu.h"
 #include "model_templates.h"
+#include "model_wizard.h"
 #include "screen_setup.h"
 #include "standalone_lua.h"
+#include "storage/ui_screens_yaml.h"
 #include "view_channels.h"
 #include "view_main.h"
 
@@ -75,6 +77,22 @@ class ModelButton : public Button
   {
     coord_t w = width() - PAD_SMALL * 2;
 
+    // Dark button background
+    lv_obj_set_style_bg_color(lvobj, lv_color_make(0x28, 0x28, 0x28),
+                              LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(lvobj, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_border_width(lvobj, 0, LV_PART_MAIN);
+    // Orange highlight on focus
+    lv_obj_set_style_bg_color(lvobj, lv_color_make(0xFF, 0x8C, 0x00),
+                              LV_PART_MAIN | LV_STATE_FOCUSED);
+    lv_obj_set_style_text_color(lvobj, lv_color_black(),
+                                LV_PART_MAIN | LV_STATE_FOCUSED);
+    // Green on pressed
+    lv_obj_set_style_bg_color(lvobj, lv_color_make(0x00, 0xA0, 0x00),
+                              LV_PART_MAIN | LV_STATE_PRESSED);
+    lv_obj_set_style_text_color(lvobj, lv_color_black(),
+                                LV_PART_MAIN | LV_STATE_PRESSED);
+
     LcdFlags font = modelLayouts[layout].font;
     if ((getTextWidth(modelCell->modelName, 0, font) > w))
       font = (font == FONT(STD)) ? FONT(XS) : FONT(XXS);
@@ -87,14 +105,14 @@ class ModelButton : public Button
       coord_t fo = (font == FONT(STD)) ? -PAD_THREE : (font == FONT(XS)) ? -PAD_THREE : -1;
 
       modelName = new StaticText(this, {PAD_TINY, PAD_TINY, w, fh}, modelCell->modelName,
-                                 COLOR_THEME_SECONDARY1_INDEX, CENTERED | font);
-      etx_bg_color(modelName->getLvObj(), COLOR_THEME_ACTIVE_INDEX, LV_STATE_USER_1);
-      etx_bg_color(modelName->getLvObj(), COLOR_THEME_PRIMARY2_INDEX, LV_PART_MAIN);
+                                 COLOR_THEME_PRIMARY2_INDEX, CENTERED | font);
+      etx_bg_color(modelName->getLvObj(), COLOR_THEME_FOCUS_INDEX, LV_STATE_USER_1);
+      etx_bg_color(modelName->getLvObj(), COLOR_THEME_PRIMARY1_INDEX, LV_PART_MAIN);
       etx_obj_add_style(modelName->getLvObj(), styles->bg_opacity_75, LV_PART_MAIN);
       modelName->padTop(fo);
     } else {
       modelName = new StaticText(this, {PAD_TINY, PAD_SMALL, w, EdgeTxStyles::STD_FONT_HEIGHT}, modelCell->modelName,
-                                 COLOR_THEME_SECONDARY1_INDEX, font);
+                                 COLOR_THEME_PRIMARY2_INDEX, font);
     }
     lv_label_set_long_mode(modelName->getLvObj(), LV_LABEL_LONG_DOT);
 
@@ -167,7 +185,7 @@ class ModelButton : public Button
     errorMsg += ")";
     LcdFlags font = (modelLayouts[layout].font == FONT(STD)) ? FONT(XS) : FONT(XXS);
     new StaticText(this, {PAD_TINY, h / 2, w, getFontHeight(font)}, errorMsg,
-                  COLOR_THEME_SECONDARY1_INDEX, CENTERED | font);
+                  COLOR_THEME_PRIMARY2_INDEX, CENTERED | font);
   }
 
   void onClicked() override
@@ -410,6 +428,7 @@ class ModelsPageBody : public Window
                                 MODELS_PATH)) {
             sdCopyFile(model->modelFilename, MODELS_PATH, duplicatedFilename,
                        MODELS_PATH);
+            uiScreensCopy(model->modelFilename, duplicatedFilename);
             // Make a new model which is a copy of the selected one, set the
             // same labels
             auto new_model =
@@ -515,6 +534,22 @@ class ModelLayoutButton : public IconButton
                  pressHandler),
       layout(layout)
   {
+    // Dark button background - no borders to prevent icon shift
+    lv_obj_set_style_bg_color(lvobj, lv_color_make(0x28, 0x28, 0x28),
+                              LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(lvobj, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_border_width(lvobj, 0, LV_PART_MAIN);
+    lv_obj_set_style_border_width(lvobj, 0, LV_PART_MAIN | LV_STATE_FOCUSED);
+    lv_obj_set_style_border_width(lvobj, 0, LV_PART_MAIN | LV_STATE_PRESSED);
+    lv_obj_set_style_pad_all(lvobj, 0, LV_PART_MAIN);
+    // Orange on focus
+    lv_obj_set_style_bg_color(lvobj, lv_color_make(0xFF, 0x8C, 0x00),
+                              LV_PART_MAIN | LV_STATE_FOCUSED);
+    // Green on pressed
+    lv_obj_set_style_bg_color(lvobj, lv_color_make(0x00, 0xA0, 0x00),
+                              LV_PART_MAIN | LV_STATE_PRESSED);
+    // Re-center icon using actual button size
+    iconImage->center(width(), height());
   }
 
   uint8_t getLayout() const { return layout; }
@@ -523,6 +558,7 @@ class ModelLayoutButton : public IconButton
   {
     layout = newLayout;
     setIcon((EdgeTxIcon)(ICON_MODEL_GRID_LARGE + layout));
+    iconImage->center(width(), height());
   }
 
  protected:
@@ -533,6 +569,10 @@ class ModelLayoutButton : public IconButton
 
 ModelLabelsWindow::ModelLabelsWindow() : Page(ICON_MODEL_SELECT, PAD_ZERO, true)
 {
+  // Default to single-column list layout (index 3)
+  if (g_eeGeneral.modelSelectLayout == 0)
+    g_eeGeneral.modelSelectLayout = 3;
+
   buildHead(header);
   buildBody(body);
 
@@ -619,11 +659,21 @@ void ModelLabelsWindow::newModel()
     // Make the new model
     createModel();
 
-    // Close Window
+    // Close Window — go directly to ViewMain for all paths
     onCancel();
 
-    // Check for not 'Blank Model'
+    // Check for not 'Blank Model' and not C++ wizard
     if (name.size() > 0) {
+      // C++ wizard: runs on top of ViewMain; screens loaded in applyModelConfig()
+      if (folder == "__cppwiz__") {
+        WizardType wizType = WIZARD_TYPE_PLANE;
+        if (name == "Plane") wizType = WIZARD_TYPE_PLANE;
+        else if (name == "Glider") wizType = WIZARD_TYPE_GLIDER;
+        else if (name == "Wing") wizType = WIZARD_TYPE_WING;
+        else if (name == "Helicopter") wizType = WIZARD_TYPE_HELI;
+        else if (name == "Multirotor") wizType = WIZARD_TYPE_MULTIROTOR;
+        new ModelWizard(wizType);
+      } else {
       static constexpr size_t LEN_BUFFER =
           sizeof(TEMPLATES_PATH) + 2 * TEXT_FILENAME_MAXLEN + 1;
 
@@ -648,12 +698,13 @@ void ModelLabelsWindow::newModel()
         luaExecStandalone(path);
       }
 #endif
+      // Main view layout
+      LayoutFactory::loadCustomScreens();
+      }
     } else {
       LayoutFactory::loadDefaultLayout();
+      LayoutFactory::loadCustomScreens();
     }
-
-    // Main view layout
-    LayoutFactory::loadCustomScreens();
   });
 }
 
@@ -674,77 +725,188 @@ void ModelLabelsWindow::buildHead(Window *hdr)
   // page title
   setTitle();
 
+  // Hide original blue HeaderIcon/HeaderBackIcon (they use lv_canvas, not lv_img)
+  uint32_t cnt = lv_obj_get_child_cnt(hdr->getLvObj());
+  for (uint32_t i = 0; i < cnt; i++) {
+    auto child = lv_obj_get_child(hdr->getLvObj(), i);
+    if (lv_obj_check_type(child, &lv_canvas_class)) {
+      lv_obj_add_flag(child, LV_OBJ_FLAG_HIDDEN);
+    }
+  }
+
+  // Left: dark bg shape + orange model icon
+  auto leftBg = new StaticIcon(hdr, 0, 0, ICON_TOPLEFT_BG, COLOR_THEME_PRIMARY2_INDEX);
+  lv_obj_set_style_img_recolor_opa(leftBg->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_img_recolor(leftBg->getLvObj(), lv_color_make(0x22, 0x22, 0x22), LV_PART_MAIN);
+  leftBg->setTop((EdgeTxStyles::MENU_HEADER_HEIGHT - leftBg->height()) / 2);
+  auto leftIco = new StaticIcon(leftBg, 0, 0, ICON_MODEL_SELECT, COLOR_THEME_PRIMARY2_INDEX);
+  lv_obj_set_style_img_recolor_opa(leftIco->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_img_recolor(leftIco->getLvObj(), lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN);
+  leftIco->center(leftBg->width() + PAD_MEDIUM, leftBg->height());
+
+  // Right: dark bg shape + orange close icon
+  auto rightBg = new StaticIcon(hdr, LCD_W - 0, 0, ICON_TOPRIGHT_BG,
+                                COLOR_THEME_PRIMARY2_INDEX);
+  lv_obj_set_style_img_recolor_opa(rightBg->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_img_recolor(rightBg->getLvObj(), lv_color_make(0x22, 0x22, 0x22), LV_PART_MAIN);
+  rightBg->setPos(LCD_W - rightBg->width(),
+                  (EdgeTxStyles::MENU_HEADER_HEIGHT - rightBg->height()) / 2);
+  auto rightIco = new StaticIcon(rightBg, 0, 0, ICON_BTN_CLOSE, COLOR_THEME_PRIMARY2_INDEX);
+  lv_obj_set_style_img_recolor_opa(rightIco->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_img_recolor(rightIco->getLvObj(), lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN);
+  rightIco->center(rightBg->width() + PAD_MEDIUM, rightBg->height());
+
 #if !PORTRAIT
   // new model button
-  new TextButton(hdr, {LCD_W - PageGroup::PAGE_GROUP_BACK_BTN_W - NEW_BTN_W - PAD_LARGE, PAD_MEDIUM, NEW_BTN_W, EdgeTxStyles::UI_ELEMENT_HEIGHT}, STR_NEW, [=]() {
-    auto menu = new Menu();
-    menu->setTitle(STR_CREATE_NEW);
-    menu->addLine(STR_NEW_MODEL, [=]() { newModel(); });
-    menu->addLine(STR_NEW_LABEL, [=]() { newLabel(); });
-    return 0;
-  });
+  auto nb=new TextButton(hdr,{LCD_W-PageGroup::PAGE_GROUP_BACK_BTN_W-110-PAD_LARGE,PAD_MEDIUM,110,EdgeTxStyles::UI_ELEMENT_HEIGHT},STR_NEW_MODEL,[=](){newModel();return 0;});
+  lv_obj_set_style_bg_color(nb->getLvObj(),lv_color_make(0x28,0x28,0x28),0);
+  lv_obj_set_style_text_color(nb->getLvObj(),lv_color_white(),0);
+  lv_obj_set_style_bg_color(nb->getLvObj(),lv_color_make(0xFF,0x8C,0x00),LV_PART_MAIN|LV_STATE_FOCUSED);
+  lv_obj_set_style_text_color(nb->getLvObj(),lv_color_black(),LV_PART_MAIN|LV_STATE_FOCUSED);
+  lv_obj_set_style_bg_color(nb->getLvObj(),lv_color_make(0x00,0xA0,0x00),LV_PART_MAIN|LV_STATE_PRESSED);
+  lv_obj_set_style_text_color(nb->getLvObj(),lv_color_black(),LV_PART_MAIN|LV_STATE_PRESSED);
+  lv_obj_set_style_outline_width(nb->getLvObj(),0,LV_PART_MAIN|LV_STATE_FOCUS_KEY);
+  lv_obj_set_style_border_width(nb->getLvObj(),0,LV_PART_MAIN|LV_STATE_FOCUS_KEY);
 
-  mdlLayout = new ModelLayoutButton(this, LCD_W - PageGroup::PAGE_GROUP_BACK_BTN_W - LAYOUT_BTN_XO, PAD_MEDIUM, g_eeGeneral.modelSelectLayout, [=]() {
+  mdlLayout = new ModelLayoutButton(this, LCD_W - PageGroup::PAGE_GROUP_BACK_BTN_W - 110 - PAD_LARGE - EdgeTxStyles::UI_ELEMENT_HEIGHT - PAD_SMALL, PAD_MEDIUM, g_eeGeneral.modelSelectLayout, [=]() {
     uint8_t l = mdlLayout->getLayout();
     l = (l + 1) & 3;
     mdlLayout->setLayout(l);
     g_eeGeneral.modelSelectLayout = l;
     storageDirty(EE_GENERAL);
     mdlselector->reload();
-    return 0;
+    lv_group_focus_obj(mdlLayout->getLvObj());
+    return 1;  // keep focus for quick toggle
   });
+  // Remove blue focus outline from layout button
+  lv_obj_set_style_outline_width(mdlLayout->getLvObj(), 0,
+                                 LV_PART_MAIN | LV_STATE_FOCUS_KEY);
+  lv_obj_set_style_outline_opa(mdlLayout->getLvObj(), LV_OPA_TRANSP,
+                               LV_PART_MAIN | LV_STATE_FOCUS_KEY);
+  lv_obj_set_style_border_width(mdlLayout->getLvObj(), 0,
+                                LV_PART_MAIN | LV_STATE_FOCUS_KEY);
+  lv_obj_set_style_border_opa(mdlLayout->getLvObj(), LV_OPA_TRANSP,
+                              LV_PART_MAIN | LV_STATE_FOCUS_KEY);
 #endif
 }
 
 void ModelLabelsWindow::buildBody(Window *window)
 {
-  // Models List
+  // Models List - dark background
   mdlselector = new ModelsPageBody(window, {MDLS_X, MDLS_Y, MDLS_W, MDLS_H});
   mdlselector->setCloseHandler([=]() { onCancel(); });
   mdlselector->setLblRefreshFunc([=]() { labelRefreshRequest(); });
   auto mdl_obj = mdlselector->getLvObj();
   lv_obj_set_style_max_width(mdl_obj, MDLS_W, LV_PART_MAIN);
   lv_obj_set_style_max_height(mdl_obj, MDLS_H, LV_PART_MAIN);
+  lv_obj_set_style_bg_color(mdl_obj, lv_color_make(0x18, 0x18, 0x18),
+                            LV_PART_MAIN);
   etx_scrollbar(mdl_obj);
 
   if (mdlselector->getSortOrder() == NO_SORT)
     mdlselector->setSortOrder(NAME_ASC);
 
-  // Labels
+  // Reserve space for two button rows below labels
+  coord_t labelsH = LABELS_HEIGHT - EdgeTxStyles::UI_ELEMENT_HEIGHT - PAD_SMALL;
+
+  // Labels - dark background
   lblselector =
-      new ListBox(window, rect_t{LABELS_X, LABELS_Y, LABELS_WIDTH, LABELS_HEIGHT}, getLabels());
+      new ListBox(window, rect_t{LABELS_X, LABELS_Y, LABELS_WIDTH, labelsH}, getLabels());
   lblselector->setSmallSelectMarker();
   auto lbl_obj = lblselector->getLvObj();
+  lv_obj_set_style_bg_color(lbl_obj, lv_color_make(0x22, 0x22, 0x22),
+                            LV_PART_MAIN);
+  // Dark cell rows
+  lv_obj_set_style_bg_color(lbl_obj, lv_color_make(0x28, 0x28, 0x28),
+                            LV_PART_ITEMS);
+  lv_obj_set_style_text_color(lbl_obj, lv_color_white(), LV_PART_ITEMS);
+  lv_obj_set_style_border_color(lbl_obj, lv_color_make(0x18, 0x18, 0x18),
+                                LV_PART_ITEMS);
+  lv_obj_set_style_border_width(lbl_obj, 0, LV_PART_ITEMS);
+  // Orange on focused cell
+  lv_obj_set_style_bg_color(lbl_obj, lv_color_make(0xFF, 0x8C, 0x00),
+                            LV_PART_ITEMS | LV_STATE_FOCUSED);
+  lv_obj_set_style_text_color(lbl_obj, lv_color_black(),
+                              LV_PART_ITEMS | LV_STATE_FOCUSED);
+  // Orange on selected (CUSTOM_1 = USER_1) cell
+  lv_obj_set_style_bg_color(lbl_obj, lv_color_make(0xFF, 0x8C, 0x00),
+                            LV_PART_ITEMS | LV_STATE_USER_1);
+  lv_obj_set_style_text_color(lbl_obj, lv_color_black(),
+                              LV_PART_ITEMS | LV_STATE_USER_1);
+  // Orange when both focused AND selected
+  lv_obj_set_style_bg_color(lbl_obj, lv_color_make(0xFF, 0x8C, 0x00),
+                            LV_PART_ITEMS | LV_STATE_FOCUSED | LV_STATE_USER_1);
+  lv_obj_set_style_text_color(lbl_obj, lv_color_black(),
+                              LV_PART_ITEMS | LV_STATE_FOCUSED | LV_STATE_USER_1);
+  // Disable TableField's default focus border and LVGL theme outline
+  lv_obj_set_style_border_width(lbl_obj, 0, LV_PART_MAIN | LV_STATE_FOCUS_KEY);
+  lv_obj_set_style_border_opa(lbl_obj, LV_OPA_TRANSP,
+                              LV_PART_MAIN | LV_STATE_FOCUS_KEY);
+  lv_obj_set_style_outline_width(lbl_obj, 0, LV_PART_MAIN | LV_STATE_FOCUS_KEY);
+  lv_obj_set_style_outline_opa(lbl_obj, LV_OPA_TRANSP,
+                               LV_PART_MAIN | LV_STATE_FOCUS_KEY);
   etx_scrollbar(lbl_obj);
 
   lblselector->setColumnWidth(0, LABELS_WIDTH);
 
-  // Sort Button
-  new Choice(
-      window, {LABELS_X, LABELS_Y + LABELS_HEIGHT + PAD_SMALL, SORT_BUTTON_W, 0}, STR_SORT_ORDERS, NAME_ASC, DATE_DES,
-      [=]() { return mdlselector->getSortOrder(); },
-      [=](int newValue) { mdlselector->setSortOrder((ModelsSortBy)newValue); },
-      STR_SORT_MODELS_BY);
+  // Top button row: New Label
+  auto newLabelBtn = new TextButton(window,
+      {LABELS_X, LABELS_Y + labelsH + PAD_SMALL, SORT_BUTTON_W,
+       EdgeTxStyles::UI_ELEMENT_HEIGHT},
+      STR_NEW_LABEL, [=]() -> uint8_t {
+        newLabel();
+        return 0;
+      });
+  lv_obj_set_style_bg_color(newLabelBtn->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+  lv_obj_set_style_text_color(newLabelBtn->getLvObj(), lv_color_white(), LV_PART_MAIN);
+  lv_obj_set_style_bg_color(newLabelBtn->getLvObj(), lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN | LV_STATE_FOCUSED);
+  lv_obj_set_style_text_color(newLabelBtn->getLvObj(), lv_color_black(), LV_PART_MAIN | LV_STATE_FOCUSED);
+  lv_obj_set_style_bg_color(newLabelBtn->getLvObj(), lv_color_make(0x00, 0xA0, 0x00), LV_PART_MAIN | LV_STATE_PRESSED);
+  lv_obj_set_style_text_color(newLabelBtn->getLvObj(), lv_color_black(), LV_PART_MAIN | LV_STATE_PRESSED);
+  lv_obj_set_style_outline_width(newLabelBtn->getLvObj(), 0, LV_PART_MAIN | LV_STATE_FOCUS_KEY);
+  lv_obj_set_style_border_width(newLabelBtn->getLvObj(), 0, LV_PART_MAIN | LV_STATE_FOCUS_KEY);
 
+  coord_t btnRow2Y = LABELS_Y + labelsH + PAD_SMALL + EdgeTxStyles::UI_ELEMENT_HEIGHT + PAD_SMALL;
+
+  auto sc = new Choice(window,{LABELS_X,btnRow2Y,SORT_BUTTON_W,0},STR_SORT_ORDERS,NAME_ASC,DATE_DES,
+    [=](){return mdlselector->getSortOrder();},[=](int v){mdlselector->setSortOrder((ModelsSortBy)v);},STR_SORT_MODELS_BY);
+  lv_obj_set_style_bg_color(sc->getLvObj(),lv_color_make(0x28,0x28,0x28),0);
+  lv_obj_set_style_text_color(sc->getLvObj(),lv_color_white(),0);
+  lv_obj_set_style_bg_color(sc->getLvObj(),lv_color_make(0xFF,0x8C,0x00),LV_PART_MAIN|LV_STATE_FOCUSED);
+  lv_obj_set_style_text_color(sc->getLvObj(),lv_color_black(),LV_PART_MAIN|LV_STATE_FOCUSED);
+  lv_obj_set_style_bg_color(sc->getLvObj(),lv_color_make(0x00,0xA0,0x00),LV_PART_MAIN|LV_STATE_PRESSED);
+  lv_obj_set_style_text_color(sc->getLvObj(),lv_color_black(),LV_PART_MAIN|LV_STATE_PRESSED);
+  lv_obj_set_style_outline_width(sc->getLvObj(),0,LV_PART_MAIN|LV_STATE_FOCUS_KEY);
+  lv_obj_set_style_border_width(sc->getLvObj(),0,LV_PART_MAIN|LV_STATE_FOCUS_KEY);
 #if PORTRAIT
-  // new model button
-  new TextButton(window, {LCD_W - NEW_BTN_W - PAD_LARGE, LABELS_Y + LABELS_HEIGHT + PAD_SMALL, NEW_BTN_W, EdgeTxStyles::UI_ELEMENT_HEIGHT}, STR_NEW, [=]() {
-    auto menu = new Menu();
-    menu->setTitle(STR_CREATE_NEW);
-    menu->addLine(STR_NEW_MODEL, [=]() { newModel(); });
-    menu->addLine(STR_NEW_LABEL, [=]() { newLabel(); });
-    return 0;
-  });
+  auto np=new TextButton(window,{LCD_W-110-PAD_LARGE,btnRow2Y,110,EdgeTxStyles::UI_ELEMENT_HEIGHT},STR_NEW_MODEL,[=](){newModel();return 0;});
+  lv_obj_set_style_bg_color(np->getLvObj(),lv_color_make(0x28,0x28,0x28),0);
+  lv_obj_set_style_text_color(np->getLvObj(),lv_color_white(),0);
+  lv_obj_set_style_bg_color(np->getLvObj(),lv_color_make(0xFF,0x8C,0x00),LV_PART_MAIN|LV_STATE_FOCUSED);
+  lv_obj_set_style_text_color(np->getLvObj(),lv_color_black(),LV_PART_MAIN|LV_STATE_FOCUSED);
+  lv_obj_set_style_bg_color(np->getLvObj(),lv_color_make(0x00,0xA0,0x00),LV_PART_MAIN|LV_STATE_PRESSED);
+  lv_obj_set_style_text_color(np->getLvObj(),lv_color_black(),LV_PART_MAIN|LV_STATE_PRESSED);
+  lv_obj_set_style_outline_width(np->getLvObj(),0,LV_PART_MAIN|LV_STATE_FOCUS_KEY);
+  lv_obj_set_style_border_width(np->getLvObj(),0,LV_PART_MAIN|LV_STATE_FOCUS_KEY);
 
-  mdlLayout = new ModelLayoutButton(window, LCD_W - LAYOUT_BTN_XO, LABELS_Y + LABELS_HEIGHT + PAD_SMALL, g_eeGeneral.modelSelectLayout, [=]() {
+  mdlLayout = new ModelLayoutButton(window, LCD_W - 110 - PAD_LARGE - EdgeTxStyles::UI_ELEMENT_HEIGHT - PAD_SMALL, btnRow2Y, g_eeGeneral.modelSelectLayout, [=]() {
     uint8_t l = mdlLayout->getLayout();
     l = (l + 1) & 3;
     mdlLayout->setLayout(l);
     g_eeGeneral.modelSelectLayout = l;
     storageDirty(EE_GENERAL);
     mdlselector->reload();
-    return 0;
+    lv_group_focus_obj(mdlLayout->getLvObj());
+    return 1;  // keep focus for quick toggle
   });
+  lv_obj_set_style_outline_width(mdlLayout->getLvObj(), 0,
+                                 LV_PART_MAIN | LV_STATE_FOCUS_KEY);
+  lv_obj_set_style_outline_opa(mdlLayout->getLvObj(), LV_OPA_TRANSP,
+                               LV_PART_MAIN | LV_STATE_FOCUS_KEY);
+  lv_obj_set_style_border_width(mdlLayout->getLvObj(), 0,
+                                LV_PART_MAIN | LV_STATE_FOCUS_KEY);
+  lv_obj_set_style_border_opa(mdlLayout->getLvObj(), LV_OPA_TRANSP,
+                              LV_PART_MAIN | LV_STATE_FOCUS_KEY);
 #endif
 
   std::set<uint32_t> filteredLabels = modelslabels.filteredLabels();

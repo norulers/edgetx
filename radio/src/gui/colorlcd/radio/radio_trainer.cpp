@@ -49,12 +49,28 @@ static const lv_coord_t col_dsc[] = {LV_GRID_FR(7), LV_GRID_FR(15),
 
 static const lv_coord_t row_dsc[] = {LV_GRID_CONTENT, LV_GRID_TEMPLATE_LAST};
 
+static StaticText* trainerPageLabel(Window* parent, const char* text,
+                                    LcdFlags textFlags = 0)
+{
+  return new StaticText(parent, rect_t{}, text, COLOR_THEME_QM_FG_INDEX,
+                        textFlags);
+}
+
+static Window* trainerPageLine(Window* parent, FlexGridLayout& grid,
+                               bool indent = false)
+{
+  auto line = parent->newLine(grid);
+  stylePageGroupControl(line->getLvObj());
+  if (indent) line->padLeft(PAD_LARGE * 3 + PAD_MEDIUM);
+  return line;
+}
+
 void RadioTrainerPage::build(Window* form)
 {
   form->padAll(PAD_SMALL);
 
   if (SLAVE_MODE()) {
-    auto txt = new StaticText(form, rect_t{}, STR_SLAVE, COLOR_THEME_PRIMARY1_INDEX, FONT(L));
+    auto txt = trainerPageLabel(form, STR_SLAVE, FONT(L));
     lv_obj_align(txt->getLvObj(), LV_ALIGN_CENTER, 0, 0);
   } else {
     FlexGridLayout grid(col_dsc, row_dsc, PAD_TINY);
@@ -65,8 +81,8 @@ void RadioTrainerPage::build(Window* form)
       uint8_t chan = inputMappingChannelOrder(i);
       TrainerMix* td = &g_eeGeneral.trainer.mix[chan];
 
-      auto line = form->newLine(grid);
-      new StaticText(line, rect_t{}, getMainControlLabel(chan));
+      auto line = trainerPageLine(form, grid);
+      trainerPageLabel(line, getMainControlLabel(chan));
 
       new Choice(line, rect_t{}, STR_TRNMODE, 0, 2, GET_SET_DEFAULT(td->mode));
       new Choice(line, rect_t{}, STR_TRNCHN, 0, 3, GET_SET_DEFAULT(td->srcChn));
@@ -75,8 +91,7 @@ void RadioTrainerPage::build(Window* form)
       weight->setSuffix("%");
 
 #if PORTRAIT
-      line = form->newLine(grid);
-      line->padLeft(PAD_LARGE * 3 + PAD_MEDIUM);
+  line = trainerPageLine(form, grid, true);
       line->padBottom(PAD_LARGE);
 #endif
 
@@ -88,10 +103,10 @@ void RadioTrainerPage::build(Window* form)
           [=]() {
             return (trainerInput[i] - g_eeGeneral.trainer.calib[i]) * 2;
           },
-          COLOR_THEME_PRIMARY1_INDEX, flags);
+              COLOR_THEME_QM_FG_INDEX, flags);
     }
 
-    auto line = form->newLine(grid);
+            auto line = trainerPageLine(form, grid);
 #if PORTRAIT
     line->padTop(PAD_LARGE);
 #else
@@ -100,7 +115,7 @@ void RadioTrainerPage::build(Window* form)
 
     // Trainer multiplier
     if (g_model.trainerData.mode == TRAINER_MODE_MASTER_TRAINER_JACK) {
-      auto lbl = new StaticText(line, rect_t{}, STR_MULTIPLIER);
+      auto lbl = trainerPageLabel(line, STR_MULTIPLIER);
       lbl->padRight(PAD_SMALL);
       lv_obj_set_grid_cell(lbl->getLvObj(), LV_GRID_ALIGN_END, 0, 2,
                            LV_GRID_ALIGN_CENTER, 0, 1);
@@ -114,7 +129,7 @@ void RadioTrainerPage::build(Window* form)
                            LV_GRID_ALIGN_CENTER, 0, 1);
 
 #if PORTRAIT
-      line = form->newLine(grid);
+  line = trainerPageLine(form, grid);
       line->padTop(PAD_LARGE);
 #endif
     }
@@ -127,6 +142,7 @@ void RadioTrainerPage::build(Window* form)
                                 SET_DIRTY();
                                 return 0;
                               });
+    stylePageGroupControl(btn->getLvObj());
 #if PORTRAIT
     lv_obj_set_grid_cell(btn->getLvObj(), LV_GRID_ALIGN_STRETCH, 1, 2,
                          LV_GRID_ALIGN_CENTER, 0, 1);

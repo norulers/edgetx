@@ -318,11 +318,28 @@ void Window::pushLayer(bool hideParent)
   }
 }
 
+static void invalidate_children(lv_obj_t* obj)
+{
+  uint32_t cnt = lv_obj_get_child_cnt(obj);
+  for (uint32_t i = 0; i < cnt; i++) {
+    lv_obj_t* child = lv_obj_get_child(obj, i);
+    lv_obj_invalidate(child);
+    invalidate_children(child);
+  }
+}
+
 void Window::popLayer()
 {
   if (layerCreated) {
     Layer::pop(this);
-    if (parentHidden && Window::topWindow()) Window::topWindow()->show();
+    if (parentHidden && Window::topWindow()) {
+      auto* top = Window::topWindow();
+      top->show();
+      for (int i = 0; i < 20; i++)
+        lv_obj_enable_style_refresh(true);
+      lv_obj_invalidate(top->getLvObj());
+      invalidate_children(top->getLvObj());
+    }
     layerCreated = false;
     parentHidden = false;
   }
@@ -407,6 +424,13 @@ void Window::deleteLater()
     lvobj = nullptr;
     lv_obj_del(obj);
   }
+
+  // Unstick LVGL global style_refr counter. Every lv_obj_del() above
+  // (including recursive ones from deleteChildren) temporarily bumps
+  // the counter; complex nesting of create/destroy can leave it stuck
+  // > 0, suppressing all style refreshes.
+  for (int i = 0; i < 20; i++)
+    lv_obj_enable_style_refresh(true);
 }
 
 void Window::clear()
@@ -690,7 +714,11 @@ SetupLine::SetupLine(Window* parent, coord_t y, coord_t col2, PaddingSize paddin
     Window(parent, {0, y, LCD_W - padding * 2, 0})
 {
   padAll(PAD_ZERO);
-  coord_t titleY = PAD_LARGE + lblYOffset;
+  // Center label and edit vertically in the line:
+  //   line height h = UI_ELEMENT_HEIGHT + PAD_TINY*2 = 36, center = 18
+  //   edit: center at 18 → editY = 18 - UI_ELEMENT_HEIGHT/2 = 18 - 16 = 2 = PAD_TINY
+  //   label: center at 18 → titleY = 18 - STD_FONT_HEIGHT/2 = 18 - 12 = 6 = PAD_MEDIUM
+  coord_t titleY = PAD_MEDIUM + lblYOffset;
   coord_t titleH = EdgeTxStyles::STD_FONT_HEIGHT;
   coord_t h = EdgeTxStyles::UI_ELEMENT_HEIGHT + PAD_TINY * 2 + lblYOffset * 2;
   if (createEdit) {
@@ -703,13 +731,13 @@ SetupLine::SetupLine(Window* parent, coord_t y, coord_t col2, PaddingSize paddin
         titleH = EdgeTxStyles::UI_ELEMENT_HEIGHT + PAD_TINY + PAD_LARGE;
         editY = PAD_SMALL + 1;
       }
-      new StaticText(this, {PAD_TINY, titleY, lblWidth, titleH}, title);
+      new StaticText(this, {PAD_TINY, titleY, lblWidth, titleH}, title, COLOR_THEME_QM_FG_INDEX);
     }
     setHeight(h);
     createEdit(this, col2, editY);
   } else {
     setHeight(h);
-    new StaticText(this, {0, titleY, 0, titleH}, title, COLOR_THEME_PRIMARY1_INDEX, FONT(BOLD));
+    new StaticText(this, {0, titleY, 0, titleH}, title, COLOR_THEME_QM_FG_INDEX, FONT(BOLD));
   }
 }
 

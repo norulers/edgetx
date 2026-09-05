@@ -56,6 +56,13 @@ MenuToolbarButton::MenuToolbarButton(Window* parent, const rect_t& rect,
 
   lv_obj_add_event_cb(lvobj, toolbar_btn_defocus, LV_EVENT_DEFOCUSED, nullptr);
 
+  // Dark theme to match popup menu
+  lv_obj_set_style_bg_color(lvobj, lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(lvobj, LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_text_color(lvobj, lv_color_white(), LV_PART_MAIN);
+  lv_obj_set_style_border_width(lvobj, 0, LV_PART_MAIN);
+  lv_obj_set_style_outline_width(lvobj, 0, LV_PART_MAIN | LV_STATE_FOCUS_KEY);
+
   auto label = etx_label_create(lvobj);
   lv_label_set_text(label, picto);
   lv_obj_center(label);
@@ -72,9 +79,8 @@ MenuToolbar::MenuToolbar(Choice* choice, Menu* menu, const int columns) :
 
   padAll(PAD_SMALL);
 
-  etx_solid_bg(lvobj);
-  etx_obj_add_style(lvobj, styles->outline, LV_PART_MAIN);
-  etx_obj_add_style(lvobj, styles->outline_color_normal, LV_PART_MAIN);
+  lv_obj_set_style_bg_color(lvobj, lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(lvobj, LV_OPA_COVER, LV_PART_MAIN);
 
   setWidth((MENUS_TOOLBAR_BUTTON_WIDTH + PAD_SMALL) * columns + PAD_SMALL);
 

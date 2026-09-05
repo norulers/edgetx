@@ -34,25 +34,13 @@ class MenuBody : public TableField
   class MenuLine
   {
     friend class MenuBody;
-
    public:
     MenuLine(const std::string& text, std::function<void()> onPress,
              std::function<bool()> isChecked, lv_obj_t* icon) :
-        text(text),
-        onPress(std::move(onPress)),
-        isChecked(std::move(isChecked)),
-        icon(icon)
-    {
-    }
-
-    ~MenuLine()
-    {
-      if (icon)
-        lv_obj_del(icon);
-    }
-
+        text(text), onPress(std::move(onPress)),
+        isChecked(std::move(isChecked)), icon(icon) {}
+    ~MenuLine() { if (icon) lv_obj_del(icon); }
     lv_obj_t* getIcon() const { return icon; }
-
    protected:
     std::string text;
     std::function<void()> onPress;
@@ -61,25 +49,15 @@ class MenuBody : public TableField
   };
 
  public:
-  MenuBody(Window* parent, const rect_t& rect) :
-      TableField(parent, rect)
+  MenuBody(Window* parent, const rect_t& rect) : TableField(parent, rect)
   {
-    // Allow encoder acceleration
     lv_obj_add_flag(lvobj, LV_OBJ_FLAG_ENCODER_ACCEL);
-
     setColumnWidth(0, rect.w);
-
     setAutoEdit();
-
-    setLongPressHandler([=]() {
-      getParentMenu()->handleLongPress();
-    });
+    setLongPressHandler([=]() { getParentMenu()->handleLongPress(); });
   }
 
-  ~MenuBody()
-  {
-    clearLines();
-  }
+  ~MenuBody() { clearLines(); }
 
 #if defined(DEBUG_WINDOWS)
   std::string getName() const override { return "MenuBody"; }
@@ -87,46 +65,29 @@ class MenuBody : public TableField
 
   void setIndex(int index)
   {
-    if (index < (int)lines.size()) {
-      if (index == selectedIndex) return;
-      selectedIndex = index;
+    if (index < 0 || index >= (int)lines.size()) return;
+    if (index == selectedIndex) return;
+    selectedIndex = index;
 
-      lv_obj_invalidate(lvobj);
-      lv_table_t* table = (lv_table_t*)lvobj;
+    lv_obj_invalidate(lvobj);
+    lv_table_t* table = (lv_table_t*)lvobj;
+    table->row_act = index;
+    table->col_act = 0;
 
-      if (index < 0) {
-        table->row_act = LV_TABLE_CELL_NONE;
-        table->col_act = LV_TABLE_CELL_NONE;
-        return;
-      }
-
-      table->row_act = index;
-      table->col_act = 0;
-
-      lv_coord_t h_before = 0;
-      for (uint16_t i = 0; i < table->row_act; i++) h_before += table->row_h[i];
-
-      lv_coord_t row_h = table->row_h[table->row_act];
-      lv_coord_t scroll_y = lv_obj_get_scroll_y(lvobj);
-
-      lv_obj_update_layout(lvobj);
-      lv_coord_t h = lv_obj_get_height(lvobj);
-
-      lv_coord_t diff_y = 0;
-      if (h_before < scroll_y) {
-        diff_y = scroll_y - h_before;
-      } else if (scroll_y + h < h_before + row_h) {
-        diff_y = scroll_y + h - h_before - row_h;
-      } else {
-        return;
-      }
-
-      lv_obj_scroll_by_bounded(lvobj, 0, diff_y, LV_ANIM_OFF);
-    }
+    lv_coord_t h_before = 0;
+    for (uint16_t i = 0; i < table->row_act; i++) h_before += table->row_h[i];
+    lv_coord_t row_h = table->row_h[table->row_act];
+    lv_coord_t scroll_y = lv_obj_get_scroll_y(lvobj);
+    lv_obj_update_layout(lvobj);
+    lv_coord_t h = lv_obj_get_height(lvobj);
+    lv_coord_t diff_y = 0;
+    if (h_before < scroll_y) diff_y = scroll_y - h_before;
+    else if (scroll_y + h < h_before + row_h) diff_y = scroll_y + h - h_before - row_h;
+    else return;
+    lv_obj_scroll_by_bounded(lvobj, 0, diff_y, LV_ANIM_OFF);
   }
 
   int selection() const { return selectedIndex; }
-
   int count() const { return lines.size(); }
 
   void addLine(const MaskBitmap* icon_mask, const std::string& text,
@@ -136,15 +97,12 @@ class MenuBody : public TableField
     lv_obj_t* canvas = nullptr;
     if (icon_mask) {
       canvas = lv_canvas_create(nullptr);
-
       lv_coord_t w = icon_mask->width;
       lv_coord_t h = icon_mask->height;
       lv_canvas_set_buffer(canvas, (void*)&icon_mask->data[0], w, h, LV_IMG_CF_ALPHA_8BIT);
     }
-
     auto l = new MenuLine(text, onPress, isChecked, canvas);
     lines.push_back(l);
-
     if (update) {
       auto idx = lines.size() - 1;
       lv_table_set_cell_value(lvobj, idx, 0, text.c_str());
@@ -154,17 +112,15 @@ class MenuBody : public TableField
   void updateLines()
   {
     setRowCount(lines.size());
-    for (unsigned int idx = 0; idx < lines.size(); idx++) {
+    for (unsigned int idx = 0; idx < lines.size(); idx++)
       lv_table_set_cell_value(lvobj, idx, 0, lines[idx]->text.c_str());
-    }
   }
 
   void clearLines()
   {
     for (auto itr = lines.begin(); itr != lines.end();) {
-      auto l = *itr;
+      delete *itr;
       itr = lines.erase(itr);
-      delete l;
     }
     lines.clear();
   }
@@ -174,8 +130,6 @@ class MenuBody : public TableField
     clearLines();
     setRowCount(0);
     selectedIndex = 0;
-
-    // reset vertical scroll
     lv_obj_scroll_to_y(lvobj, 0, LV_ANIM_OFF);
   }
 
@@ -184,58 +138,39 @@ class MenuBody : public TableField
     Menu* menu = getParentMenu();
     if (row < lines.size()) {
       if (menu->isMultiple()) {
-        if (selectedIndex == (int)row)
-          lines[row]->onPress();
-        else {
-          setIndex(row);
-          lines[row]->onPress();
-        }
+        if (selectedIndex == (int)row) lines[row]->onPress();
+        else { setIndex(row); lines[row]->onPress(); }
       } else {
-        // delete menu first to avoid
-        // focus issues with onPress()
         menu->deleteLater();
         lines[row]->onPress();
       }
     }
   }
 
-  void onDrawBegin(uint16_t row, uint16_t col,
-                   lv_obj_draw_part_dsc_t* dsc) override
+  void onDrawBegin(uint16_t row, uint16_t col, lv_obj_draw_part_dsc_t* dsc) override
   {
     if (lines.size() == 0) return;
-
     lv_canvas_t* icon = (lv_canvas_t*)lines[row]->getIcon();
     if (!icon) return;
-
-    lv_img_t* img = &icon->img;
     lv_coord_t cell_left = lv_obj_get_style_pad_left(lvobj, LV_PART_ITEMS);
-    dsc->label_dsc->ofs_x = img->w + cell_left;
+    dsc->label_dsc->ofs_x = icon->img.w + cell_left;
   }
 
-  void onDrawEnd(uint16_t row, uint16_t col,
-                 lv_obj_draw_part_dsc_t* dsc) override
+  void onDrawEnd(uint16_t row, uint16_t col, lv_obj_draw_part_dsc_t* dsc) override
   {
     if (row >= lines.size()) return;
-
     lv_obj_t* icon = lines[row]->getIcon();
     if (icon) {
-      lv_draw_img_dsc_t img_dsc;
-      lv_draw_img_dsc_init(&img_dsc);
-
-      lv_img_dsc_t* img = lv_canvas_get_img(icon);
+      lv_draw_img_dsc_t img_dsc; lv_draw_img_dsc_init(&img_dsc);
       lv_area_t coords;
-
       lv_coord_t area_h = lv_area_get_height(dsc->draw_area);
-
       lv_coord_t cell_left = lv_obj_get_style_pad_left(lvobj, LV_PART_ITEMS);
       coords.x1 = dsc->draw_area->x1 + cell_left;
-      coords.x2 = coords.x1 + img->header.w - 1;
-      coords.y1 = dsc->draw_area->y1 + (area_h - img->header.h) / 2;
-      coords.y2 = coords.y1 + img->header.h - 1;
-
-      lv_draw_img(dsc->draw_ctx, &img_dsc, &coords, img);
+      coords.x2 = coords.x1 + ((lv_img_dsc_t*)lv_canvas_get_img(icon))->header.w - 1;
+      coords.y1 = dsc->draw_area->y1 + (area_h - ((lv_img_dsc_t*)lv_canvas_get_img(icon))->header.h) / 2;
+      coords.y2 = coords.y1 + ((lv_img_dsc_t*)lv_canvas_get_img(icon))->header.h - 1;
+      lv_draw_img(dsc->draw_ctx, &img_dsc, &coords, lv_canvas_get_img(icon));
     }
-
     if (lines[row]->isChecked != nullptr && lines[row]->isChecked()) {
       lv_area_t coords;
       lv_coord_t area_h = lv_area_get_height(dsc->draw_area);
@@ -245,8 +180,7 @@ class MenuBody : public TableField
       coords.x2 = coords.x1 + font_h;
       coords.y1 = dsc->draw_area->y1 + (area_h - font_h) / 2;
       coords.y2 = coords.y1 + font_h - 1;
-      lv_draw_label(dsc->draw_ctx, dsc->label_dsc, &coords, LV_SYMBOL_OK,
-                    nullptr);
+      lv_draw_label(dsc->draw_ctx, dsc->label_dsc, &coords, LV_SYMBOL_OK, nullptr);
     }
   }
 
@@ -255,7 +189,6 @@ class MenuBody : public TableField
  protected:
   std::vector<MenuLine*> lines;
   int selectedIndex = 0;
-
   Menu* getParentMenu() { return static_cast<Menu*>(getParent()->getParent()); }
 };
 
@@ -294,6 +227,10 @@ class MenuWindowContent : public NavWindow
   {
     setWindowFlag(OPAQUE);
 
+    // Dark theme - match timer popup style exactly
+    lv_obj_set_style_bg_color(lvobj, lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(lvobj, LV_OPA_COVER, LV_PART_MAIN);
+
     coord_t w = (popupWidth > 0) ? popupWidth : MENUS_WIDTH;
 
     lv_obj_center(lvobj);
@@ -301,11 +238,20 @@ class MenuWindowContent : public NavWindow
 
     header = new StaticText(this, {0, 0, LV_PCT(100), 0}, "",
                             COLOR_THEME_PRIMARY2_INDEX);
-    etx_solid_bg(header->getLvObj(), COLOR_THEME_SECONDARY1_INDEX);
+    lv_obj_set_style_bg_color(header->getLvObj(), lv_color_make(0x22, 0x22, 0x22), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(header->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_text_color(header->getLvObj(), lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN);
     header->padAll(PAD_SMALL);
     header->hide();
 
-    body = new MenuBody(this, rect_t{0, 0, w, LV_SIZE_CONTENT});
+    // Menu lines are TextButton children; use a regular flex container.
+    // A TableField/MenuBody only accepts table rows, causing menu content
+    // such as the ELRS parameter browser to disappear.
+    body = new Window(this, rect_t{0, 0, w, LV_SIZE_CONTENT});
+    body->setFlexLayout(LV_FLEX_FLOW_COLUMN, PAD_TINY, LV_PCT(100), LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_color(body->getLvObj(), lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(body->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(body->getLvObj(), 0, LV_PART_MAIN);
     lv_obj_set_style_max_height(body->getLvObj(), LCD_H - EdgeTxStyles::STD_FONT_HEIGHT - PAD_SMALL * 2 - PAD_LARGE * 2, LV_PART_MAIN);
   }
 
@@ -321,17 +267,94 @@ class MenuWindowContent : public NavWindow
   std::string getName() const override { return "MenuWindowContent"; }
 #endif
 
-  void updateLines() { body->updateLines(); }
-  void removeLines() { body->removeLines(); }
-  int count() { return body->count(); }
-  int selection() { return body->selection(); }
-  void setIndex(int index) { body->setIndex(index); }
+  void updateLines()
+  {
+    body->clear();
+    btns.clear();
+
+    Menu* m = static_cast<Menu*>(getParent());
+    for (auto& line : lines) {
+      auto cb = line.onPress;
+      auto btn = new TextButton(body,
+          {0, 0, LV_PCT(100), EdgeTxStyles::UI_ELEMENT_HEIGHT + PAD_SMALL},
+          line.text, [=]() -> uint8_t {
+            if (!m->isMultiple()) m->deleteLater();
+            cb();
+            return 0;
+          });
+      lv_obj_set_style_bg_color(btn->getLvObj(), lv_color_make(0x28,0x28,0x28), LV_PART_MAIN);
+      lv_obj_set_style_bg_opa(btn->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+      lv_obj_set_style_text_color(btn->getLvObj(), lv_color_white(), LV_PART_MAIN);
+      lv_obj_set_style_border_width(btn->getLvObj(), 0, LV_PART_MAIN);
+      lv_obj_set_style_outline_width(btn->getLvObj(), 0, LV_PART_MAIN | LV_STATE_FOCUS_KEY);
+      lv_obj_set_style_bg_color(btn->getLvObj(), lv_color_make(0x00,0xA0,0x00), LV_PART_MAIN | LV_STATE_PRESSED);
+      lv_obj_set_style_text_color(btn->getLvObj(), lv_color_black(), LV_PART_MAIN | LV_STATE_PRESSED);
+      lv_obj_set_style_bg_color(btn->getLvObj(), lv_color_make(0xFF,0x8C,0x00), LV_PART_MAIN | LV_STATE_FOCUSED);
+      lv_obj_set_style_text_color(btn->getLvObj(), lv_color_black(), LV_PART_MAIN | LV_STATE_FOCUSED);
+      btns.push_back(btn->getLvObj());
+      lv_obj_add_event_cb(btn->getLvObj(), [](lv_event_t* e) {
+        auto* self = static_cast<MenuWindowContent*>(lv_event_get_user_data(e));
+        if (static_cast<Menu*>(self->getParent())->deleted()) return;
+        lv_obj_t* focused = lv_event_get_target(e);
+        for (unsigned int i = 0; i < self->btns.size(); i++) {
+          if (self->btns[i] == focused) {
+            self->sel = i;
+            if (self->lines[i].onFocus) self->lines[i].onFocus();
+            break;
+          }
+        }
+      }, LV_EVENT_FOCUSED, this);
+    }
+    lv_obj_update_layout(lvobj);
+  }
+  void removeLines() { body->clear(); lines.clear(); btns.clear(); sel = 0; }
+  int count() { return (int)lines.size(); }
+  int selection() { return sel; }
+  void setIndex(int idx) {
+    if (idx < 0 || idx >= (int)btns.size()) return;
+    lv_group_focus_obj(btns[idx]);
+    sel = idx;
+  }
 
   void addLine(const MaskBitmap* icon_mask, const std::string& text,
                std::function<void()> onPress, std::function<bool()> isChecked,
-               bool update = true)
+               bool update = true, std::function<void()> onFocus = nullptr)
   {
-    body->addLine(icon_mask, text, onPress, isChecked, update);
+    if (!update) { lines.push_back({text, onPress, isChecked, onFocus}); return; }
+    auto cb = onPress;
+    Menu* m = static_cast<Menu*>(getParent());
+    auto btn = new TextButton(body,
+        {0,0,LV_PCT(100), EdgeTxStyles::UI_ELEMENT_HEIGHT + PAD_SMALL},
+        text, [=]() -> uint8_t {
+          // Same order as original Menu::onPress
+          if (!m->isMultiple()) m->deleteLater();
+          cb();
+          return 0;
+        });
+    lv_obj_set_style_bg_color(btn->getLvObj(), lv_color_make(0x28,0x28,0x28), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(btn->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_text_color(btn->getLvObj(), lv_color_white(), LV_PART_MAIN);
+    lv_obj_set_style_border_width(btn->getLvObj(), 0, LV_PART_MAIN);
+    lv_obj_set_style_outline_width(btn->getLvObj(), 0, LV_PART_MAIN | LV_STATE_FOCUS_KEY);
+    lv_obj_set_style_bg_color(btn->getLvObj(), lv_color_make(0x00,0xA0,0x00), LV_PART_MAIN | LV_STATE_PRESSED);
+    lv_obj_set_style_text_color(btn->getLvObj(), lv_color_black(), LV_PART_MAIN | LV_STATE_PRESSED);
+    lv_obj_set_style_bg_color(btn->getLvObj(), lv_color_make(0xFF,0x8C,0x00), LV_PART_MAIN | LV_STATE_FOCUSED);
+    lv_obj_set_style_text_color(btn->getLvObj(), lv_color_black(), LV_PART_MAIN | LV_STATE_FOCUSED);
+    btns.push_back(btn->getLvObj());
+    lv_obj_add_event_cb(btn->getLvObj(), [](lv_event_t* e) {
+      auto* self = static_cast<MenuWindowContent*>(lv_event_get_user_data(e));
+      if (static_cast<Menu*>(self->getParent())->deleted()) return;
+      lv_obj_t* focused = lv_event_get_target(e);
+      for (unsigned int i = 0; i < self->btns.size(); i++) {
+        if (self->btns[i] == focused) {
+          self->sel = i;
+          if (self->lines[i].onFocus) self->lines[i].onFocus();
+          break;
+        }
+      }
+    }, LV_EVENT_FOCUSED, this);
+    lines.push_back({text, onPress, isChecked, onFocus});
+    lv_obj_update_layout(lvobj);
   }
 
 #if defined(HARDWARE_KEYS)
@@ -350,7 +373,11 @@ class MenuWindowContent : public NavWindow
 
  protected:
   StaticText* header = nullptr;
-  MenuBody* body = nullptr;
+  Window* body = nullptr;
+  struct Line { std::string text; std::function<void()> onPress; std::function<bool()> isChecked; std::function<void()> onFocus; };
+  std::vector<Line> lines;
+  std::vector<lv_obj_t*> btns;
+  int sel = 0;
 };
 
 //-----------------------------------------------------------------------------
@@ -405,9 +432,10 @@ void Menu::addLine(const std::string &text, std::function<void()> onPress,
 }
 
 void Menu::addLineBuffered(const std::string &text, std::function<void()> onPress,
-                           std::function<bool()> isChecked)
+                           std::function<bool()> isChecked, std::function<void()> onFocus)
 {
-  content->addLine(nullptr, text, std::move(onPress), std::move(isChecked), false);
+  content->addLine(nullptr, text, std::move(onPress), std::move(isChecked), false,
+                   std::move(onFocus));
 }
 
 void Menu::updateLines()

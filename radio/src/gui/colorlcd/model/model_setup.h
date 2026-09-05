@@ -21,6 +21,7 @@
 
 #pragma once
 
+#include "page.h"
 #include "pagegroup.h"
 
 class TextButton;
@@ -35,4 +36,49 @@ class ModelSetupPage: public PageGroupItem {
   static LAYOUT_VAL_SCALED(BTN_H, 62)
   static LAYOUT_VAL_SCALED(OPTS_W, 100)
   static LAYOUT_SIZE_SCALED(NAM_W, 200, 140)
+};
+
+class ModelMenuPage : public NavWindow
+{
+ public:
+  ModelMenuPage();
+
+  void onCancel() override;
+
+#if defined(HARDWARE_KEYS)
+  void onLongPressRTN() override { onCancel(); }
+#endif
+
+ protected:
+  Window* body = nullptr;
+};
+
+class RadioMenuPage : public NavWindow
+{
+ public:
+  RadioMenuPage();
+
+  void onCancel() override;
+
+#if defined(HARDWARE_KEYS)
+  void onLongPressRTN() override { onCancel(); }
+#endif
+
+ protected:
+  Window* body = nullptr;
+};
+
+class ToolsMenuPage : public NavWindow
+{
+ public:
+  ToolsMenuPage();
+
+  void onCancel() override;
+
+#if defined(HARDWARE_KEYS)
+  void onLongPressRTN() override { onCancel(); }
+#endif
+
+ protected:
+  Window* body = nullptr;
 };

@@ -222,6 +222,8 @@
 #define TR_IMU_VSRCRAW              SA2(TR_IMU_VSRCRAW)
 
 #define TR_EXIT_BTN     BUTTON(TR_EXIT)
+#define TR_SRC_BTN      "SRC"
+#define TR_MAIN_MENU_TOOLS TR_QM_TOOLS
 #define TR_MAIN_VIEW_1  TR_MAIN_VIEW_X "1"
 #define TR_MAIN_VIEW_2  TR_MAIN_VIEW_X "2"
 #define TR_MAIN_VIEW_3  TR_MAIN_VIEW_X "3"

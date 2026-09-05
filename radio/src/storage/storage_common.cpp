@@ -25,6 +25,7 @@
 #include "tasks/mixer_task.h"
 #include "mixes.h"
 #include "switches.h"
+#include "storage/ui_screens_yaml.h"
 
 #if defined(FUNCTION_SWITCHES_RGB_LEDS)
 #include "hal/rgbleds.h"
@@ -69,6 +70,8 @@ void preModelLoad()
   watchdogSuspend(500/*5s*/);
 
   logsClose();
+
+  uiScreensClearStock();
 
   bool needDelay = false;
   if (mixerTaskStarted()) {
@@ -173,6 +176,8 @@ static void sanitizeMixerLines()
 void postModelLoad(bool alarms)
 {
 #if defined(COLORLCD)
+  uiScreensLoad(g_eeGeneral.currModelFilename);
+
   if (!g_model.hasScreenData(0))
     LayoutFactory::loadDefaultLayout();
 

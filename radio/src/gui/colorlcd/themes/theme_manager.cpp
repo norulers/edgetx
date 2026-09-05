@@ -503,12 +503,14 @@ HeaderDateTime::HeaderDateTime(Window* parent, coord_t x, coord_t y) :
   date = etx_label_create(lvobj, FONT_XS_INDEX);
   lv_obj_set_pos(date, 0, 0);
   lv_obj_set_size(date, HDR_DATE_WIDTH, HDR_DATE_HEIGHT);
+  lv_label_set_long_mode(date, LV_LABEL_LONG_CLIP);
   lv_obj_set_style_text_align(date, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
   etx_txt_color(date, COLOR_THEME_PRIMARY2_INDEX);
 
   time = etx_label_create(lvobj, FONT_XS_INDEX);
   lv_obj_set_pos(time, 0, HDR_DATE_LINE2);
   lv_obj_set_size(time, HDR_DATE_WIDTH, HDR_DATE_HEIGHT);
+  lv_label_set_long_mode(time, LV_LABEL_LONG_CLIP);
   lv_obj_set_style_text_align(time, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
   etx_txt_color(time, COLOR_THEME_PRIMARY2_INDEX);
 
@@ -550,6 +552,8 @@ HeaderIcon::HeaderIcon(Window* parent, EdgeTxIcon icon, std::function<void()> ac
   StaticIcon(parent, 0, 0, ICON_TOPLEFT_BG, COLOR_THEME_FOCUS_INDEX),
   action(std::move(action))
 {
+  // Vertically center the background icon within the header
+  setTop((EdgeTxStyles::MENU_HEADER_HEIGHT - height()) / 2);
   this->icon = new StaticIcon(this, 0, 0, icon, COLOR_THEME_PRIMARY2_INDEX);
   this->icon->center(width() - PAD_SMALL, height());
 #if defined(HARDWARE_TOUCH)
@@ -564,6 +568,8 @@ HeaderIcon::HeaderIcon(Window* parent, const char* iconFile, std::function<void(
   StaticIcon(parent, 0, 0, ICON_TOPLEFT_BG, COLOR_THEME_FOCUS_INDEX),
   action(std::move(action))
 {
+  // Vertically center the background icon within the header
+  setTop((EdgeTxStyles::MENU_HEADER_HEIGHT - height()) / 2);
   this->icon = new StaticIcon(this, 0, 0, iconFile, COLOR_THEME_PRIMARY2_INDEX);
   this->icon->center(width(), height());
 #if defined(HARDWARE_TOUCH)
@@ -578,6 +584,8 @@ HeaderBackIcon::HeaderBackIcon(Window* parent, std::function<void()> action) :
   StaticIcon(parent, LCD_W - PageGroup::PAGE_GROUP_BACK_BTN_XO, 0, ICON_TOPRIGHT_BG, COLOR_THEME_FOCUS_INDEX),
   action(std::move(action))
 {
+  // Right-align and vertically center within the header
+  setPos(LCD_W - width(), (EdgeTxStyles::MENU_HEADER_HEIGHT - height()) / 2);
   (new StaticIcon(this, 0, 0, ICON_BTN_CLOSE, COLOR_THEME_PRIMARY2_INDEX))->center(width() + PAD_MEDIUM, height());
 #if defined(HARDWARE_TOUCH)
   if (this->action) {

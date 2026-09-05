@@ -23,6 +23,7 @@
 
 #include "choice.h"
 #include "edgetx.h"
+#include "pagegroup.h"
 #include "static.h"
 #include "toggleswitch.h"
 
@@ -35,9 +36,11 @@ SerialConfigWindow::SerialConfigWindow(Window *parent, FlexGridLayout& grid)
     if (!port || !port->name) continue;
 
     auto line = parent->newLine(grid);
-    (new StaticText(line, rect_t{}, port->name))->padLeft(PAD_SMALL);
+    stylePageGroupControl(line->getLvObj());
+    (new StaticText(line, rect_t{}, port->name, COLOR_THEME_QM_FG_INDEX))->padLeft(PAD_SMALL);
 
     auto box = new Window(line, rect_t{});
+    stylePageGroupControl(box->getLvObj());
     box->padAll(PAD_TINY);
     box->setFlexLayout(LV_FLEX_FLOW_ROW, PAD_MEDIUM);
     lv_obj_set_style_grid_cell_x_align(box->getLvObj(), LV_GRID_ALIGN_STRETCH, 0);
@@ -53,20 +56,23 @@ SerialConfigWindow::SerialConfigWindow(Window *parent, FlexGridLayout& grid)
         });
     aux->setAvailableHandler(
         [=](int value) { return isSerialModeAvailable(port_nr, value); });
+    stylePageGroupControl(aux->getLvObj());
 
     if (port->set_pwr != nullptr) {
-      new StaticText(box, rect_t{}, STR_AUX_SERIAL_PORT_POWER);
-      new ToggleSwitch(
+      new StaticText(box, rect_t{}, STR_AUX_SERIAL_PORT_POWER, COLOR_THEME_QM_FG_INDEX);
+      auto portPower = new ToggleSwitch(
           box, rect_t{}, [=] { return serialGetPower(port_nr); },
           [=](int8_t newValue) {
             serialSetPower(port_nr, (bool)newValue);
             SET_DIRTY();
           });
+      stylePageGroupControl(portPower->getLvObj());
     }
 
     if (port_nr != SP_VCP) {
         grid.setColSpan(2);
         auto line = parent->newLine(grid);
+        stylePageGroupControl(line->getLvObj());
         line->padLeft(PAD_LARGE * 2);
         line->padBottom(PAD_MEDIUM);
         new StaticText(line, rect_t{}, STR_TTL_WARNING, COLOR_THEME_WARNING_INDEX);

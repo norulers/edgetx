@@ -33,13 +33,26 @@
 
 //-----------------------------------------------------------------------------
 
+static void styleChannelMonitorObject(lv_obj_t* obj)
+{
+  if (lv_obj_check_type(obj, &lv_label_class)) {
+    lv_obj_set_style_text_color(obj, lv_color_white(), LV_PART_MAIN);
+  }
+
+  for (uint32_t i = 0; i < lv_obj_get_child_cnt(obj); i += 1) {
+    styleChannelMonitorObject(lv_obj_get_child(obj, i));
+  }
+}
+
+//-----------------------------------------------------------------------------
+
 class ChannelsViewFooter : public Window
 {
  public:
   explicit ChannelsViewFooter(Window* parent) :
       Window(parent, {0, parent->height() - FOOTER_H, LCD_W, FOOTER_H})
   {
-    etx_solid_bg(lvobj, COLOR_THEME_SECONDARY1_INDEX);
+    stylePageGroupControl(lvobj);
 
     auto w =
         new Window(this, {PAD_MEDIUM, PAD_SMALL, LEG_COLORBOX + PAD_TINY, LEG_COLORBOX + PAD_TINY});
@@ -92,9 +105,9 @@ class ChannelsViewPage : public PageGroupItem
     window->padAll(PAD_ZERO);
 
 #if PORTRAIT
-    coord_t w = window->width() - (PAD_SMALL * 2);
+    coord_t w = window->width() - (PAD_SMALL * 2) - PAD_SCROLL;
 #else
-    coord_t w = window->width() / 2 - (PAD_SMALL * 2);
+    coord_t w = window->width() / 2 - (PAD_SMALL * 2) - PAD_SCROLL;
 #endif
 
     // Channels bars
@@ -109,7 +122,8 @@ class ChannelsViewPage : public PageGroupItem
         coord_t xPos = (j & 1) ? w + (PAD_SMALL * 2) : PAD_SMALL;
         coord_t yPos = (j / cols) * ((window->height() - ChannelsViewFooter::FOOTER_H) / rows);
 #endif
-        new ComboChannelBar(window, {xPos, yPos, w, CHANS_H}, chan);
+      auto bar = new ComboChannelBar(window, {xPos, yPos, w, CHANS_H}, chan, false, true);
+      styleChannelMonitorObject(bar->getLvObj());
 
         j += 1;
       }

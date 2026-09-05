@@ -51,7 +51,7 @@ class FunctionSwitchBase : public Window
   static constexpr coord_t TP_X = NM_X + NM_W + PAD_SMALL;
   static LAYOUT_VAL_SCALED(TP_W, 78)
   static constexpr coord_t GR_X = TP_X + TP_W + PAD_SMALL;
-  static LAYOUT_VAL_SCALED(GR_W, 84)
+  static LAYOUT_VAL_SCALED(GR_W, 80)
   static constexpr coord_t ST_X = GR_X + GR_W + PAD_SMALL;
   static LAYOUT_VAL_SCALED(ST_W, 60)
   static constexpr coord_t ROW_HS = EdgeTxStyles::UI_ELEMENT_HEIGHT + PAD_OUTLINE * 2;
@@ -121,11 +121,13 @@ class FunctionSwitchBase : public Window
 class FunctionSwitchesBase : public Page
 {
  public:
-  FunctionSwitchesBase(EdgeTxIcon icon, const char* title);
+  FunctionSwitchesBase(EdgeTxIcon icon, const char* title, bool showGroup = true);
 
   void addQRCode();
 
  protected:
+  BitmapBuffer* qrcode = nullptr;
+  StaticText* groupHeader = nullptr;
   StaticText* startupHeader = nullptr;
 #if defined(FUNCTION_SWITCHES_RGB_LEDS)
   Messaging previewMsg;

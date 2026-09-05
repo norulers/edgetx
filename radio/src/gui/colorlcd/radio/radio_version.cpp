@@ -375,17 +375,19 @@ void RadioVersionPage::build(Window* window)
 
   auto qrBox = new Window(window, {0, 0, qw, qh});
   qrBox->padAll(PAD_ZERO);
+  stylePageGroupControl(qrBox->getLvObj());
 
   new StaticText(qrBox, {0, PAD_SMALL, LV_PCT(100), 0}, copyright_str,
-                 COLOR_THEME_SECONDARY1_INDEX, CENTERED);
+                 COLOR_THEME_QM_FG_INDEX, CENTERED);
 
   new StaticText(qrBox, {0, qh - QR_SZ - PAD_MEDIUM - EdgeTxStyles::STD_FONT_HEIGHT, LV_PCT(100), 0},
-                 edgetx_url, COLOR_THEME_SECONDARY1_INDEX, CENTERED);
+                 edgetx_url, COLOR_THEME_QM_FG_INDEX, CENTERED);
 
   new QRCode(qrBox, (qw - QR_SZ) / 2, qh - QR_SZ - PAD_MEDIUM, QR_SZ, edgetx_url);
 
   auto infoBox = new Window(window, {ix, iy, iw, ih});
   infoBox->padAll(PAD_SMALL);
+  stylePageGroupControl(infoBox->getLvObj());
   infoBox->padLeft(PAD_LARGE);
   infoBox->padRight(PAD_LARGE);
 
@@ -418,12 +420,14 @@ void RadioVersionPage::build(Window* window)
   version += boardTouchType;
 #endif
 
-  new StaticText(infoBox, {0, 0, LV_PCT(100), LV_SIZE_CONTENT}, version);
+  new StaticText(infoBox, {0, 0, LV_PCT(100), LV_SIZE_CONTENT}, version,
+                 COLOR_THEME_QM_FG_INDEX);
 
   // Module and receivers versions
-  new TextButton(infoBox, {0, ih - EdgeTxStyles::UI_ELEMENT_HEIGHT - PAD_LARGE - PAD_SMALL, LV_PCT(100), 0},
-                  STR_MODULES_RX_VERSION, [=]() {
-                    new VersionDialog();
-                    return 0;
-                  });
+  auto moduleVersionsBtn = new TextButton(infoBox, {0, ih - EdgeTxStyles::UI_ELEMENT_HEIGHT - PAD_LARGE - PAD_SMALL, LV_PCT(100), 0},
+                                          STR_MODULES_RX_VERSION, [=]() {
+                                            new VersionDialog();
+                                            return 0;
+                                          });
+  stylePageGroupControl(moduleVersionsBtn->getLvObj());
 }

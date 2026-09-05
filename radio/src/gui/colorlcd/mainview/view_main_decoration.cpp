@@ -21,6 +21,8 @@
 
 #include "view_main_decoration.h"
 
+#include "bottom_dock.h"
+
 // because of IS_POT_MULTIPOS() and pal
 #include "edgetx.h"
 
@@ -150,6 +152,9 @@ rect_t ViewMainDecoration::getWidgetsZone(bool showTopBar) const
     w -= PAD_LARGE * 2;
     bh += PAD_LARGE * 2;
   }
+
+  // Reserve height for the persistent bottom dock bar
+  bh += BottomDock::DOCK_H;
 
   h -= bh;
 

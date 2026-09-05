@@ -142,8 +142,17 @@ ConfirmDialog::ConfirmDialog(const char* title,
     confirmHandler(std::move(confirmHandler)),
     cancelHandler(std::move(cancelHandler))
 {
+  // Dark theme - match popup menu style
+  auto content = form->getParent();
+  lv_obj_set_style_bg_color(content->getLvObj(), lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(content->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_bg_color(header->getLvObj(), lv_color_make(0x22, 0x22, 0x22), LV_PART_MAIN);
+  lv_obj_set_style_text_color(header->getLvObj(), lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN);
+  lv_obj_set_style_bg_color(form->getLvObj(), lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+
   if (message) {
-    new StaticText(form, {0, 0, LV_PCT(100), 0}, message, COLOR_THEME_PRIMARY1_INDEX, CENTERED);
+    auto msg = new StaticText(form, {0, 0, LV_PCT(100), 0}, message, COLOR_THEME_PRIMARY1_INDEX, CENTERED);
+    lv_obj_set_style_text_color(msg->getLvObj(), lv_color_white(), LV_PART_MAIN);
   }
 
   auto box = new Window(form, rect_t{});
@@ -152,16 +161,32 @@ ConfirmDialog::ConfirmDialog(const char* title,
   lv_obj_set_flex_align(box->getLvObj(), LV_FLEX_ALIGN_CENTER,
                         LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_SPACE_BETWEEN);
 
-  new TextButton(box, rect_t{0, 0, 96, 0}, STR_NO, [=]() -> int8_t {
+  auto noBtn = new TextButton(box, rect_t{0, 0, 96, 0}, STR_NO, [=]() -> int8_t {
     onCancel();
     return 0;
   });
+  lv_obj_set_style_bg_color(noBtn->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+  lv_obj_set_style_text_color(noBtn->getLvObj(), lv_color_white(), LV_PART_MAIN);
+  lv_obj_set_style_bg_color(noBtn->getLvObj(), lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN | LV_STATE_FOCUSED);
+  lv_obj_set_style_text_color(noBtn->getLvObj(), lv_color_black(), LV_PART_MAIN | LV_STATE_FOCUSED);
+  lv_obj_set_style_bg_color(noBtn->getLvObj(), lv_color_make(0x00, 0xA0, 0x00), LV_PART_MAIN | LV_STATE_PRESSED);
+  lv_obj_set_style_text_color(noBtn->getLvObj(), lv_color_black(), LV_PART_MAIN | LV_STATE_PRESSED);
+  lv_obj_set_style_outline_width(noBtn->getLvObj(), 0, LV_PART_MAIN | LV_STATE_FOCUS_KEY);
+  lv_obj_set_style_border_width(noBtn->getLvObj(), 0, LV_PART_MAIN | LV_STATE_FOCUS_KEY);
 
-  new TextButton(box, rect_t{0, 0, 96, 0}, STR_YES, [=]() -> int8_t {
+  auto yesBtn = new TextButton(box, rect_t{0, 0, 96, 0}, STR_YES, [=]() -> int8_t {
     this->deleteLater();
     this->confirmHandler();
     return 0;
   });
+  lv_obj_set_style_bg_color(yesBtn->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+  lv_obj_set_style_text_color(yesBtn->getLvObj(), lv_color_white(), LV_PART_MAIN);
+  lv_obj_set_style_bg_color(yesBtn->getLvObj(), lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN | LV_STATE_FOCUSED);
+  lv_obj_set_style_text_color(yesBtn->getLvObj(), lv_color_black(), LV_PART_MAIN | LV_STATE_FOCUSED);
+  lv_obj_set_style_bg_color(yesBtn->getLvObj(), lv_color_make(0x00, 0xA0, 0x00), LV_PART_MAIN | LV_STATE_PRESSED);
+  lv_obj_set_style_text_color(yesBtn->getLvObj(), lv_color_black(), LV_PART_MAIN | LV_STATE_PRESSED);
+  lv_obj_set_style_outline_width(yesBtn->getLvObj(), 0, LV_PART_MAIN | LV_STATE_FOCUS_KEY);
+  lv_obj_set_style_border_width(yesBtn->getLvObj(), 0, LV_PART_MAIN | LV_STATE_FOCUS_KEY);
 }
 
 void ConfirmDialog::onCancel()
@@ -183,12 +208,15 @@ LabelDialog::LabelDialog(const char *label, int length, const char* title,
   form->padAll(PAD_ZERO);
   form->setFlexLayout(LV_FLEX_FLOW_COLUMN, PAD_ZERO, LCD_W * 0.8,
                       LV_SIZE_CONTENT);
-  etx_solid_bg(form->getLvObj());
+  lv_obj_set_style_bg_color(form->getLvObj(), lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(form->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
   lv_obj_center(form->getLvObj());
 
   auto hdr = new StaticText(form, {0, 0, LV_PCT(100), 0}, title,
                             COLOR_THEME_PRIMARY2_INDEX);
-  etx_solid_bg(hdr->getLvObj(), COLOR_THEME_SECONDARY1_INDEX);
+  lv_obj_set_style_bg_color(hdr->getLvObj(), lv_color_make(0x22, 0x22, 0x22), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(hdr->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_text_color(hdr->getLvObj(), lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN);
   hdr->padAll(PAD_MEDIUM);
 
   auto box = new Window(form, rect_t{});
@@ -205,14 +233,30 @@ LabelDialog::LabelDialog(const char *label, int length, const char* title,
   lv_obj_set_flex_align(box->getLvObj(), LV_FLEX_ALIGN_CENTER,
                         LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_SPACE_BETWEEN);
 
-  new TextButton(box, rect_t{0, 0, 96, 0}, STR_CANCEL, [=]() {
+  auto cancelBtn = new TextButton(box, rect_t{0, 0, 96, 0}, STR_CANCEL, [=]() {
     deleteLater();
     return 0;
   });
+  lv_obj_set_style_bg_color(cancelBtn->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+  lv_obj_set_style_text_color(cancelBtn->getLvObj(), lv_color_white(), LV_PART_MAIN);
+  lv_obj_set_style_bg_color(cancelBtn->getLvObj(), lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN | LV_STATE_FOCUSED);
+  lv_obj_set_style_text_color(cancelBtn->getLvObj(), lv_color_black(), LV_PART_MAIN | LV_STATE_FOCUSED);
+  lv_obj_set_style_bg_color(cancelBtn->getLvObj(), lv_color_make(0x00, 0xA0, 0x00), LV_PART_MAIN | LV_STATE_PRESSED);
+  lv_obj_set_style_text_color(cancelBtn->getLvObj(), lv_color_black(), LV_PART_MAIN | LV_STATE_PRESSED);
+  lv_obj_set_style_outline_width(cancelBtn->getLvObj(), 0, LV_PART_MAIN | LV_STATE_FOCUS_KEY);
+  lv_obj_set_style_border_width(cancelBtn->getLvObj(), 0, LV_PART_MAIN | LV_STATE_FOCUS_KEY);
 
-  new TextButton(box, rect_t{0, 0, 96, 0}, STR_SAVE, [=]() {
+  auto saveBtn = new TextButton(box, rect_t{0, 0, 96, 0}, STR_SAVE, [=]() {
     deleteLater();
     if (saveHandler != nullptr) saveHandler(this->label);
     return 0;
   });
+  lv_obj_set_style_bg_color(saveBtn->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+  lv_obj_set_style_text_color(saveBtn->getLvObj(), lv_color_white(), LV_PART_MAIN);
+  lv_obj_set_style_bg_color(saveBtn->getLvObj(), lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN | LV_STATE_FOCUSED);
+  lv_obj_set_style_text_color(saveBtn->getLvObj(), lv_color_black(), LV_PART_MAIN | LV_STATE_FOCUSED);
+  lv_obj_set_style_bg_color(saveBtn->getLvObj(), lv_color_make(0x00, 0xA0, 0x00), LV_PART_MAIN | LV_STATE_PRESSED);
+  lv_obj_set_style_text_color(saveBtn->getLvObj(), lv_color_black(), LV_PART_MAIN | LV_STATE_PRESSED);
+  lv_obj_set_style_outline_width(saveBtn->getLvObj(), 0, LV_PART_MAIN | LV_STATE_FOCUS_KEY);
+  lv_obj_set_style_border_width(saveBtn->getLvObj(), 0, LV_PART_MAIN | LV_STATE_FOCUS_KEY);
 }

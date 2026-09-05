@@ -226,7 +226,7 @@ class LvglScrollableParams
 
  protected:
   bool showScrollBar = true;
-  lv_dir_t scrollDir = LV_DIR_ALL;
+  lv_dir_t scrollDir = LV_DIR_VER;
   int scrollToFunction = LUA_REFNIL;
   int scrolledFunction = LUA_REFNIL;
 
@@ -981,6 +981,7 @@ class LvglWidgetChoice : public LvglWidgetPicker, public LvglTitleParam, public 
  public:
   LvglWidgetChoice() : LvglWidgetPicker() {}
 
+  bool callRefs(lua_State *L) override;
   void clearRefs(lua_State *L) override;
 
  protected:

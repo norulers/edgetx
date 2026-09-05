@@ -101,6 +101,8 @@ if(NOT NATIVE_BUILD)
       ${STM32CUBE_SRC_PREFIX}_hal_gpio.c
       ${STM32CUBE_SRC_PREFIX}_hal_dsi.c
       ${STM32CUBE_SRC_PREFIX}_hal_ltdc.c
+      ${STM32CUBE_SRC_PREFIX}_hal_spi.c
+      ${STM32CUBE_SRC_PREFIX}_hal_spi_ex.c
     )
   endif()
 

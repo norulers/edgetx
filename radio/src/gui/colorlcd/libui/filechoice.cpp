@@ -22,6 +22,7 @@
 
 #include "dialog.h"
 #include "edgetx.h"
+#include "file_preview.h"
 #include "lib_file.h"
 #include "menu.h"
 #include "menutoolbar.h"
@@ -60,6 +61,17 @@ class FileChoiceMenuToolbar : public MenuToolbar
     }
 
     addButton(STR_SELECT_MENU_CLR, 0, 0, nullptr, nullptr, true);
+
+    if (choice->previewEnabled) {
+      coord_t previewY = ((nxtBtnPos + FC_COLS - 1) / FC_COLS) *
+                         (EdgeTxStyles::UI_ELEMENT_HEIGHT + PAD_SMALL) + PAD_SMALL;
+      auto preview = new FilePreview(this,
+                                     {PAD_SMALL, previewY,
+                                      width() - PAD_SMALL * 2,
+                                      width() - PAD_SMALL * 2});
+      setHeight(previewY + preview->height() + PAD_SMALL);
+      choice->attachPreview(preview);
+    }
   }
 
   void filterButton(FileChoice *choice, char from, char to, const char* title)
@@ -176,6 +188,26 @@ void FileChoice::loadFiles()
   fileCount = files.size();
 }
 
+void FileChoice::attachPreview(FilePreview* window)
+{
+  preview = window;
+  updatePreview(selectedIdx);
+}
+
+void FileChoice::updatePreview(int index)
+{
+  if (!preview || index < 0 || index > getMax()) return;
+
+  const auto& filename = getString(index);
+  if (filename.empty()) {
+    preview->setFile(nullptr);
+  } else {
+    std::string path = folder + PATH_SEPARATOR + filename;
+    watchdogSuspend(200);
+    preview->setFile(path.c_str());
+  }
+}
+
 void FileChoice::openMenu()
 {
   loadFiles();
@@ -186,12 +218,20 @@ void FileChoice::openMenu()
     auto menu = new Menu();
     if (menuTitle) menu->setTitle(menuTitle);
 
+    if (previewEnabled) {
+      setSelectionHandler([=](int index) { updatePreview(index); });
+    }
+
     auto tb = new FileChoiceMenuToolbar(this, menu);
     menu->setToolbar(tb);
 
     // fillMenu(menu); - called by MenuToolbar
 
-    menu->setCloseHandler([=]() { setEditMode(false); });
+    menu->setCloseHandler([=]() {
+      setSelectionHandler(nullptr);
+      preview = nullptr;
+      setEditMode(false);
+    });
   } else {
     new MessageDialog(STR_SDCARD, STR_NO_FILES_ON_SD);
   }
