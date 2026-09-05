@@ -54,7 +54,7 @@ static void gpioConfigInPullUp(gpio_t pin)
   gpio_init(port, &init);
 }
 
-void bspGpioInit()
+extern "C" void bspGpioInit()
 {
   // Enable clock for the ports used on the board
   crm_periph_clock_enable(CRM_GPIOA_PERIPH_CLOCK, TRUE);

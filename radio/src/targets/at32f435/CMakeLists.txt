@@ -91,6 +91,8 @@ set(BOARD_SRC_DIR boards/${BOARD})
 set(BOARD_COMMON_SRC
   ${BOARD_SRC_DIR}/board.cpp
   ${BOARD_SRC_DIR}/bsp_io.cpp
+  ${BOARD_SRC_DIR}/system_clock.c               # systemClockInit()
+  ${BOARD_SRC_DIR}/aux_ports.cpp                # auxSerialGetPort()
   ${BOARD_SRC_DIR}/lcd_driver_spi.cpp          # monochrome LCD driver
   ${BOARD_SRC_DIR}/module_ports.cpp            # module port table (WIP)
   ${TARGET_SRC_DIR}/key_driver.cpp
@@ -128,10 +130,37 @@ add_library(board OBJECT EXCLUDE_FROM_ALL
   targets/common/arm/at32/at32_pulse_driver.cpp
   targets/common/arm/at32/at32_switch_driver.cpp
   targets/common/arm/at32/at32_trainer_driver.cpp
+  targets/common/arm/at32/switches.cpp
 )
 set(FIRMWARE_SRC ${FIRMWARE_SRC} $<TARGET_OBJECTS:board>)
 
+# syscalls.c provides `heap` (used by availableMemory()) and the _sbrk()/syscall stubs
+# required by newlib. The STM32 port adds it in targets/common/arm/stm32/CMakeLists.txt;
+# the AT32 port must add it explicitly.
+set(FIRMWARE_SRC ${FIRMWARE_SRC} ${RADIO_SRC_DIR}/syscalls.c)
+
+# Extra GUI sources for the Taranis-family monochrome UI (matches targets/taranis/CMakeLists.txt).
+# These files live in gui/${GUI_DIR} but are not listed in the per-GUI CMakeLists.
+set(GUI_SRC ${GUI_SRC}
+  model_input_edit.cpp
+  model_mix_edit.cpp
+  model_display.cpp
+  radio_diagkeys.cpp
+  radio_diaganas.cpp
+  view_channels.cpp
+  view_telemetry.cpp
+  view_about.cpp
+  bmp.cpp
+)
+
 include_directories(${RADIO_SRC_DIR}/fonts/${GUI_DIR} gui/${GUI_DIR})
+
+# SD manager firmware update / bootloader flashing support (matches other targets)
+set(SRC ${SRC}
+  io/bootloader_flash.cpp
+  io/frsky_firmware_update.cpp
+  io/multi_firmware_update.cpp
+)
 
 if(BOOTLOADER)
   set(FIRMWARE_TARGET_SRC ${FIRMWARE_TARGET_SRC} ../../bootloader/loadboot.cpp)

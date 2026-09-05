@@ -44,7 +44,7 @@
 /** @addtogroup AT32F435_437_system_private_variables
   * @{
   */
-unsigned int system_core_clock           = HICK_VALUE; /*!< system clock frequency (core clock) */
+uint32_t SystemCoreClock                  = HICK_VALUE; /*!< system clock frequency (core clock) */
 /**
   * @}
   */

@@ -96,6 +96,13 @@ void ledRed() {}
 void ledBlue() {}
 void ledGreen() {}
 
+// Function-switch LED stubs (no FS LEDs wired on this scaffold yet)
+#if defined(FUNCTION_SWITCHES)
+void fsLedOff(uint8_t index) { (void)index; }
+void fsLedOn(uint8_t index) { (void)index; }
+bool fsLedState(uint8_t index) { (void)index; return false; }
+#endif
+
 // LCD stubs (lcdInit/lcdRefresh provided by lcd_driver_spi.cpp)
 void lcdSetInitalFrameBuffer(void* fbAddress) {}
 void lcdCopy(void* dest, void* src) {}
@@ -113,6 +120,7 @@ bool isBacklightEnabled() { return false; }
 // Audio stubs
 int audioInit() { return 0; }
 void audioConsumeCurrentBuffer() {}
+void audioSetVolume(uint8_t volume) { (void)volume; }
 
 // Haptic stubs
 void hapticInit() {}
@@ -128,4 +136,9 @@ bool usbChargerLed() { return false; }
 
 // ADC / VBat bridge (WIP: implement on the AT32 ADC + VBAT rail once known)
 bool isVBatBridgeEnabled() { return false; }
+void enableVBatBridge() {}
 void disableVBatBridge() {}
+
+// Battery voltage (hundredths of a volt / *10 mV) - no ADC bridge wired yet
+uint16_t getBatteryVoltage() { return 0; }
+uint16_t getRTCBatteryVoltage() { return 0; }

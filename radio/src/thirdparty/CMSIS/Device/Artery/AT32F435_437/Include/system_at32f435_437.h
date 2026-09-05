@@ -38,7 +38,10 @@ extern "C" {
   * @{
   */
 
-#define SystemCoreClock                  system_core_clock
+/* EdgeTX expects SystemCoreClock to be a real global symbol (the standard CMSIS
+ * variable used e.g. by the FreeRTOS port). The Artery SDK exposes it as
+ * `system_core_clock`, so alias that name to the standard one. */
+#define system_core_clock                 SystemCoreClock
 #define DUMMY_NOP()                      {__NOP();__NOP();__NOP();__NOP();__NOP(); \
                                           __NOP();__NOP();__NOP();__NOP();__NOP(); \
                                           __NOP();__NOP();__NOP();__NOP();__NOP(); \
@@ -47,7 +50,7 @@ extern "C" {
 /** @defgroup AT32F435_437_system_exported_variables
   * @{
   */
-extern unsigned int system_core_clock; /*!< system clock frequency (core clock) */
+extern uint32_t SystemCoreClock; /*!< system clock frequency (core clock) */
 
 /**
   * @}

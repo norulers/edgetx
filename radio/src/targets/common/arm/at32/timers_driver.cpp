@@ -70,6 +70,16 @@ void watchdogSuspend(uint32_t timeout)
   watchdogTimeout = timeout;
 }
 
+// The 1 ms ISR schedules per5ms(). The bootloader provides its own
+// implementation in boot_menu.cpp, and the firmware provides it via
+// haptic.cpp when HAPTIC=YES. Provide a stub for the firmware when haptic
+// is disabled so the timer ISR still links.
+#if !defined(BOOT) && !defined(HAPTIC)
+void per5ms()
+{
+}
+#endif
+
 static inline void _interrupt_1ms()
 {
   static uint8_t pre_scale = 0;
