@@ -55,6 +55,9 @@ class FpvDashLayout : public Layout
   // Show battery setup popup (cell count + scan button)
   void showBattSetupPopup();
 
+  // Long-press ENTER with nothing selected (focus sentinel) → timer reset menu
+  void openTimerResetMenu();
+
   // ELRS arming support
   int  _elrsArmIdx = -1;
   int  getElrsModuleIdx();
@@ -74,8 +77,8 @@ class FpvDashLayout : public Layout
   lv_obj_t* armLabel     = nullptr;
   lv_obj_t* modelName    = nullptr;
 
-  // ---- Timer (right-centre) ----------------------------------------------
-  lv_obj_t* timerLabel   = nullptr;
+  // ---- Timer 2 (below, right-centre) --------------------------------------
+  lv_obj_t* timer2Label  = nullptr;
 
   // ---- Header bar info (right side) -------------------------------------
   StaticIcon* hdrVolIcon[5]   = {};      // ICON_TOPMENU_VOLUME_0..4
@@ -92,8 +95,8 @@ class FpvDashLayout : public Layout
   int         elrsTpwrIdx     = -1;    // TPWR telemetry sensor index
   tmr10ms_t   _lastTpwrScan   = 0;
 
-  // ---- Timer (secondary, above primary) ---------------------------------
-  lv_obj_t* timer2Label  = nullptr;
+  // ---- Timer 1 (top, above Timer 2) --------------------------------------
+  lv_obj_t* timer1Label  = nullptr;
 
   // ---- RxBt telemetry sensor -------------------------------------------
   int      rxbtSensorIdx   = -2;       // -2 = not searched yet, -1 = not found
@@ -111,9 +114,11 @@ class FpvDashLayout : public Layout
   uint8_t  lastRssi      = 255;
   uint32_t lastTimerVal  = UINT32_MAX;
   uint8_t  lastTimerState = 255;
+  bool     lastTimerOvertime = false;
   char     lastBitmap[LEN_BITMAP_NAME + 1] = {};
   uint32_t lastTimer2Val = UINT32_MAX;
   uint8_t  lastTimer2State = 255;
+  bool     lastTimer2Overtime = false;
   char     lastModelName[LEN_MODEL_NAME + 1] = {};
   tmr10ms_t _lastElrsPing = 0;  // debounce ELRS discovery PINGs
 

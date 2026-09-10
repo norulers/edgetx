@@ -446,6 +446,15 @@ static void fpvTimer2_long_pressed_cb(lv_event_t* e)
   timerReset(1);
 }
 
+// Long press ENTER while nothing is selected (i.e. the invisible focus sentinel
+// owns the focus) → open the timer reset menu.
+static void fpvSentinel_long_pressed_cb(lv_event_t* e)
+{
+  auto* self = static_cast<FpvDashLayout*>(lv_event_get_user_data(e));
+  if (!self || self->deleted()) return;
+  self->openTimerResetMenu();
+}
+
 // Right-top: battery bar (horizontal, above timer, where LAP was)
 static LAYOUT_VAL_SCALED(BAT_X, 269)
 static LAYOUT_VAL_SCALED(BAT_Y,  10)
@@ -469,17 +478,18 @@ static LAYOUT_VAL_SCALED(TMR_X,   269)
 static LAYOUT_VAL_SCALED(TMR2_Y,   44)  // timer 1 — just below battery bar
 static LAYOUT_VAL_SCALED(TMR2_H,   60)  // FONT_XL height
 static LAYOUT_VAL_SCALED(TMR_Y,    98)  // timer 2 — below timer 1
-static LAYOUT_VAL_SCALED(TMR_W,   200)  // 8 chars × ~24px + margin, fixed-width format
 static LAYOUT_VAL_SCALED(TMR_H,    60)
 
-// Format timer ticks (100ms units) -> "MM:SS.cc"  (fixed 8 chars, no horizontal jumping)
+// Format timer value -> "H:MM:SS".  `val` is in SECONDS (timersStates[].val).
+// The hours field is always shown so the layout is fixed (0:00:00).
 static std::string formatTimer(uint32_t val)
 {
-  uint32_t hundredths = val % 100;
-  uint32_t secs  = (val / 100) % 60;
-  uint32_t mins  = (val / 6000);
-  char buf[16];
-  snprintf(buf, sizeof(buf), "%u:%02u.%02u", (unsigned)mins, (unsigned)secs, (unsigned)hundredths);
+  uint32_t secs  = val % 60;
+  uint32_t mins  = (val / 60) % 60;
+  uint32_t hours = (val / 3600);
+  char buf[20];
+  snprintf(buf, sizeof(buf), "%u:%02u:%02u", (unsigned)hours,
+           (unsigned)mins, (unsigned)secs);
   return buf;
 }
 
@@ -501,6 +511,12 @@ FpvDashLayout::FpvDashLayout(Window* parent, const LayoutFactory* factory,
 
 FpvDashLayout::~FpvDashLayout()
 {
+  // Long-press handler lives on the shared BottomDock focus sentinel — remove
+  // it so a stale `this` pointer is never dereferenced after we are gone.
+  if (lv_obj_t* s = BottomDock::getFocusSentinel()) {
+    lv_obj_remove_event_cb_with_user_data(s, fpvSentinel_long_pressed_cb, this);
+  }
+
   // s_modelNameObj is set during delayedInit() and referenced by the
   // fpvSentinelFocusAsync callback (via lv_async_call).  Clear it here so
   // that if the callback fires after this layout is destroyed it doesn't
@@ -817,15 +833,41 @@ void FpvDashLayout::delayedInit()
   lv_obj_add_event_cb(modelName, fpvModelName_cancel_cb,    LV_EVENT_CANCEL,    nullptr);
 
   // Timer 1 (top, below battery bar)
+  timer1Label = etx_label_create(lvobj, FONT_XL_INDEX);
+  lv_obj_set_pos(timer1Label, TMR_X, tY + TMR2_Y);
+  lv_obj_set_size(timer1Label, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+  lv_obj_set_style_pad_all(timer1Label, 0, LV_PART_MAIN);
+  etx_txt_color(timer1Label, COLOR_WHITE_INDEX);
+  etx_bg_color(timer1Label, COLOR_THEME_QM_BG_INDEX);
+  etx_obj_add_style(timer1Label, styles->bg_opacity_90, LV_PART_MAIN);
+  etx_obj_add_style(timer1Label, styles->text_align_left, LV_PART_MAIN);
+  lv_label_set_text(timer1Label, "0:00:00");
+  lv_obj_add_flag(timer1Label, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_clear_flag(timer1Label, LV_OBJ_FLAG_SCROLLABLE);
+  // Pressed & focused: same orange highlight
+  lv_obj_set_style_bg_color(timer1Label, lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN | LV_STATE_PRESSED);
+  lv_obj_set_style_bg_opa(timer1Label, LV_OPA_COVER, LV_STATE_PRESSED);
+  lv_obj_set_style_text_color(timer1Label, lv_color_white(), LV_PART_MAIN | LV_STATE_PRESSED);
+  lv_obj_set_style_bg_color(timer1Label, lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN | LV_STATE_USER_1);
+  lv_obj_set_style_bg_opa(timer1Label, LV_OPA_COVER, LV_STATE_USER_1);
+  lv_obj_set_style_text_color(timer1Label, lv_color_white(), LV_PART_MAIN | LV_STATE_USER_1);
+  etx_obj_add_style(timer1Label, styles->rounded, LV_STATE_USER_1);
+  lv_obj_add_event_cb(timer1Label, fpvTimer1_clicked_cb,       LV_EVENT_CLICKED,       nullptr);
+  lv_obj_add_event_cb(timer1Label, fpvTimer1_long_pressed_cb,  LV_EVENT_LONG_PRESSED,  nullptr);
+  lv_obj_add_event_cb(timer1Label, fpvTimerLabel_focused_cb,   LV_EVENT_FOCUSED,       nullptr);
+  lv_obj_add_event_cb(timer1Label, fpvTimerLabel_defocused_cb, LV_EVENT_DEFOCUSED, nullptr);
+  lv_obj_add_event_cb(timer1Label, fpvTimerLabel_cancel_cb,    LV_EVENT_CANCEL,    nullptr);
+
+  // Timer 2 (below T1)
   timer2Label = etx_label_create(lvobj, FONT_XL_INDEX);
-  lv_obj_set_pos(timer2Label, TMR_X, tY + TMR2_Y);
+  lv_obj_set_pos(timer2Label, TMR_X, tY + TMR_Y);
   lv_obj_set_size(timer2Label, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
   lv_obj_set_style_pad_all(timer2Label, 0, LV_PART_MAIN);
   etx_txt_color(timer2Label, COLOR_WHITE_INDEX);
   etx_bg_color(timer2Label, COLOR_THEME_QM_BG_INDEX);
   etx_obj_add_style(timer2Label, styles->bg_opacity_90, LV_PART_MAIN);
   etx_obj_add_style(timer2Label, styles->text_align_left, LV_PART_MAIN);
-  lv_label_set_text(timer2Label, "0:00.00");
+  lv_label_set_text(timer2Label, "0:00:00");
   lv_obj_add_flag(timer2Label, LV_OBJ_FLAG_CLICKABLE);
   lv_obj_clear_flag(timer2Label, LV_OBJ_FLAG_SCROLLABLE);
   // Pressed & focused: same orange highlight
@@ -836,37 +878,11 @@ void FpvDashLayout::delayedInit()
   lv_obj_set_style_bg_opa(timer2Label, LV_OPA_COVER, LV_STATE_USER_1);
   lv_obj_set_style_text_color(timer2Label, lv_color_white(), LV_PART_MAIN | LV_STATE_USER_1);
   etx_obj_add_style(timer2Label, styles->rounded, LV_STATE_USER_1);
-  lv_obj_add_event_cb(timer2Label, fpvTimer1_clicked_cb,       LV_EVENT_CLICKED,       nullptr);
-  lv_obj_add_event_cb(timer2Label, fpvTimer1_long_pressed_cb,  LV_EVENT_LONG_PRESSED,  nullptr);
-  lv_obj_add_event_cb(timer2Label, fpvTimerLabel_focused_cb,   LV_EVENT_FOCUSED,       nullptr);
-  lv_obj_add_event_cb(timer2Label, fpvTimerLabel_defocused_cb, LV_EVENT_DEFOCUSED, nullptr);
-  lv_obj_add_event_cb(timer2Label, fpvTimerLabel_cancel_cb,    LV_EVENT_CANCEL,    nullptr);
-
-  // Timer 2 (below T1)
-  timerLabel = etx_label_create(lvobj, FONT_XL_INDEX);
-  lv_obj_set_pos(timerLabel, TMR_X, tY + TMR_Y);
-  lv_obj_set_size(timerLabel, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-  lv_obj_set_style_pad_all(timerLabel, 0, LV_PART_MAIN);
-  etx_txt_color(timerLabel, COLOR_WHITE_INDEX);
-  etx_bg_color(timerLabel, COLOR_THEME_QM_BG_INDEX);
-  etx_obj_add_style(timerLabel, styles->bg_opacity_90, LV_PART_MAIN);
-  etx_obj_add_style(timerLabel, styles->text_align_left, LV_PART_MAIN);
-  lv_label_set_text(timerLabel, "0:00.00");
-  lv_obj_add_flag(timerLabel, LV_OBJ_FLAG_CLICKABLE);
-  lv_obj_clear_flag(timerLabel, LV_OBJ_FLAG_SCROLLABLE);
-  // Pressed & focused: same orange highlight
-  lv_obj_set_style_bg_color(timerLabel, lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN | LV_STATE_PRESSED);
-  lv_obj_set_style_bg_opa(timerLabel, LV_OPA_COVER, LV_STATE_PRESSED);
-  lv_obj_set_style_text_color(timerLabel, lv_color_white(), LV_PART_MAIN | LV_STATE_PRESSED);
-  lv_obj_set_style_bg_color(timerLabel, lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN | LV_STATE_USER_1);
-  lv_obj_set_style_bg_opa(timerLabel, LV_OPA_COVER, LV_STATE_USER_1);
-  lv_obj_set_style_text_color(timerLabel, lv_color_white(), LV_PART_MAIN | LV_STATE_USER_1);
-  etx_obj_add_style(timerLabel, styles->rounded, LV_STATE_USER_1);
-  lv_obj_add_event_cb(timerLabel, fpvTimer2_clicked_cb,        LV_EVENT_CLICKED,       nullptr);
-  lv_obj_add_event_cb(timerLabel, fpvTimer2_long_pressed_cb,   LV_EVENT_LONG_PRESSED,  nullptr);
-  lv_obj_add_event_cb(timerLabel, fpvTimerLabel_focused_cb,    LV_EVENT_FOCUSED,       nullptr);
-  lv_obj_add_event_cb(timerLabel, fpvTimerLabel_defocused_cb,  LV_EVENT_DEFOCUSED, nullptr);
-  lv_obj_add_event_cb(timerLabel, fpvTimerLabel_cancel_cb,     LV_EVENT_CANCEL,    nullptr);
+  lv_obj_add_event_cb(timer2Label, fpvTimer2_clicked_cb,        LV_EVENT_CLICKED,       nullptr);
+  lv_obj_add_event_cb(timer2Label, fpvTimer2_long_pressed_cb,   LV_EVENT_LONG_PRESSED,  nullptr);
+  lv_obj_add_event_cb(timer2Label, fpvTimerLabel_focused_cb,    LV_EVENT_FOCUSED,       nullptr);
+  lv_obj_add_event_cb(timer2Label, fpvTimerLabel_defocused_cb,  LV_EVENT_DEFOCUSED, nullptr);
+  lv_obj_add_event_cb(timer2Label, fpvTimerLabel_cancel_cb,     LV_EVENT_CANCEL,    nullptr);
 
   // ── Encoder navigation order ──
   lv_group_t* navGrp = lv_group_get_default();
@@ -876,8 +892,18 @@ void FpvDashLayout::delayedInit()
     lv_group_add_obj(navGrp, modelBitmap->getLvObj());// 3. center
     lv_group_add_obj(navGrp, armLabel);                // 4. center-bottom (DISARMED)
     lv_group_add_obj(navGrp, battPctLabel);            // 4. top-right (battery)
-    lv_group_add_obj(navGrp, timer2Label);             // 5. right (timer 1)
-    lv_group_add_obj(navGrp, timerLabel);              // 6. right (timer 2)
+    lv_group_add_obj(navGrp, timer1Label);             // 5. right (timer 1)
+    lv_group_add_obj(navGrp, timer2Label);             // 6. right (timer 2)
+  }
+
+  // Long press ENTER with nothing selected (focus sentinel focused) → the
+  // timer reset menu.  The sentinel receives LV_EVENT_LONG_PRESSED directly
+  // from the LVGL keypad handler, so hook it here instead of the layout window
+  // (which never owns the focus in that state).
+  if (lv_obj_t* sentinel = BottomDock::getFocusSentinel()) {
+    lv_obj_remove_event_cb_with_user_data(sentinel, fpvSentinel_long_pressed_cb, this);
+    lv_obj_add_event_cb(sentinel, fpvSentinel_long_pressed_cb,
+                        LV_EVENT_LONG_PRESSED, this);
   }
 
   // Re-run updateDecorations() so derived vtable is used
@@ -1161,29 +1187,42 @@ void FpvDashLayout::updateTimer()
   if (!loaded || _deleted) return;
 
   // Timer 1 (top, below battery bar)
-  uint32_t val = (uint32_t)abs(timersStates[0].val);
+  tmrval_t raw = timersStates[0].val;
+  // Countdown finished: keep counting in red — the red colour stands for the
+  // '-' sign, so no '-' prefix is drawn.
+  bool overtime = (raw < 0);
+  uint32_t val = (uint32_t)(overtime ? -raw : raw);
   uint8_t state = timersStates[0].state;
-  if (val != lastTimerVal || state != lastTimerState) {
+  if (val != lastTimerVal || state != lastTimerState || overtime != lastTimerOvertime) {
     lastTimerVal = val;
     lastTimerState = state;
-    lv_label_set_text(timer2Label, formatTimer(val).c_str());
-    if (state == TMR_RUNNING)
-      etx_txt_color(timer2Label, COLOR_ORANGE_INDEX);
+    lastTimerOvertime = overtime;
+    lv_label_set_text(timer1Label, formatTimer(val).c_str());
+    if (overtime)
+      etx_txt_color(timer1Label, COLOR_RED_INDEX);
+    else if (state == TMR_RUNNING)
+      etx_txt_color(timer1Label, COLOR_ORANGE_INDEX);
     else
-      etx_txt_color(timer2Label, COLOR_WHITE_INDEX);
+      etx_txt_color(timer1Label, COLOR_WHITE_INDEX);
   }
 
   // Timer 2 (below T1)
-  uint32_t val2 = (uint32_t)abs(timersStates[1].val);
+  tmrval_t raw2 = timersStates[1].val;
+  // Countdown finished: keep counting in red — red stands for the '-' sign.
+  bool overtime2 = (raw2 < 0);
+  uint32_t val2 = (uint32_t)(overtime2 ? -raw2 : raw2);
   uint8_t state2 = timersStates[1].state;
-  if (val2 != lastTimer2Val || state2 != lastTimer2State) {
+  if (val2 != lastTimer2Val || state2 != lastTimer2State || overtime2 != lastTimer2Overtime) {
     lastTimer2Val = val2;
     lastTimer2State = state2;
-    lv_label_set_text(timerLabel, formatTimer(val2).c_str());
-    if (state2 == TMR_RUNNING)
-      etx_txt_color(timerLabel, COLOR_ORANGE_INDEX);
+    lastTimer2Overtime = overtime2;
+    lv_label_set_text(timer2Label, formatTimer(val2).c_str());
+    if (overtime2)
+      etx_txt_color(timer2Label, COLOR_RED_INDEX);
+    else if (state2 == TMR_RUNNING)
+      etx_txt_color(timer2Label, COLOR_ORANGE_INDEX);
     else
-      etx_txt_color(timerLabel, COLOR_WHITE_INDEX);
+      etx_txt_color(timer2Label, COLOR_WHITE_INDEX);
   }
 }
 
@@ -1247,6 +1286,22 @@ void FpvDashLayout::setBattFocusHighlight(bool focused)
     lv_obj_add_state(battPctLabel, LV_STATE_USER_1);
   else
     lv_obj_clear_state(battPctLabel, LV_STATE_USER_1);
+}
+
+// Long press ENTER with no item selected → offer the two timers for reset.
+// Ignored unless this layout's screen is the one currently on display.
+void FpvDashLayout::openTimerResetMenu()
+{
+  auto* vm = ViewMain::instance();
+  if (vm && vm->getCurrentMainView() != (unsigned)screenNum) return;
+
+  auto* menu = new Menu();
+  menu->setTitle(STR_TIMER);
+  menu->addLine(STR_RESET_TIMER1, []() { timerReset(0); });
+  menu->addLine(STR_RESET_TIMER2, []() { timerReset(1); });
+
+  // Swallow the ENTER release so it doesn't activate the newly opened menu.
+  lv_indev_wait_release(lv_indev_get_act());
 }
 
 void FpvDashLayout::startSensorDiscovery()
