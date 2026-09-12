@@ -145,6 +145,7 @@
 #define TR_AUX_SERIAL_MODES_9           "調試"
 #define TR_AUX_SERIAL_MODES_10          "SpaceMouse"
 #define TR_AUX_SERIAL_MODES_11          "外置發射"
+#define TR_AUX_SERIAL_MODES_12          "上位機設定"
 #define TR_SWTYPES_1                    "無"
 #define TR_SWTYPES_2                    "回彈"
 #define TR_SWTYPES_3                    "2段"

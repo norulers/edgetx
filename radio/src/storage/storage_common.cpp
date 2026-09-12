@@ -20,6 +20,7 @@
  */
 
 #include "edgetx.h"
+#include "app_config.h"
 #include "os/sleep.h"
 #include "timers_driver.h"
 #include "tasks/mixer_task.h"
@@ -58,6 +59,9 @@ void storageDirty(uint8_t msk)
 {
   storageDirtyMsk |= msk;
   storageDirtyTime10ms = get_tmr10ms();
+
+  // let the App Config protocol notify subscribed hosts
+  appConfigNotifyDirty(msk);
 
 #if defined(RTC_BACKUP_RAM)
   rambackupDirtyMsk = storageDirtyMsk;

@@ -527,6 +527,8 @@ set(SRC
   trainer.cpp
   model_init.cpp
   serial.cpp
+  app_config.cpp
+  settings_tree.cpp
   audio.cpp
   model_audio.cpp
   pdm_wav_recorder.cpp
