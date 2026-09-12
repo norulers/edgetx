@@ -226,13 +226,16 @@ InputMixGroupBase* ModelInputsPage::getGroupByIndex(uint8_t index)
 
 InputMixGroupBase* ModelInputsPage::createGroup(Window* form, mixsrc_t src)
 {
-  return new InputGroup(form, src);
+  auto group = new InputGroup(form, src);
+  stylePageGroupControl(group->getLvObj());
+  return group;
 }
 
 InputMixButtonBase* ModelInputsPage::createLineButton(InputMixGroupBase* group,
                                                   uint8_t index)
 {
   auto button = new InputLineButton(group, index);
+  stylePageGroupControl(button->getLvObj());
   button->refresh();
 
   lines.emplace_back(button);
@@ -419,6 +422,11 @@ void ModelInputsPage::build(Window* window)
   // reset clipboard
   _copyMode = 0;
 
+  // FPV dark theme
+  lv_obj_set_style_bg_color(window->getLvObj(), lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(window->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_text_color(window->getLvObj(), lv_color_white(), LV_PART_MAIN);
+
   window->setFlexLayout(LV_FLEX_FLOW_COLUMN, PAD_TINY);
 
   form = new Window(window, rect_t{});
@@ -429,6 +437,7 @@ void ModelInputsPage::build(Window* window)
     return 0;
   });
   auto btn_obj = btn->getLvObj();
+  stylePageGroupControl(btn_obj);
   lv_obj_set_width(btn_obj, lv_pct(100));
   lv_group_focus_obj(btn_obj);
 

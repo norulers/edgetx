@@ -31,12 +31,35 @@
 #include "hal/adc_driver.h"
 #include "hal/switch_driver.h"
 #include "layout.h"
+#include "pagegroup.h"
 #include "static.h"
 #include "strhelpers.h"
 #include "switches.h"
 #include "textedit.h"
 
 #define SET_DIRTY() storageDirty(EE_GENERAL)
+
+static void styleHardwareInputObject(lv_obj_t* obj)
+{
+  if (lv_obj_check_type(obj, &lv_label_class)) {
+    lv_obj_set_style_text_color(obj, lv_color_white(), LV_PART_MAIN);
+  } else {
+    lv_obj_set_style_bg_color(obj, lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(obj, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_text_color(obj, lv_color_white(), LV_PART_MAIN);
+    lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN);
+    lv_obj_set_style_outline_width(obj, 0, LV_PART_MAIN | LV_STATE_FOCUS_KEY);
+    // Subtle highlight on press
+    lv_obj_set_style_bg_color(obj, lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN | LV_STATE_PRESSED);
+    lv_obj_set_style_text_color(obj, lv_color_white(), LV_PART_MAIN | LV_STATE_PRESSED);
+    lv_obj_set_style_bg_color(obj, lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN | LV_STATE_FOCUSED);
+    lv_obj_set_style_text_color(obj, lv_color_black(), LV_PART_MAIN | LV_STATE_FOCUSED);
+  }
+
+  for (uint32_t i = 0; i < lv_obj_get_child_cnt(obj); i += 1) {
+    styleHardwareInputObject(lv_obj_get_child(obj, i));
+  }
+}
 
 struct HWInputEdit : public RadioTextEdit {
   HWInputEdit(Window* parent, char* name, size_t len, coord_t x = 0,
@@ -302,7 +325,40 @@ template <class T>
 HWInputDialog<T>::HWInputDialog(const char* title, coord_t w) :
     BaseDialog(title, true, w)
 {
+  // Dark theme - match calibration page style
+  auto content = form->getParent();
+  lv_obj_set_style_bg_color(content->getLvObj(), lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(content->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_bg_color(header->getLvObj(), lv_color_make(0x22, 0x22, 0x22), LV_PART_MAIN);
+  lv_obj_set_style_text_color(header->getLvObj(), lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN);
+  lv_obj_set_style_bg_color(form->getLvObj(), lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+
+  // Left header icon
+  auto leftBg = new StaticIcon(header, 0, 0, ICON_TOPLEFT_BG, COLOR_THEME_PRIMARY2_INDEX);
+  lv_obj_set_style_img_recolor_opa(leftBg->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_img_recolor(leftBg->getLvObj(), lv_color_make(0x22, 0x22, 0x22), LV_PART_MAIN);
+  auto leftIco = new StaticIcon(leftBg, 0, 0, ICON_RADIO_CALIBRATION, COLOR_THEME_PRIMARY2_INDEX);
+  lv_obj_set_style_img_recolor_opa(leftIco->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_img_recolor(leftIco->getLvObj(), lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN);
+  leftIco->center(leftBg->width() + PAD_MEDIUM, leftBg->height());
+
+  // Right close button
+  auto rightBg = new StaticIcon(header, content->width(), 0, ICON_TOPRIGHT_BG, COLOR_THEME_PRIMARY2_INDEX);
+  lv_obj_set_style_img_recolor_opa(rightBg->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_img_recolor(rightBg->getLvObj(), lv_color_make(0x22, 0x22, 0x22), LV_PART_MAIN);
+  rightBg->setPos(content->width() - rightBg->width(), (EdgeTxStyles::MENU_HEADER_HEIGHT - rightBg->height()) / 2);
+  auto rightIco = new StaticIcon(rightBg, 0, 0, ICON_BTN_CLOSE, COLOR_THEME_PRIMARY2_INDEX);
+  lv_obj_set_style_img_recolor_opa(rightIco->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_img_recolor(rightIco->getLvObj(), lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN);
+  rightIco->center(rightBg->width() + PAD_MEDIUM, rightBg->height());
+  lv_obj_add_flag(rightBg->getLvObj(), LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_add_event_cb(rightBg->getLvObj(), [](lv_event_t* e) {
+    auto dlg = static_cast<HWInputDialog*>(lv_event_get_user_data(e));
+    if (dlg) dlg->deleteLater();
+  }, LV_EVENT_CLICKED, this);
+
   new T(form);
+  styleHardwareInputObject(form->getLvObj());
 }
 
 template struct HWInputDialog<HWSticks>;

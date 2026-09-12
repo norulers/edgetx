@@ -21,6 +21,8 @@
 #include "choice.h"
 #include <string>
 
+class FilePreview;
+
 class FileChoice : public Choice
 {
 public:
@@ -30,6 +32,8 @@ public:
              std::function<void(std::string)> setValue,
              bool stripExtension = false,
              const char* title = "");
+
+  void enablePreview(bool enable = true) { previewEnabled = enable; }
 
 #if defined(DEBUG_WINDOWS)
   std::string getName() const override { return "FileChoice"; }
@@ -46,8 +50,14 @@ protected:
   int maxlen;
   std::function<std::string()> getValue;
   bool stripExtension;
+  bool previewEnabled = false;
+  FilePreview* preview = nullptr;
 
   void loadFiles();
+  void attachPreview(FilePreview* window);
+  void updatePreview(int index);
 
   void openMenu() override;
+
+  friend class FileChoiceMenuToolbar;
 };

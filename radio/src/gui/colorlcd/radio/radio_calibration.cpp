@@ -23,7 +23,9 @@
 
 #include "hal/adc_driver.h"
 #include "edgetx.h"
+#include "pagegroup.h"
 #include "sliders.h"
+#include "timer_setup.h"
 #include "view_main_decoration.h"
 #include "hw_inputs.h"
 
@@ -72,6 +74,34 @@ RadioCalibrationPage::RadioCalibrationPage() :
 {
   buildHeader(header);
   buildBody(body);
+
+  // Dark FPV header: hide original canvas icons, place new ones with orange color
+  for (uint32_t i = 0; i < lv_obj_get_child_cnt(header->getLvObj()); i++) {
+    auto child = lv_obj_get_child(header->getLvObj(), i);
+    if (lv_obj_check_type(child, &lv_canvas_class))
+      lv_obj_add_flag(child, LV_OBJ_FLAG_HIDDEN);
+  }
+  auto leftBg = new StaticIcon(header, 0, 0, ICON_TOPLEFT_BG, COLOR_THEME_PRIMARY2_INDEX);
+  lv_obj_set_style_img_recolor_opa(leftBg->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_img_recolor(leftBg->getLvObj(), lv_color_make(0x22, 0x22, 0x22), LV_PART_MAIN);
+  leftBg->setTop((EdgeTxStyles::MENU_HEADER_HEIGHT - leftBg->height()) / 2);
+  auto leftIco = new StaticIcon(leftBg, 0, 0, ICON_RADIO_CALIBRATION, COLOR_THEME_PRIMARY2_INDEX);
+  lv_obj_set_style_img_recolor_opa(leftIco->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_img_recolor(leftIco->getLvObj(), lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN);
+  leftIco->center(leftBg->width() + PAD_MEDIUM, leftBg->height());
+  auto rightBg = new StaticIcon(header, LCD_W, 0, ICON_TOPRIGHT_BG, COLOR_THEME_PRIMARY2_INDEX);
+  lv_obj_set_style_img_recolor_opa(rightBg->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_img_recolor(rightBg->getLvObj(), lv_color_make(0x22, 0x22, 0x22), LV_PART_MAIN);
+  rightBg->setPos(LCD_W - rightBg->width(), (EdgeTxStyles::MENU_HEADER_HEIGHT - rightBg->height()) / 2);
+  auto rightIco = new StaticIcon(rightBg, 0, 0, ICON_BTN_CLOSE, COLOR_THEME_PRIMARY2_INDEX);
+  lv_obj_set_style_img_recolor_opa(rightIco->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_img_recolor(rightIco->getLvObj(), lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN);
+  rightIco->center(rightBg->width() + PAD_MEDIUM, rightBg->height());
+
+  // Dark FPV theme
+  lv_obj_set_style_bg_color(body->getLvObj(), lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(body->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_text_color(body->getLvObj(), lv_color_white(), LV_PART_MAIN);
 }
 
 void RadioCalibrationPage::buildHeader(Window *window)
@@ -113,18 +143,21 @@ void RadioCalibrationPage::buildBody(Window *window)
                    new HWInputDialog<HWSticks>(STR_STICKS);
                    return 0;
                  });
+  applyDarkBtnStyle(axisBtn->getLvObj());
 
   potsBtn = new TextButton(window, {POTS_X, PAD_LARGE, POTS_W, 0}, STR_POTS,
                  [=]() -> uint8_t {
                    new HWInputDialog<HWPots>(STR_POTS, HWPots::POTS_WINDOW_WIDTH);
                    return 0;
                  });
+  applyDarkBtnStyle(potsBtn->getLvObj());
 
   nxtBtn = new TextButton(window, {NXT_X, PAD_LARGE, NXT_W, 0}, "",
                  [=]() -> uint8_t {
                    nextStep();
                    return 0;
                  });
+  applyDarkBtnStyle(nxtBtn->getLvObj());
 
   setState();
 }

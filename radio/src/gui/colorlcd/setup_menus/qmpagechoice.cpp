@@ -34,7 +34,7 @@ class QMPageChoiceMenuToolbar : public MenuToolbar
     addButton(STR_MAIN_MENU_MODEL_SETTINGS, QM_MODEL_SETUP, QM_MODEL_NOTES, nullptr, STR_MAIN_MENU_MODEL_SETTINGS, true);
     addButton(STR_MAIN_MENU_RADIO_SETTINGS, QM_RADIO_SETUP, QM_RADIO_VERSION, nullptr, STR_MAIN_MENU_RADIO_SETTINGS, true);
     addButton(STR_MAIN_MENU_SCREEN_SETTINGS, QM_UI_THEMES, QM_UI_ADD_PG, nullptr, STR_MAIN_MENU_SCREEN_SETTINGS, true);
-    addButton(STR_QM_TOOLS, QM_TOOLS_APPS, QM_TOOLS_DEBUG, nullptr, STR_QM_TOOLS, true);
+    addButton(STR_QM_TOOLS, QM_TOOLS_APPS, QM_TOOLS_DEBUG, nullptr, STR_MAIN_MENU_TOOLS, true);
     addButton(STR_MAIN_MENU_APPS, QM_APP, QM_APP+9999, nullptr, STR_MAIN_MENU_APPS, true);
 
     addButton(STR_SELECT_MENU_CLR, 0, 0, nullptr, nullptr, true);

@@ -36,17 +36,20 @@ static void table_constructor(const lv_obj_class_t* class_p, lv_obj_t* obj)
 {
   etx_obj_add_style(obj, styles->pad_zero, LV_PART_MAIN);
   etx_font(obj, FONT_STD_INDEX);
-
   etx_scrollbar(obj);
 
-  etx_solid_bg(obj, COLOR_THEME_PRIMARY2_INDEX, LV_PART_ITEMS);
-  etx_txt_color(obj, COLOR_THEME_PRIMARY1_INDEX, LV_PART_ITEMS);
-  etx_obj_add_style(obj, table_cell, LV_PART_ITEMS);
-  etx_obj_add_style(obj, styles->border_color[COLOR_THEME_SECONDARY2_INDEX], LV_PART_ITEMS);
-  etx_obj_add_style(obj, styles->pressed, LV_PART_ITEMS | LV_STATE_PRESSED);
-
-  etx_bg_color(obj, COLOR_THEME_FOCUS_INDEX, LV_PART_ITEMS | LV_STATE_EDITED);
-  etx_txt_color(obj, COLOR_THEME_PRIMARY2_INDEX, LV_PART_ITEMS | LV_STATE_EDITED);
+  // Dark theme cell style
+  lv_obj_set_style_bg_color(obj, lv_color_make(0x28,0x28,0x28), LV_PART_ITEMS);
+  lv_obj_set_style_bg_opa(obj, LV_OPA_COVER, LV_PART_ITEMS);
+  lv_obj_set_style_text_color(obj, lv_color_white(), LV_PART_ITEMS);
+  lv_obj_set_style_border_width(obj, 0, LV_PART_ITEMS);
+  lv_obj_set_style_border_side(obj, LV_BORDER_SIDE_NONE, LV_PART_ITEMS);
+  // Focus: orange
+  lv_obj_set_style_bg_color(obj, lv_color_make(0xFF,0x8C,0x00), LV_PART_ITEMS | LV_STATE_FOCUSED);
+  lv_obj_set_style_text_color(obj, lv_color_black(), LV_PART_ITEMS | LV_STATE_FOCUSED);
+  // Press: green
+  lv_obj_set_style_bg_color(obj, lv_color_make(0x00,0xA0,0x00), LV_PART_ITEMS | LV_STATE_PRESSED);
+  lv_obj_set_style_text_color(obj, lv_color_black(), LV_PART_ITEMS | LV_STATE_PRESSED);
 }
 
 static const lv_obj_class_t table_class = {
@@ -131,6 +134,11 @@ void TableField::table_event(const lv_obj_class_t* class_p, lv_event_t* e)
               lv_group_get_editing((lv_group_t*)lv_obj_get_group(obj));
 
           if (has_focus && !is_edited) {
+            // Skip if border style is explicitly set to 0
+            lv_coord_t bw =
+                lv_obj_get_style_border_width(obj, LV_PART_MAIN | LV_STATE_FOCUS_KEY);
+            if (bw == 0) break;
+
             lv_draw_ctx_t* draw_ctx = lv_event_get_draw_ctx(e);
 
             lv_draw_rect_dsc_t rect_dsc;

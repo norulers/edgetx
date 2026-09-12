@@ -220,6 +220,7 @@ NumberEdit::NumberEdit(Window* parent, const rect_t& rect, int vmin, int vmax,
   padRight(PAD_SMALL);
 
   lv_obj_set_width(label, LV_PCT(100));
+  lv_label_set_long_mode(label, LV_LABEL_LONG_CLIP);
 
   if (textFlags & CENTERED)
     etx_obj_add_style(label, styles->text_align_center, LV_PART_MAIN);

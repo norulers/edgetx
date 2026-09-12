@@ -22,6 +22,8 @@
 #include "edgetx.h"
 #include "hal/switch_driver.h"
 
+#include <utility>
+
 SwitchConfig ModelData::getSwitchType(uint8_t n)
 {
 #if defined(FUNCTION_SWITCHES)
@@ -258,5 +260,13 @@ void ModelData::resetScreenData()
     if (_screenData[i]) delete _screenData[i];
     _screenData[i] = nullptr;
   }
+}
+
+void ModelData::swapScreenData(CustomScreenData** screens,
+                               TopBarPersistentData* topbar)
+{
+  for (int i = 0; i < MAX_CUSTOM_SCREENS; i += 1)
+    std::swap(_screenData[i], screens[i]);
+  std::swap(_topbarData, *topbar);
 }
 #endif

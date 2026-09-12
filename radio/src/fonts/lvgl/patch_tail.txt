@@ -1,0 +1,36 @@
+
+    # Language fonts
+    echo "Generating language font sets..."
+    make_en_font_set "en"
+    make_font_set "tw" "Noto/NotoSansCJKsc-Regular.otf" "Noto/NotoSansCJKsc-Bold.otf" "${TW_SYMBOLS}" "-DNO_KERN"
+    make_font_set "cn" "Noto/NotoSansCJKsc-Regular.otf" "Noto/NotoSansCJKsc-Bold.otf" "${CN_SYMBOLS}" "-DNO_KERN"
+    make_font_set "jp" "Noto/NotoSansCJKsc-Regular.otf" "Noto/NotoSansCJKsc-Bold.otf" "${JP_SYMBOLS}" ""
+    make_font_set "he" "Arimo/Arimo-Regular.ttf" "Arimo/Arimo-Bold.ttf" "${HE_SYMBOLS}" "-DNO_KERN"
+    make_font_set "ru" "Arimo/Arimo-Regular.ttf" "Arimo/Arimo-Bold.ttf" "${RU_SYMBOLS}" ""
+    make_font_set "ua" "Arimo/Arimo-Regular.ttf" "Arimo/Arimo-Bold.ttf" "${UA_SYMBOLS}" ""
+    make_font_set "ko" "Nanum/NanumBarunpenR.ttf" "Nanum/NanumBarunpenB.ttf" "${KO_SYMBOLS}" "-DNO_KERN"
+
+    # Orbitron font set (optional, pass --orbitron or --all to generate)
+    if [[ "${generate_orbitron}" == "true" ]]; then
+        echo "Generating Orbitron font set..."
+        make_orbitron_font_set
+    fi
+
+    # LXGW NeoXiHei font set (optional, pass --lxgw or --all to generate)
+    if [[ "${generate_lxgw}" == "true" ]]; then
+        echo "Generating LXGW NeoXiHei font set..."
+        make_lxgw_font_set
+    fi
+
+    # Smiley Sans font set (optional, pass --smileysans or --all to generate)
+    if [[ "${generate_smileysans}" == "true" ]]; then
+        echo "Generating Smiley Sans font set..."
+        make_smileysans_font_set
+    fi
+    rm -f "${SCRIPT_DIR}/lz4_font"
+    
+    echo "Font generation completed successfully!"
+}
+
+# Run main function
+main "$@"

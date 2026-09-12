@@ -22,6 +22,7 @@
 #include "model_setup.h"
 
 #include <algorithm>
+#include <cstring>
 
 #include "button_matrix.h"
 #include "dialog.h"
@@ -30,6 +31,7 @@
 #include "filechoice.h"
 #include "getset_helpers.h"
 #include "hal/adc_driver.h"
+#include "mainwindow.h"
 #include "menu.h"
 #include "model_heli.h"
 #include "module_setup.h"
@@ -458,34 +460,443 @@ const static PageButtonDef modelSetupButtons[] = {
   // Modules
   {STR_DEF(STR_INTERNALRF), []() { new ModulePage(INTERNAL_MODULE); }, []() { return g_model.moduleData[INTERNAL_MODULE].type > 0; }},
   {STR_DEF(STR_EXTERNALRF), []() { new ModulePage(EXTERNAL_MODULE); }, []() { return g_model.moduleData[EXTERNAL_MODULE].type > 0; }},
-  {STR_DEF(STR_TRAINER), []() { new TrainerPage(); }, []() { return g_model.trainerData.mode > 0; }},
+  {STR_DEF(STR_TRAINER), []() { auto p = new TrainerPage(); p->setDarkHeader(ICON_MODEL_SETUP); p->setDarkBody(); }, []() { return g_model.trainerData.mode > 0; }},
   // Timer buttons
-  {STR_DEF(STR_TIMER_1), []() { new TimerWindow(0); }, []() { return g_model.timers[0].mode > 0; }},
-  {STR_DEF(STR_TIMER_2), []() { new TimerWindow(1); }, []() { return g_model.timers[1].mode > 0; }},
-  {STR_DEF(STR_TIMER_3), []() { new TimerWindow(2); }, []() { return g_model.timers[2].mode > 0; }},
+  {STR_DEF(STR_TIMER_1), []() { TimerWindow::open(0); }, []() { return g_model.timers[0].mode > 0; }},
+  {STR_DEF(STR_TIMER_2), []() { TimerWindow::open(1); }, []() { return g_model.timers[1].mode > 0; }},
+  {STR_DEF(STR_TIMER_3), []() { TimerWindow::open(2); }, []() { return g_model.timers[2].mode > 0; }},
 
-  {STR_DEF(STR_PREFLIGHT), []() { new PreflightChecks(); }},
-  {STR_DEF(STR_TRIMS), []() { new SubPage(ICON_MODEL_SETUP, STR_MAIN_MODEL_SETTINGS, STR_TRIMS, trimsSetupLines); }},
-  {STR_DEF(STR_THROTTLE_LABEL), []() { new SubPage(ICON_MODEL_SETUP, STR_MAIN_MODEL_SETTINGS, STR_THROTTLE_LABEL, throttleParamsSetupLines); }},
-  {STR_DEF(STR_ENABLED_FEATURES), []() { new SubPage(ICON_MODEL_SETUP, STR_MAIN_MODEL_SETTINGS, STR_ENABLED_FEATURES, viewOptionsPageSetupLines); }},
+  {STR_DEF(STR_PREFLIGHT), []() { auto p = new PreflightChecks(); p->setDarkHeader(ICON_MODEL_SETUP); p->setDarkBody(); }},
+  {STR_DEF(STR_TRIMS), []() { auto p = new SubPage(ICON_MODEL_SETUP, STR_MAIN_MODEL_SETTINGS, STR_TRIMS, trimsSetupLines); p->setDarkHeader(ICON_MODEL_SETUP); p->setDarkBody(); }},
+  {STR_DEF(STR_THROTTLE_LABEL), []() { auto p = new SubPage(ICON_MODEL_SETUP, STR_MAIN_MODEL_SETTINGS, STR_THROTTLE_LABEL, throttleParamsSetupLines); p->setDarkHeader(ICON_MODEL_SETUP); p->setDarkBody(); }},
+  {STR_DEF(STR_ENABLED_FEATURES), []() { auto p = new SubPage(ICON_MODEL_SETUP, STR_MAIN_MODEL_SETTINGS, STR_ENABLED_FEATURES, viewOptionsPageSetupLines); p->setDarkHeader(ICON_MODEL_SETUP); p->setDarkBody(); }},
 #if defined(USBJ_EX)
-  {STR_DEF(STR_USBJOYSTICK_LABEL), []() { new ModelUSBJoystickPage(); }},
+  {STR_DEF(STR_USBJOYSTICK_LABEL), []() { auto p = new ModelUSBJoystickPage(); p->setDarkHeader(ICON_MODEL_USB); p->setDarkBody(); }},
 #endif
 #if defined(FUNCTION_SWITCHES)
-  {STR_DEF(STR_FUNCTION_SWITCHES), []() { new ModelFunctionSwitches(); }},
+  {STR_DEF(STR_FUNCTION_SWITCHES), []() { auto p = new ModelFunctionSwitches(); p->setDarkHeader(ICON_MODEL_SETUP); p->setDarkBody(); }},
 #endif
-  {STR_DEF(STR_MENU_OTHER), []() { new SubPage(ICON_MODEL_SETUP, STR_MAIN_MODEL_SETTINGS, STR_MENU_OTHER, otherPageSetupLines); }},
+  {STR_DEF(STR_MENU_OTHER), []() { auto p = new SubPage(ICON_MODEL_SETUP, STR_MAIN_MODEL_SETTINGS, STR_MENU_OTHER, otherPageSetupLines); p->setDarkHeader(ICON_MODEL_SETUP); p->setDarkBody(); }},
 #if defined(HELI)
-  {STR_DEF(STR_MENUHELISETUP), []() { return new ModelHeliPage(); }, nullptr, modelHeliEnabled},
+  {STR_DEF(STR_MENUHELISETUP), []() { auto p = new ModelHeliPage(); p->setDarkHeader(ICON_MODEL_HELI); p->setDarkBody(); }, nullptr, modelHeliEnabled},
 #endif
   {nullptr},
 };
 
 void ModelSetupPage::build(Window * window)
 {
-  window->padBottom(PAD_LARGE);
+  // Match ModelSelect FPV header: dark bg shape + orange icon
+  Window* pg = window->getParent();
+  Window* hdrWin = nullptr;
+  if (pg && lv_obj_get_child_cnt(pg->getLvObj()) > 1) {
+    lv_obj_t* hdrLv = lv_obj_get_child(pg->getLvObj(), 1);
+    hdrWin = (Window*)lv_obj_get_user_data(hdrLv);
+    lv_obj_set_style_bg_color(hdrLv, lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(hdrLv, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_bg_grad_dir(hdrLv, LV_GRAD_DIR_NONE, LV_PART_MAIN);
+    // Hide original blue canvas-based HeaderIcon/HeaderBackIcon
+    for (uint32_t i = 0; i < lv_obj_get_child_cnt(hdrLv); i++) {
+      auto child = lv_obj_get_child(hdrLv, i);
+      if (lv_obj_check_type(child, &lv_canvas_class))
+        lv_obj_add_flag(child, LV_OBJ_FLAG_HIDDEN);
+    }
+  }
+  if (hdrWin) {
+    // Left: dark bg shape + orange model icon
+    auto leftBg = new StaticIcon(hdrWin, 0, 0, ICON_TOPLEFT_BG, COLOR_THEME_PRIMARY2_INDEX);
+    lv_obj_set_style_img_recolor_opa(leftBg->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_img_recolor(leftBg->getLvObj(), lv_color_make(0x22, 0x22, 0x22), LV_PART_MAIN);
+    leftBg->setTop((EdgeTxStyles::MENU_HEADER_HEIGHT - leftBg->height()) / 2);
+    auto leftIco = new StaticIcon(leftBg, 0, 0, ICON_MODEL_SETUP, COLOR_THEME_PRIMARY2_INDEX);
+    lv_obj_set_style_img_recolor_opa(leftIco->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_img_recolor(leftIco->getLvObj(), lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN);
+    leftIco->center(leftBg->width() + PAD_MEDIUM, leftBg->height());
 
-  coord_t y = SetupLine::showLines(window, 0, SubPage::EDT_X, padding, setupLines);
+    // Right: dark bg shape + orange close icon
+    auto rightBg = new StaticIcon(hdrWin, LCD_W, 0, ICON_TOPRIGHT_BG, COLOR_THEME_PRIMARY2_INDEX);
+    lv_obj_set_style_img_recolor_opa(rightBg->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_img_recolor(rightBg->getLvObj(), lv_color_make(0x22, 0x22, 0x22), LV_PART_MAIN);
+    rightBg->setPos(LCD_W - rightBg->width(),
+                    (EdgeTxStyles::MENU_HEADER_HEIGHT - rightBg->height()) / 2);
+    auto rightIco = new StaticIcon(rightBg, 0, 0, ICON_BTN_CLOSE, COLOR_THEME_PRIMARY2_INDEX);
+    lv_obj_set_style_img_recolor_opa(rightIco->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_img_recolor(rightIco->getLvObj(), lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN);
+    rightIco->center(rightBg->width() + PAD_MEDIUM, rightBg->height());
+  }
 
-  new SetupButtonGroup(window, {0, y, LCD_W - padding * 2, 0}, BTN_COLS, modelSetupButtons, BTN_H);
+  lv_obj_t* win = window->getLvObj();
+  window->setWindowFlag(OPAQUE);
+  lv_obj_set_style_bg_color(win, lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(win, LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_bg_grad_dir(win, LV_GRAD_DIR_NONE, LV_PART_MAIN);
+  lv_obj_set_style_bg_color(pg->getLvObj(), lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(pg->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_bg_grad_dir(pg->getLvObj(), LV_GRAD_DIR_NONE, LV_PART_MAIN);
+  lv_obj_set_style_text_color(win, lv_color_white(), LV_PART_MAIN);
+
+  // Advanced mode toggle
+  static bool s_advanced = false;
+  auto* advLine = new Window(window, {0, 0, LCD_W - padding * 2, (coord_t)EdgeTxStyles::UI_ELEMENT_HEIGHT});
+  lv_obj_set_style_text_color(advLine->getLvObj(), lv_color_white(), LV_PART_MAIN);
+  new StaticText(advLine, {PAD_TINY, PAD_LARGE, LCD_W / 2, (coord_t)EdgeTxStyles::STD_FONT_HEIGHT},
+                 "高级模式", COLOR_THEME_PRIMARY2_INDEX);
+  new ToggleSwitch(advLine, {SubPage::EDT_X, PAD_TINY, 0, 0},
+                   []() -> int { return s_advanced; },
+                   [this, window](int v) {
+                     s_advanced = v;
+                     window->clear();
+                     this->build(window);
+                   });
+  coord_t y = advLine->height() + padding;
+
+  if (s_advanced) {
+    y += SetupLine::showLines(window, y, SubPage::EDT_X, padding, setupLines);
+  } else {
+    // Simplified: only model name and bitmap
+    const SetupLineDef basicLines[] = {
+      { STR_DEF(STR_MODELNAME), setupLines[0].createEdit },
+      { STR_DEF(STR_BITMAP),    setupLines[2].createEdit },
+      { nullptr, nullptr },
+    };
+    y += SetupLine::showLines(window, y, SubPage::EDT_X, padding, basicLines);
+  }
+
+  // Override setup line styles from blue-white to dark FPV theme
+  for (uint32_t ci = 0; ci < lv_obj_get_child_cnt(window->getLvObj()); ci++) {
+    lv_obj_t* setupLine = lv_obj_get_child(window->getLvObj(), ci);
+    // Fix title label (first label in each SetupLine) + restyle Choice controls
+    bool titleFixed = false;
+    for (uint32_t si = 0; si < lv_obj_get_child_cnt(setupLine); si++) {
+      lv_obj_t* sc = lv_obj_get_child(setupLine, si);
+      if (lv_obj_check_type(sc, &lv_label_class)) {
+        lv_obj_set_style_text_color(sc, lv_color_white(), LV_PART_MAIN);
+        if (!titleFixed) titleFixed = true;  // first label = title
+      }
+      // Darken textarea (ModelTextEdit, TextEdit)
+      if (lv_obj_check_type(sc, &lv_textarea_class)) {
+        lv_obj_set_style_bg_color(sc, lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+        lv_obj_set_style_bg_opa(sc, LV_OPA_COVER, LV_PART_MAIN);
+        lv_obj_set_style_text_color(sc, lv_color_white(), LV_PART_MAIN);
+      }
+      // Find Choice/FileChoice controls via their dropdown/folder icon image
+      for (uint32_t gi = 0; gi < lv_obj_get_child_cnt(sc); gi++) {
+        lv_obj_t* gc = lv_obj_get_child(sc, gi);
+        if (lv_obj_check_type(gc, &lv_img_class)) {
+          const void* src = lv_img_get_src(gc);
+          if (lv_img_src_get_type(src) == LV_IMG_SRC_SYMBOL) {
+            const char* sym = (const char*)src;
+            if (strcmp(sym, LV_SYMBOL_DOWN) == 0 || strcmp(sym, LV_SYMBOL_DIRECTORY) == 0) {
+            // Style the Choice/FileChoice control container
+            lv_obj_set_style_bg_color(sc, lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+            lv_obj_set_style_bg_opa(sc, LV_OPA_COVER, LV_PART_MAIN);
+            lv_obj_set_style_text_color(sc, lv_color_white(), LV_PART_MAIN);
+            // Focus: orange bg, black text
+            lv_obj_set_style_bg_color(sc, lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN | LV_STATE_FOCUSED);
+            lv_obj_set_style_text_color(sc, lv_color_black(), LV_PART_MAIN | LV_STATE_FOCUSED);
+            // Style the dropdown/folder icon to white
+            lv_obj_set_style_img_recolor(gc, lv_color_white(), LV_PART_MAIN);
+            lv_obj_set_style_img_recolor_opa(gc, LV_OPA_COVER, LV_PART_MAIN);
+            // Also recolor icon when control is focused
+            lv_obj_set_style_img_recolor(gc, lv_color_black(), LV_PART_MAIN | LV_STATE_FOCUSED);
+            lv_obj_set_style_img_recolor_opa(gc, LV_OPA_COVER, LV_PART_MAIN | LV_STATE_FOCUSED);
+            // Style all labels inside the choice to white text
+            for (uint32_t ki = 0; ki < lv_obj_get_child_cnt(sc); ki++) {
+              lv_obj_t* kc = lv_obj_get_child(sc, ki);
+              if (lv_obj_check_type(kc, &lv_label_class)) {
+                lv_obj_set_style_text_color(kc, lv_color_white(), LV_PART_MAIN);
+                lv_obj_set_style_text_color(kc, lv_color_black(), LV_PART_MAIN | LV_STATE_FOCUSED);
+              }
+            }
+            break;  // Found the Choice, stop looking for images in this child
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Basic buttons (always shown)
+  const PageButtonDef basicButtons[] = {
+    {STR_DEF(STR_INTERNALRF), []() { new ModulePage(INTERNAL_MODULE); }, []() { return g_model.moduleData[INTERNAL_MODULE].type > 0; }},
+    {STR_DEF(STR_EXTERNALRF), []() { new ModulePage(EXTERNAL_MODULE); }, []() { return g_model.moduleData[EXTERNAL_MODULE].type > 0; }},
+    {STR_DEF(STR_TRAINER), []() { auto p = new TrainerPage(); p->setDarkHeader(ICON_MODEL_SETUP); p->setDarkBody(); }, []() { return g_model.trainerData.mode > 0; }},
+    {STR_DEF(STR_TIMER_1), []() { TimerWindow::open(0); }, []() { return g_model.timers[0].mode > 0; }},
+    {STR_DEF(STR_TIMER_2), []() { TimerWindow::open(1); }, []() { return g_model.timers[1].mode > 0; }},
+    {STR_DEF(STR_TIMER_3), []() { TimerWindow::open(2); }, []() { return g_model.timers[2].mode > 0; }},
+    {nullptr},
+  };
+
+  auto* btns = new SetupButtonGroup(window, {0, y, LCD_W - padding * 2, 0},
+                                     BTN_COLS,
+                                     s_advanced ? modelSetupButtons : basicButtons, BTN_H);
+
+  // Style buttons for FPV dark theme
+  for (uint32_t i = 0; i < lv_obj_get_child_cnt(btns->getLvObj()); i++) {
+    lv_obj_t* btn = lv_obj_get_child(btns->getLvObj(), i);
+    lv_obj_set_style_bg_color(btn, lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_text_color(btn, lv_color_white(), LV_PART_MAIN);
+    lv_obj_set_style_border_width(btn, 0, LV_PART_MAIN);
+    // Pressed: green highlight
+    lv_obj_set_style_bg_color(btn, lv_color_make(0x00, 0xA0, 0x00), LV_PART_MAIN | LV_STATE_PRESSED);
+    lv_obj_set_style_text_color(btn, lv_color_black(), LV_PART_MAIN | LV_STATE_PRESSED);
+    // Focused: orange highlight
+    lv_obj_set_style_bg_color(btn, lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN | LV_STATE_FOCUSED);
+    lv_obj_set_style_text_color(btn, lv_color_black(), LV_PART_MAIN | LV_STATE_FOCUSED);
+  }
+
+  // Left-align last button(s) when they don't fill a full row
+  int totalBtns = 0;
+  for (auto* p = s_advanced ? modelSetupButtons : basicButtons; p->title; p++) totalBtns++;
+  int lastRowStart = (totalBtns / BTN_COLS) * BTN_COLS;
+  if (totalBtns % BTN_COLS != 0) {
+    coord_t xw = (btns->width() - PAD_SMALL * (BTN_COLS + 1) - PAD_TINY * 2) / BTN_COLS + PAD_SMALL;
+    coord_t leftX = (btns->width() - (BTN_COLS * xw - PAD_SMALL)) / 2;
+    for (int i = lastRowStart; i < totalBtns; i++) {
+      lv_obj_t* b = lv_obj_get_child(btns->getLvObj(), i);
+      lv_obj_set_x(b, leftX + (i - lastRowStart) * xw);
+    }
+  }
+}
+
+//-----------------------------------------------------------------------------
+// ModelMenuPage - standalone grid of all model page icons
+//-----------------------------------------------------------------------------
+
+#include "static.h"
+
+ModelMenuPage::ModelMenuPage() :
+    NavWindow(MainWindow::instance(),
+              {0, EdgeTxStyles::MENU_HEADER_HEIGHT, LCD_W, LCD_H - EdgeTxStyles::MENU_HEADER_HEIGHT})
+{
+  // Match the main page's dark background
+  lv_obj_set_style_bg_color(lvobj, lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(lvobj, LV_OPA_COVER, LV_PART_MAIN);
+
+  pushLayer();
+
+  lv_obj_add_flag(lvobj, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_add_event_cb(lvobj, [](lv_event_t* e) {
+    auto* page = (ModelMenuPage*)lv_event_get_user_data(e);
+    page->onCancel();
+  }, LV_EVENT_CLICKED, this);
+
+  body = new Window(this, {0, 0, LCD_W, LCD_H - EdgeTxStyles::MENU_HEADER_HEIGHT});
+  lv_obj_add_flag(body->getLvObj(), LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_add_event_cb(body->getLvObj(), [](lv_event_t* e) {
+    auto* page = (ModelMenuPage*)lv_event_get_user_data(e);
+    if (page) page->onCancel();
+  }, LV_EVENT_CLICKED, this);
+  body->setWindowFlag(NO_FOCUS | OPAQUE);
+  lv_obj_set_style_bg_color(body->getLvObj(), lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(body->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_bg_grad_dir(body->getLvObj(), LV_GRAD_DIR_NONE, LV_PART_MAIN);
+  body->padAll(PAD_MEDIUM);
+
+  int visIdx[16], n = 0;
+  EdgeTxIcon icons[16];
+  for (int i = 0; modelMenuItems[i].icon != EDGETX_ICONS_COUNT; i++) {
+    if (!modelMenuItems[i].enabled || modelMenuItems[i].enabled()) {
+      icons[n] = modelMenuItems[i].icon;
+      visIdx[n++] = i;
+    }
+  }
+
+  int cols = ModelSetupPage::BTN_COLS;
+  coord_t contentW = body->width() - PAD_MEDIUM * 2;
+  coord_t btnW = (contentW - PAD_SMALL * (cols + 1) - PAD_TINY * 2) / cols;
+  coord_t btnH = ModelSetupPage::BTN_H;
+  coord_t gap = PAD_SMALL;
+  coord_t gridW = cols * btnW + (cols - 1) * gap;
+
+  int rows = (n + cols - 1) / cols;
+  coord_t contentH = body->height() - PAD_MEDIUM * 2;
+  coord_t gridH = rows * btnH + (rows - 1) * gap;
+  coord_t yo = std::min((contentH - gridH) / 2, (coord_t)0);
+  coord_t xo = (contentW - gridW) / 2;
+
+  for (int j = 0; j < n; j++) {
+    int idx = visIdx[j];
+    coord_t x = xo + (j % cols) * (btnW + gap);
+    coord_t y = yo + (j / cols) * (btnH + gap);
+
+    auto btn = new TextButton(body, {x, y, btnW, btnH},
+                              std::string(STR_VAL(modelMenuItems[idx].title)),
+                              [idx]() -> uint8_t {
+                                auto pg = new PageGroup(ICON_MODEL, "Model", modelMenuItems);
+                                pg->setCurrentTab(idx);
+                                return 0;
+                              });
+
+    // FPV dark theme
+    lv_obj_set_style_bg_color(btn->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(btn->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_text_color(btn->getLvObj(), lv_color_white(), LV_PART_MAIN);
+    lv_obj_set_style_border_width(btn->getLvObj(), 0, LV_PART_MAIN);
+    lv_obj_set_style_outline_width(btn->getLvObj(), 0, LV_PART_MAIN | LV_STATE_FOCUS_KEY);
+    lv_obj_set_style_bg_color(btn->getLvObj(), lv_color_make(0x00, 0xA0, 0x00), LV_PART_MAIN | LV_STATE_PRESSED);
+    lv_obj_set_style_text_color(btn->getLvObj(), lv_color_black(), LV_PART_MAIN | LV_STATE_PRESSED);
+    lv_obj_set_style_bg_color(btn->getLvObj(), lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN | LV_STATE_FOCUSED);
+    lv_obj_set_style_text_color(btn->getLvObj(), lv_color_black(), LV_PART_MAIN | LV_STATE_FOCUSED);
+
+    // Use flex row layout so icon and text sit side by side with consistent gap
+    lv_obj_set_flex_flow(btn->getLvObj(), LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(btn->getLvObj(), LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_column(btn->getLvObj(), PAD_SMALL, LV_PART_MAIN);
+    lv_obj_set_style_pad_left(btn->getLvObj(), PAD_MEDIUM, LV_PART_MAIN);
+    lv_obj_set_style_pad_right(btn->getLvObj(), PAD_SMALL, LV_PART_MAIN);
+
+    // Icon: move to first child so it sits left of the label
+    auto icon = new StaticIcon(btn, 0, 0,
+                               icons[j], COLOR_THEME_PRIMARY2_INDEX);
+    lv_obj_clear_flag(icon->getLvObj(), LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_move_to_index(icon->getLvObj(), 0);
+  }
+}
+
+void ModelMenuPage::onCancel()
+{
+  deleteLater();
+}
+
+//-----------------------------------------------------------------------------
+// RadioMenuPage - standalone grid of radio page icons
+//-----------------------------------------------------------------------------
+
+RadioMenuPage::RadioMenuPage() :
+    NavWindow(MainWindow::instance(),
+              {0, EdgeTxStyles::MENU_HEADER_HEIGHT, LCD_W, LCD_H - EdgeTxStyles::MENU_HEADER_HEIGHT})
+{
+  lv_obj_set_style_bg_color(lvobj, lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(lvobj, LV_OPA_COVER, LV_PART_MAIN);
+
+  pushLayer();
+
+  lv_obj_add_flag(lvobj, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_add_event_cb(lvobj, [](lv_event_t* e) {
+    auto* page = (RadioMenuPage*)lv_event_get_user_data(e);
+    page->onCancel();
+  }, LV_EVENT_CLICKED, this);
+
+  body = new Window(this, {0, 0, LCD_W, LCD_H - EdgeTxStyles::MENU_HEADER_HEIGHT});
+  lv_obj_add_flag(body->getLvObj(), LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_add_event_cb(body->getLvObj(), [](lv_event_t* e) {
+    auto* page = (RadioMenuPage*)lv_event_get_user_data(e);
+    if (page) page->onCancel();
+  }, LV_EVENT_CLICKED, this);
+  body->setWindowFlag(NO_FOCUS | OPAQUE);
+  lv_obj_set_style_bg_color(body->getLvObj(), lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(body->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_bg_grad_dir(body->getLvObj(), LV_GRAD_DIR_NONE, LV_PART_MAIN);
+  body->padAll(PAD_MEDIUM);
+
+  // Filter: only the 5 core radio items
+  int visIdx[16], n = 0;
+  EdgeTxIcon icons[16];
+  for (int i = 0; radioMenuItems[i].icon != EDGETX_ICONS_COUNT; i++) {
+    if (!radioMenuItems[i].enabled || radioMenuItems[i].enabled()) {
+      if (radioMenuItems[i].qmPage == QM_RADIO_SETUP ||
+          radioMenuItems[i].qmPage == QM_RADIO_GF ||
+          radioMenuItems[i].qmPage == QM_RADIO_TRAINER ||
+          radioMenuItems[i].qmPage == QM_RADIO_HARDWARE ||
+          radioMenuItems[i].qmPage == QM_RADIO_VERSION) {
+        icons[n] = radioMenuItems[i].icon;
+        visIdx[n++] = i;
+      }
+    }
+  }
+
+  int cols = ModelSetupPage::BTN_COLS;
+  coord_t contentW = body->width() - PAD_MEDIUM * 2;
+  coord_t btnW = (contentW - PAD_SMALL * (cols + 1) - PAD_TINY * 2) / cols;
+  coord_t btnH = ModelSetupPage::BTN_H;
+  coord_t gap = PAD_SMALL;
+  coord_t gridW = cols * btnW + (cols - 1) * gap;
+
+  int rows = (n + cols - 1) / cols;
+  coord_t contentH = body->height() - PAD_MEDIUM * 2;
+  coord_t gridH = rows * btnH + (rows - 1) * gap;
+  coord_t yo = std::min((contentH - gridH) / 2, (coord_t)0);
+  coord_t xo = (contentW - gridW) / 2;
+
+  for (int j = 0; j < n; j++) {
+    int idx = visIdx[j];
+    coord_t x = xo + (j % cols) * (btnW + gap);
+    coord_t y = yo + (j / cols) * (btnH + gap);
+
+    auto btn = new TextButton(body, {x, y, btnW, btnH},
+                              std::string(STR_VAL(radioMenuItems[idx].title)),
+                              [idx]() -> uint8_t {
+                                auto pg = new PageGroup(ICON_RADIO, "System", radioMenuItems);
+                                pg->setCurrentTab(idx);
+                                return 0;
+                              });
+
+    // FPV dark theme
+    lv_obj_set_style_bg_color(btn->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(btn->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_text_color(btn->getLvObj(), lv_color_white(), LV_PART_MAIN);
+    lv_obj_set_style_border_width(btn->getLvObj(), 0, LV_PART_MAIN);
+    lv_obj_set_style_outline_width(btn->getLvObj(), 0, LV_PART_MAIN | LV_STATE_FOCUS_KEY);
+    lv_obj_set_style_bg_color(btn->getLvObj(), lv_color_make(0x00, 0xA0, 0x00), LV_PART_MAIN | LV_STATE_PRESSED);
+    lv_obj_set_style_text_color(btn->getLvObj(), lv_color_black(), LV_PART_MAIN | LV_STATE_PRESSED);
+    lv_obj_set_style_bg_color(btn->getLvObj(), lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN | LV_STATE_FOCUSED);
+    lv_obj_set_style_text_color(btn->getLvObj(), lv_color_black(), LV_PART_MAIN | LV_STATE_FOCUSED);
+
+    // Use flex row layout so icon and text sit side by side with consistent gap
+    lv_obj_set_flex_flow(btn->getLvObj(), LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(btn->getLvObj(), LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_column(btn->getLvObj(), PAD_SMALL, LV_PART_MAIN);
+    lv_obj_set_style_pad_left(btn->getLvObj(), PAD_MEDIUM, LV_PART_MAIN);
+    lv_obj_set_style_pad_right(btn->getLvObj(), PAD_SMALL, LV_PART_MAIN);
+
+    // Icon: move to first child so it sits left of the label
+    auto icon = new StaticIcon(btn, 0, 0,
+                               icons[j], COLOR_THEME_PRIMARY2_INDEX);
+    lv_obj_clear_flag(icon->getLvObj(), LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_move_to_index(icon->getLvObj(), 0);
+  }
+}
+
+void RadioMenuPage::onCancel()
+{
+  deleteLater();
+}
+
+//-----------------------------------------------------------------------------
+// ToolsMenuPage - hosts RadioToolsPage with main topbar
+//-----------------------------------------------------------------------------
+
+ToolsMenuPage::ToolsMenuPage() :
+    NavWindow(MainWindow::instance(),
+              {0, EdgeTxStyles::MENU_HEADER_HEIGHT, LCD_W, LCD_H - EdgeTxStyles::MENU_HEADER_HEIGHT})
+{
+  lv_obj_set_style_bg_color(lvobj, lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(lvobj, LV_OPA_COVER, LV_PART_MAIN);
+
+  pushLayer();
+
+  lv_obj_add_flag(lvobj, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_add_event_cb(lvobj, [](lv_event_t* e) {
+    auto* page = (ToolsMenuPage*)lv_event_get_user_data(e);
+    page->onCancel();
+  }, LV_EVENT_CLICKED, this);
+
+  body = new Window(this, {0, 0, LCD_W, LCD_H - EdgeTxStyles::MENU_HEADER_HEIGHT});
+  lv_obj_add_flag(body->getLvObj(), LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_add_event_cb(body->getLvObj(), [](lv_event_t* e) {
+    auto* page = (ToolsMenuPage*)lv_event_get_user_data(e);
+    if (page) page->onCancel();
+  }, LV_EVENT_CLICKED, this);
+  body->setWindowFlag(NO_FOCUS | OPAQUE);
+  lv_obj_set_style_bg_color(body->getLvObj(), lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(body->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  body->padAll(PAD_SMALL);
+
+  toolsMenuItems[0].create(toolsMenuItems[0])->build(body);
+}
+
+void ToolsMenuPage::onCancel()
+{
+  deleteLater();
 }

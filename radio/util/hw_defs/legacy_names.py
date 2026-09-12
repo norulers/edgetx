@@ -157,6 +157,73 @@ LEGACY_NAMES = [
         }
     },
     {
+        "targets": {"h750dev"},
+        "inputs": {
+            "LH": {
+                "yaml": "Rud",
+                "lua": "rud",
+                "description": "Rudder"
+            },
+            "LV": {
+                "yaml": "Ele",
+                "lua": "ele",
+                "description": "Elevator"
+            },
+            "RV": {
+                "yaml": "Thr",
+                "lua": "thr",
+                "description": "Throttle"
+            },
+            "RH": {
+                "yaml": "Ail",
+                "lua": "ail",
+                "description": "Aileron"
+            },
+            "P1": {
+                "yaml": "S1",
+                "lua": "s1",
+                "label": "S1",
+                "short_label": "1",
+                "description": "Potentiometer S1"
+            },
+            "P2": {
+                "yaml": "S2",
+                "lua": "s2",
+                "label": "S2",
+                "short_label": "2",
+                "description": "Potentiometer S2"
+            },
+            "SL1": {
+                "yaml": "LS",
+                "lua": "ls",
+                "label": "LS",
+                "short_label": "L",
+                "description": "Left slider"
+            },
+            "SL2": {
+                "yaml": "RS",
+                "lua": "rs",
+                "label": "RS",
+                "short_label": "R",
+                "description": "Right slider"
+            },
+            "EXT1": {
+                "yaml": "EXT1",
+                "lua": "ext1",
+                "label": "EXT1",
+                "short_label": "E1",
+                "description": "Ext 1"
+            },
+            "EXT2": {
+                "yaml": "EXT2",
+                "lua": "ext2",
+                "label": "EXT2",
+                "short_label": "E2",
+                "description": "Ext 2"
+            }
+        }
+    },
+    {
         "targets": {"t15", "t15pro", "tx15"},
         "inputs": {
             "LH": {
@@ -993,6 +1060,73 @@ LEGACY_NAMES = [
                 "description": "Right finger slider"
             }
         }
+    },
+    {
+        "targets": {"t22"},
+        "inputs": {
+            "LH": {
+                "yaml": "Rud",
+                "lua": "rud",
+                "description": "Rudder"
+            },
+            "LV": {
+                "yaml": "Ele",
+                "lua": "ele",
+                "description": "Elevator"
+            },
+            "RV": {
+                "yaml": "Thr",
+                "lua": "thr",
+                "description": "Throttle"
+            },
+            "RH": {
+                "yaml": "Ail",
+                "lua": "ail",
+                "description": "Aileron"
+            },
+            "P1": {
+                "yaml": "POT1",
+                "lua": "s1",
+                "label": "S1",
+                "short_label": "1",
+                "description": "Potentiometer 1"
+            },
+            "P2": {
+                "yaml": "POT2",
+                "lua": "s2",
+                "label": "S2",
+                "short_label": "2",
+                "description": "Potentiometer 2"
+            },
+            "SL1": {
+                "yaml": "SLIDER1",
+                "lua": "s3",
+                "label": "S3",
+                "short_label": "3",
+                "description": "Potentiometer 3"
+            },
+            "SL2": {
+                "yaml": "SLIDER2",
+                "lua": "s4",
+                "label": "S4",
+                "short_label": "4",
+                "description": "Potentiometer 4"
+            },
+            "SL3": {
+                "yaml": "SLIDER3",
+                "lua": "ls",
+                "label": "SL",
+                "short_label": "L",
+                "description": "Left slider"
+            },
+            "SL4": {
+                "yaml": "SLIDER4",
+                "lua": "rs",
+                "label": "SR",
+                "short_label": "R",
+                "description": "Right slider"
+            },
+        },
     },
     {
         "targets": {"pocket"},

@@ -50,7 +50,8 @@ class Menu : public ModalWindow
                std::function<bool()> isChecked = nullptr);
 
   void addLineBuffered(const std::string &text, std::function<void()> onPress,
-                       std::function<bool()> isChecked = nullptr);
+                       std::function<bool()> isChecked = nullptr,
+                       std::function<void()> onFocus = nullptr);
 
   void updateLines();
 

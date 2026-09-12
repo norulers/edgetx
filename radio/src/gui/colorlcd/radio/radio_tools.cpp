@@ -234,10 +234,20 @@ struct ToolButton : public TextButton {
     lv_obj_set_width(label, lv_pct(100));
     etx_obj_add_style(label, styles->text_align_center, LV_PART_MAIN);
     lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
+
+    // FPV dark button style
+    lv_obj_set_style_bg_color(lvobj, lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(lvobj, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_text_color(lvobj, lv_color_white(), LV_PART_MAIN);
+    lv_obj_set_style_border_width(lvobj, 0, LV_PART_MAIN);
+    lv_obj_set_style_outline_width(lvobj, 0, LV_PART_MAIN | LV_STATE_FOCUS_KEY);
+    lv_obj_set_style_bg_color(lvobj, lv_color_make(0x00, 0xA0, 0x00), LV_PART_MAIN | LV_STATE_PRESSED);
+    lv_obj_set_style_bg_color(lvobj, lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN | LV_STATE_FOCUSED);
+    lv_obj_set_style_text_color(lvobj, lv_color_black(), LV_PART_MAIN | LV_STATE_FOCUSED);
   }
 
   static LAYOUT_ORIENTATION(TOOLS_BTN_W, (LCD_W - PAD_LARGE * 3) / 3, (LCD_W - PAD_LARGE * 2) / 2)
-  static LAYOUT_VAL_SCALED(TOOLS_BTN_H, 48)
+  static LAYOUT_VAL_SCALED(TOOLS_BTN_H, 64)
 };
 
 //-----------------------------------------------------------------------------
@@ -246,6 +256,28 @@ RadioToolsPage::RadioToolsPage(const PageDef& pageDef) : PageGroupItem(pageDef) 
 
 void RadioToolsPage::build(Window* window)
 {
+  // FPV-style header
+  Window* pg = window->getParent();
+  if (pg && lv_obj_get_child_cnt(pg->getLvObj()) > 1) {
+    lv_obj_t* hdr = lv_obj_get_child(pg->getLvObj(), 1);
+    lv_obj_set_style_bg_color(hdr, lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(hdr, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_bg_grad_dir(hdr, LV_GRAD_DIR_NONE, LV_PART_MAIN);
+    lv_obj_set_style_border_side(hdr, LV_BORDER_SIDE_BOTTOM, LV_PART_MAIN);
+    lv_obj_set_style_border_width(hdr, 2, LV_PART_MAIN);
+    lv_obj_set_style_border_color(hdr, lv_color_make(0x44, 0x44, 0x44), LV_PART_MAIN);
+  }
+
+  // FPV dark theme
+  lv_obj_t* win = window->getLvObj();
+  window->setWindowFlag(OPAQUE);
+  lv_obj_set_style_bg_color(win, lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(win, LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_bg_grad_dir(win, LV_GRAD_DIR_NONE, LV_PART_MAIN);
+  lv_obj_set_style_bg_color(pg->getLvObj(), lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(pg->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_bg_grad_dir(pg->getLvObj(), LV_GRAD_DIR_NONE, LV_PART_MAIN);
+
   this->window = window;
 
   memclear(&reusableBuffer.radioTools, sizeof(reusableBuffer.radioTools));

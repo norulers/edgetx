@@ -180,7 +180,7 @@ class MixGroup : public InputMixGroupBase
   {
     adjustHeight();
 
-    lv_obj_set_pos(label, PAD_TINY, -1);
+    lv_obj_set_pos(label, PAD_TINY, PAD_SMALL);
 
     lv_obj_t* chText = nullptr;
     if (idx >= MIXSRC_FIRST_CH && idx <= MIXSRC_LAST_CH &&
@@ -251,6 +251,7 @@ InputMixGroupBase* ModelMixesPage::getGroupByIndex(uint8_t index)
 InputMixGroupBase* ModelMixesPage::createGroup(Window* form, mixsrc_t src)
 {
   auto group = new MixGroup(form, src);
+  stylePageGroupControl(group->getLvObj());
   if (showMonitors) group->enableMixerMonitor();
   return group;
 }
@@ -258,6 +259,7 @@ InputMixGroupBase* ModelMixesPage::createGroup(Window* form, mixsrc_t src)
 InputMixButtonBase* ModelMixesPage::createLineButton(InputMixGroupBase *group, uint8_t index)
 {
   auto button = new MixLineButton(group, index);
+  stylePageGroupControl(button->getLvObj());
 
   lines.emplace_back(button);
   group->addLine(button);
@@ -441,6 +443,11 @@ void ModelMixesPage::pasteMixAfter(uint8_t dst_idx)
 
 void ModelMixesPage::build(Window * window)
 {
+  // FPV dark theme
+  lv_obj_set_style_bg_color(window->getLvObj(), lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(window->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_text_color(window->getLvObj(), lv_color_white(), LV_PART_MAIN);
+
   window->setFlexLayout(LV_FLEX_FLOW_COLUMN, PAD_TINY);
 
   form = new Window(window, rect_t{0, 0, ListLineButton::GRP_W, LV_SIZE_CONTENT});
@@ -450,11 +457,15 @@ void ModelMixesPage::build(Window * window)
   box->padAll(PAD_TINY);
   box->setFlexLayout(LV_FLEX_FLOW_ROW, PAD_SMALL);
   box->padLeft(PAD_MEDIUM);
+  lv_obj_set_width(box->getLvObj(), lv_pct(100));
 
   auto box_obj = box->getLvObj();
+  stylePageGroupControl(box_obj);
   lv_obj_set_style_flex_cross_place(box_obj, LV_FLEX_ALIGN_CENTER, 0);
 
-  new StaticText(box, rect_t{}, STR_SHOW_MIXER_MONITORS);
+  auto monitorLabel = new StaticText(box, rect_t{}, STR_SHOW_MIXER_MONITORS);
+  lv_obj_set_width(monitorLabel->getLvObj(), LV_SIZE_CONTENT);
+  lv_obj_set_height(monitorLabel->getLvObj(), LV_SIZE_CONTENT);
   new ToggleSwitch(
       box, rect_t{}, [=]() { return showMonitors; },
       [=](uint8_t val) { enableMonitors(val); });
@@ -464,6 +475,7 @@ void ModelMixesPage::build(Window * window)
     return 0;
   });
   auto btn_obj = btn->getLvObj();
+  stylePageGroupControl(btn_obj);
   lv_obj_set_width(btn_obj, lv_pct(100));
   lv_group_focus_obj(btn_obj);
 

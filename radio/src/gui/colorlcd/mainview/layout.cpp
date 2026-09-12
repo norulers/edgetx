@@ -91,17 +91,35 @@ const LayoutFactory* LayoutFactory::getLayoutFactory(const char* name)
   return nullptr;
 }
 
+static const char* const _privateLayouts[] = {
+    "LayoutFpvDash",
+};
+
+bool LayoutFactory::isPrivateLayout(const char* id)
+{
+  if (!id) return false;
+  for (auto privateId : _privateLayouts)
+    if (!strcmp(id, privateId)) return true;
+  return false;
+}
+
 //
 // Loads a layout, but does not attach it to any window
 //
 WidgetsContainer* LayoutFactory::loadLayout(
     Window* parent, int screenNum)
 {
-  const LayoutFactory* factory = getLayoutFactory(g_model.getScreenLayoutId(screenNum));
-  if (factory) {
-    return factory->load(parent, screenNum);
-  }
-  return nullptr;
+  const char* id = g_model.getScreenLayoutId(screenNum);
+  if (!id || !id[0]) return nullptr;  // no more screens
+
+  const LayoutFactory* factory = getLayoutFactory(id);
+
+  // A layout built into another firmware build must not leave the main view
+  // empty; fall back to the default one instead. The stored id is left alone.
+  if (!factory) factory = defaultLayout;
+  if (!factory) return nullptr;
+
+  return factory->load(parent, screenNum);
 }
 
 //
@@ -128,10 +146,15 @@ void LayoutFactory::loadDefaultLayout()
   auto& screen = customScreens[0];
 
   if (screen == nullptr && defaultLayout != nullptr) {
-    g_model.setScreenLayoutId(0, defaultLayout->getId());
+    // Prefer FPV Dashboard if it has been registered; fall back to the
+    // compile-time defaultLayout (layout2P1) otherwise.
+    const LayoutFactory* factory = getLayoutFactory("LayoutFpvDash");
+    if (!factory) factory = defaultLayout;
+
+    g_model.setScreenLayoutId(0, factory->getId());
 
     auto viewMain = ViewMain::instance();
-    screen = defaultLayout->create(viewMain, 0);
+    screen = factory->create(viewMain, 0);
     //
     // TODO:
     // -> attach a few default widgets
@@ -149,7 +172,8 @@ void LayoutFactory::loadDefaultLayout()
 //
 void LayoutFactory::loadCustomScreens()
 {
-  // Delete old screens
+  // Ensure any screens created by loadDefaultLayout() are removed before
+  // we add the real set, so we never end up with duplicate tileview entries.
   deleteCustomScreens();
 
   unsigned i = 0;

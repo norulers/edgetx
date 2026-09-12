@@ -122,6 +122,11 @@ class Choice : public ChoiceBase
     isValueAvailable = std::move(handler);
   }
 
+  void setSelectionHandler(std::function<void(int)> handler)
+  {
+    selectionHandler = std::move(handler);
+  }
+
   unsigned getIndexFromValue(int value) const
   {
     if (!isValueAvailable) {
@@ -155,7 +160,7 @@ class Choice : public ChoiceBase
   }
 
   virtual void setValue(int val);
-  virtual int getIntValue() const { return _getValue(); }
+  virtual int getIntValue() const { return _getValue ? _getValue() : currentValue; }
 
   std::string getString(int val) { return values[val]; }
 
@@ -172,6 +177,7 @@ class Choice : public ChoiceBase
   std::vector<std::string> values;
   std::function<bool(int)> isValueAvailable;
   std::function<void(Menu *, int, int &)> fillMenuHandler;
+  std::function<void(int)> selectionHandler;
 
   std::string getLabelText() override;
 

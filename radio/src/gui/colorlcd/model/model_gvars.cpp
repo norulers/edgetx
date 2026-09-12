@@ -30,6 +30,7 @@
 #include "numberedit.h"
 #include "page.h"
 #include "textedit.h"
+#include "timer_setup.h"
 #include "toggleswitch.h"
 
 #define SET_DIRTY() storageDirty(EE_MODEL)
@@ -55,6 +56,7 @@ class GVarButton : public ListLineButton
   GVarButton(Window* parent, uint8_t gvar) :
       ListLineButton(parent, gvar)
   {
+    stylePageGroupControl(lvobj);
     padAll(PAD_ZERO);
     setHeight(BTN_H);
     if (!modelFMEnabled()) padLeft(PAD_LARGE);
@@ -62,10 +64,10 @@ class GVarButton : public ListLineButton
     delayLoad();
   }
 
-  static LAYOUT_VAL_SCALED(GVAR_NAME_SIZE, 44)
+  static LAYOUT_VAL_SCALED(GVAR_NAME_SIZE, 56)
   static constexpr coord_t GVAR_VAL_H = EdgeTxStyles::STD_FONT_HEIGHT + 2;
   static constexpr coord_t GVAR_VAL_SPACE = LCD_W - GVAR_NAME_SIZE - PAD_SMALL * 2 - PAD_BORDER * 2 - PAD_TINY * 2;
-  #define GVAR_VAL_MIN_W LAYOUT_SCALE(46)
+  #define GVAR_VAL_MIN_W LAYOUT_SCALE(44)
 #if GVAR_VAL_SPACE / GVAR_VAL_MIN_W <= MAX_FLIGHT_MODES
   static constexpr coord_t GVAR_COLS = GVAR_VAL_SPACE / GVAR_VAL_MIN_W;
 #else
@@ -116,6 +118,7 @@ class GVarButton : public ListLineButton
     currentFlightMode = getFlightMode();
 
     auto nm = etx_label_create(lvobj);
+    lv_label_set_long_mode(nm, LV_LABEL_LONG_CLIP);
     lv_label_set_text(nm, getGVarString(index));
     lv_obj_set_pos(nm, PAD_TINY, GVAR_NM_Y);
     lv_obj_set_size(nm, GVAR_NAME_SIZE, EdgeTxStyles::STD_FONT_HEIGHT);
@@ -123,6 +126,7 @@ class GVarButton : public ListLineButton
     if (modelFMEnabled()) {
       for (int flightMode = 0; flightMode < MAX_FLIGHT_MODES; flightMode++) {
         valueTexts[flightMode] = etx_create(&gv_value_class, lvobj);
+        lv_label_set_long_mode(valueTexts[flightMode], LV_LABEL_LONG_CLIP);
         lv_obj_set_pos(valueTexts[flightMode], (flightMode % GVAR_COLS) * GVAR_VAL_W + GVAR_NAME_SIZE + PAD_TINY * 2,
                        (flightMode / GVAR_COLS) * GVAR_VAL_H + GVAR_YO);
 
@@ -134,6 +138,7 @@ class GVarButton : public ListLineButton
       }
     } else {
       valueTexts[0] = etx_label_create(lvobj);
+      lv_label_set_long_mode(valueTexts[0], LV_LABEL_LONG_CLIP);
       lv_obj_set_pos(valueTexts[0], GVAR_NAME_SIZE + PAD_MEDIUM, (BTN_H - EdgeTxStyles::STD_FONT_HEIGHT - PAD_SMALL) / 2);
 
       updateValueText(0);
@@ -168,7 +173,7 @@ class GVarButton : public ListLineButton
       else
         lv_label_set_text_fmt(field, "%d%s", value, suffix);
       if (unit) {
-        if (value <= -1000 || value >= 1000 || (prec && (value <= -100))) {
+        if (value <= -1000 || value >= 1000 || (prec && (value <= -100)) || (value <= -100 || value >= 100)) {
           lv_obj_add_state(field, ETX_STATE_VALUE_SMALL_FONT);
         } else {
           lv_obj_clear_state(field, ETX_STATE_VALUE_SMALL_FONT);
@@ -185,7 +190,10 @@ static void gv_label_constructor(const lv_obj_class_t* class_p, lv_obj_t* obj)
 {
   etx_obj_add_style(obj, styles->text_align_center, LV_PART_MAIN);
   etx_font(obj, FONT_XS_INDEX);
-  etx_solid_bg(obj, COLOR_THEME_ACTIVE_INDEX, LV_STATE_CHECKED);
+  // FPV dark theme: orange highlight for active flight mode
+  lv_obj_set_style_bg_color(obj, lv_color_make(0xFF, 0x8C, 0x00), LV_STATE_CHECKED);
+  lv_obj_set_style_bg_opa(obj, LV_OPA_COVER, LV_STATE_CHECKED);
+  lv_obj_set_style_text_color(obj, lv_color_black(), LV_STATE_CHECKED);
 }
 
 const lv_obj_class_t GVarButton::gv_label_class = {
@@ -205,7 +213,10 @@ static void gv_value_constructor(const lv_obj_class_t* class_p, lv_obj_t* obj)
 {
   etx_obj_add_style(obj, styles->text_align_center, LV_PART_MAIN);
   etx_font(obj, FONT_XS_INDEX, LV_PART_MAIN | ETX_STATE_VALUE_SMALL_FONT);
-  etx_solid_bg(obj, COLOR_THEME_ACTIVE_INDEX, LV_STATE_CHECKED);
+  // FPV dark theme: orange highlight for active flight mode
+  lv_obj_set_style_bg_color(obj, lv_color_make(0xFF, 0x8C, 0x00), LV_STATE_CHECKED);
+  lv_obj_set_style_bg_opa(obj, LV_OPA_COVER, LV_STATE_CHECKED);
+  lv_obj_set_style_text_color(obj, lv_color_black(), LV_STATE_CHECKED);
 }
 
 const lv_obj_class_t GVarButton::gv_value_class = {
@@ -228,7 +239,9 @@ class GVarHeader : public Window
       Window(parent, {0, 0, LCD_W, HDR_H})
   {
     padAll(PAD_ZERO);
-    etx_solid_bg(lvobj, COLOR_THEME_SECONDARY3_INDEX);
+    // FPV dark theme
+    lv_obj_set_style_bg_color(lvobj, lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(lvobj, LV_OPA_COVER, LV_PART_MAIN);
 
     delayLoad();
   }
@@ -265,6 +278,7 @@ class GVarHeader : public Window
       getFlightModeString(label, flightMode + 1);
 
       labelTexts[flightMode] = etx_create(&GVarButton::gv_value_class, lvobj);
+      lv_label_set_long_mode(labelTexts[flightMode], LV_LABEL_LONG_CLIP);
       lv_label_set_text(labelTexts[flightMode], label);
       lv_obj_set_pos(labelTexts[flightMode], (flightMode % GVarButton::GVAR_COLS) * GVarButton::GVAR_VAL_W + GVarButton::GVAR_NAME_SIZE + PAD_SMALL + PAD_BORDER + PAD_TINY * 2,
                       (flightMode / GVarButton::GVAR_COLS) * EdgeTxStyles::STD_FONT_HEIGHT + 1);
@@ -285,6 +299,30 @@ class GVarEditWindow : public Page
       Page(ICON_MODEL_GVARS), index(gvarIndex)
   {
     buildHeader(header);
+
+    // Dark FPV header: hide original canvas icons, place new ones with orange color
+    for (uint32_t i = 0; i < lv_obj_get_child_cnt(header->getLvObj()); i++) {
+      auto child = lv_obj_get_child(header->getLvObj(), i);
+      if (lv_obj_check_type(child, &lv_canvas_class))
+        lv_obj_add_flag(child, LV_OBJ_FLAG_HIDDEN);
+    }
+    auto leftBg = new StaticIcon(header, 0, 0, ICON_TOPLEFT_BG, COLOR_THEME_PRIMARY2_INDEX);
+    lv_obj_set_style_img_recolor_opa(leftBg->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_img_recolor(leftBg->getLvObj(), lv_color_make(0x22, 0x22, 0x22), LV_PART_MAIN);
+    leftBg->setTop((EdgeTxStyles::MENU_HEADER_HEIGHT - leftBg->height()) / 2);
+    auto leftIco = new StaticIcon(leftBg, 0, 0, ICON_MODEL_GVARS, COLOR_THEME_PRIMARY2_INDEX);
+    lv_obj_set_style_img_recolor_opa(leftIco->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_img_recolor(leftIco->getLvObj(), lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN);
+    leftIco->center(leftBg->width() + PAD_MEDIUM, leftBg->height());
+    auto rightBg = new StaticIcon(header, LCD_W, 0, ICON_TOPRIGHT_BG, COLOR_THEME_PRIMARY2_INDEX);
+    lv_obj_set_style_img_recolor_opa(rightBg->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_img_recolor(rightBg->getLvObj(), lv_color_make(0x22, 0x22, 0x22), LV_PART_MAIN);
+    rightBg->setPos(LCD_W - rightBg->width(), (EdgeTxStyles::MENU_HEADER_HEIGHT - rightBg->height()) / 2);
+    auto rightIco = new StaticIcon(rightBg, 0, 0, ICON_BTN_CLOSE, COLOR_THEME_PRIMARY2_INDEX);
+    lv_obj_set_style_img_recolor_opa(rightIco->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_img_recolor(rightIco->getLvObj(), lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN);
+    rightIco->center(rightBg->width() + PAD_MEDIUM, rightBg->height());
+
     buildBody(body);
   }
 
@@ -404,42 +442,66 @@ class GVarEditWindow : public Page
     window->setFlexLayout();
     FlexGridLayout grid(col_dsc, row_dsc, PAD_TINY);
 
+    // Dark FPV theme
+    lv_obj_set_style_bg_color(window->getLvObj(), lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(window->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_text_color(window->getLvObj(), lv_color_white(), LV_PART_MAIN);
+
     auto line = window->newLine(grid);
+    lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    line->padAll(PAD_SMALL);
 
     GVarData* gvar = &g_model.gvars[index];
 
-    new StaticText(line, rect_t{}, STR_NAME);
+    auto nameLbl = new StaticText(line, rect_t{}, STR_NAME);
+    lv_obj_set_style_text_color(nameLbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
     grid.nextCell();
-    new ModelTextEdit(line, rect_t{}, gvar->name, LEN_GVAR_NAME, [=]() { refreshTitle = true; });
+    auto nameEdit = new ModelTextEdit(line, rect_t{}, gvar->name, LEN_GVAR_NAME, [=]() { refreshTitle = true; });
+    applyDarkBtnStyle(nameEdit->getLvObj());
 
     line = window->newLine(grid);
+    lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    line->padAll(PAD_SMALL);
 
     static const char* const strUnits[] = { "-", "%" };
-    new StaticText(line, rect_t{}, STR_UNIT);
+    auto unitLbl = new StaticText(line, rect_t{}, STR_UNIT);
+    lv_obj_set_style_text_color(unitLbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
     grid.nextCell();
-    new Choice(line, rect_t{}, strUnits, 0, 1, GET_DEFAULT(gvar->unit),
+    auto unitChoice = new Choice(line, rect_t{}, strUnits, 0, 1, GET_DEFAULT(gvar->unit),
                [=](int16_t newValue) {
                  refreshTitle = (gvar->unit != newValue);
                  gvar->unit = newValue;
                  SET_DIRTY();
                  setProperties();
                });
+    applyDarkBtnStyle(unitChoice->getLvObj());
 
     line = window->newLine(grid);
+    lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    line->padAll(PAD_SMALL);
 
-    new StaticText(line, rect_t{}, STR_PRECISION);
+    auto precLbl = new StaticText(line, rect_t{}, STR_PRECISION);
+    lv_obj_set_style_text_color(precLbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
     grid.nextCell();
-    new Choice(line, rect_t{}, STR_VPREC, 0, 1, GET_DEFAULT(gvar->prec),
+    auto precChoice = new Choice(line, rect_t{}, STR_VPREC, 0, 1, GET_DEFAULT(gvar->prec),
                [=](int16_t newValue) {
                  refreshTitle = (gvar->prec != newValue);
                  gvar->prec = newValue;
                  SET_DIRTY();
                  setProperties();
                });
+    applyDarkBtnStyle(precChoice->getLvObj());
 
     line = window->newLine(grid);
+    lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    line->padAll(PAD_SMALL);
 
-    new StaticText(line, rect_t{}, STR_MIN);
+    auto minLbl = new StaticText(line, rect_t{}, STR_MIN);
+    lv_obj_set_style_text_color(minLbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
     grid.nextCell();
     min = new NumberEdit(
         line, rect_t{}, GVAR_MIN, GVAR_MAX - gvar->max,
@@ -450,10 +512,15 @@ class GVarEditWindow : public Page
           setProperties();
         });
     min->setAccelFactor(16);
+    applyDarkBtnStyle(min->getLvObj());
 
     line = window->newLine(grid);
+    lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    line->padAll(PAD_SMALL);
 
-    new StaticText(line, rect_t{}, STR_MAX);
+    auto maxLbl = new StaticText(line, rect_t{}, STR_MAX);
+    lv_obj_set_style_text_color(maxLbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
     grid.nextCell();
     max = new NumberEdit(
         line, rect_t{}, GVAR_MIN + gvar->min, GVAR_MAX,
@@ -464,25 +531,36 @@ class GVarEditWindow : public Page
           setProperties();
         });
     max->setAccelFactor(16);
+    applyDarkBtnStyle(max->getLvObj());
 
     line = window->newLine(grid);
-    new StaticText(line, rect_t{}, STR_POPUP);
+    lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    line->padAll(PAD_SMALL);
+    auto popupLbl = new StaticText(line, rect_t{}, STR_POPUP);
+    lv_obj_set_style_text_color(popupLbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
     grid.nextCell();
-    new ToggleSwitch(line, rect_t{}, GET_SET_DEFAULT(gvar->popup));
+    auto popupSw = new ToggleSwitch(line, rect_t{}, GET_SET_DEFAULT(gvar->popup));
+    applyDarkBtnStyle(popupSw->getLvObj());
 
     line = window->newLine(grid);
+    lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    line->padAll(PAD_SMALL);
     char flightModeName[16];
     FlightModeData* fmData;
 
     for (int flightMode = 0; flightMode < numFlightModes(); flightMode++) {
       fmData = &g_model.flightModeData[flightMode];
 
+      StaticText* fmLbl;
       if (modelFMEnabled()) {
         getFMExtName(flightModeName, flightMode + 1);
-        new StaticText(line, rect_t{}, flightModeName);
+        fmLbl = new StaticText(line, rect_t{}, flightModeName);
       } else {
-        new StaticText(line, rect_t{}, STR_VALUE);
+        fmLbl = new StaticText(line, rect_t{}, STR_VALUE);
       }
+      lv_obj_set_style_text_color(fmLbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
 
       if (flightMode > 0) {
         auto cb = new ToggleSwitch(
@@ -492,7 +570,9 @@ class GVarEditWindow : public Page
               SET_DIRTY();
               setProperties(flightMode);
             });
+        applyDarkBtnStyle(cb->getLvObj());
         lv_obj_set_style_grid_cell_x_align(cb->getLvObj(), LV_GRID_ALIGN_END, 0);
+        lv_obj_invalidate(cb->getLvObj());
       } else {
         grid.nextCell();
       }
@@ -501,7 +581,11 @@ class GVarEditWindow : public Page
           line, rect_t{}, GVAR_MIN + gvar->min, GVAR_MAX + MAX_FLIGHT_MODES - 1,
           GET_SET_DEFAULT(fmData->gvars[index]));
       values[flightMode]->setAccelFactor(16);
+      applyDarkBtnStyle(values[flightMode]->getLvObj());
       line = window->newLine(grid);
+      lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+      lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+      line->padAll(PAD_SMALL);
     }
 
     setProperties();
@@ -534,6 +618,11 @@ void ModelGVarsPage::rebuild(Window* window)
 
 void ModelGVarsPage::build(Window* window)
 {
+  // FPV dark theme
+  lv_obj_set_style_bg_color(window->getLvObj(), lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(window->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_text_color(window->getLvObj(), lv_color_white(), LV_PART_MAIN);
+
   coord_t yo = 0;
   if (modelFMEnabled()) {
     window->padTop(PAD_OUTLINE);

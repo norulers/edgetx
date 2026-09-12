@@ -29,7 +29,22 @@
 static void input_mix_line_constructor(const lv_obj_class_t* class_p,
                                        lv_obj_t* obj)
 {
-  etx_std_style(obj, LV_PART_MAIN, PAD_TINY);
+  // FPV dark theme: match stylePageGroupControl
+  lv_obj_set_style_bg_color(obj, lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(obj, LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_bg_grad_dir(obj, LV_GRAD_DIR_NONE, LV_PART_MAIN);
+  lv_obj_set_style_text_color(obj, lv_color_white(), LV_PART_MAIN);
+  lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN);
+  lv_obj_set_style_outline_width(obj, 0, LV_PART_MAIN | LV_STATE_FOCUS_KEY);
+  lv_obj_set_style_radius(obj, 0, LV_PART_MAIN);
+  lv_obj_set_style_pad_all(obj, PAD_TINY, LV_PART_MAIN);
+
+  // Focus: orange bg, black text
+  lv_obj_set_style_bg_color(obj, lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN | LV_STATE_FOCUSED);
+  lv_obj_set_style_text_color(obj, lv_color_black(), LV_PART_MAIN | LV_STATE_FOCUSED);
+  // Pressed: green bg, black text
+  lv_obj_set_style_bg_color(obj, lv_color_make(0x00, 0xA0, 0x00), LV_PART_MAIN | LV_STATE_PRESSED);
+  lv_obj_set_style_text_color(obj, lv_color_black(), LV_PART_MAIN | LV_STATE_PRESSED);
 }
 
 static const lv_obj_class_t input_mix_line_class = {
@@ -78,6 +93,7 @@ void InputMixButtonBase::setWeight(gvar_t value, gvar_t min, gvar_t max)
 {
   if (!weight) {
     weight = etx_label_create(lvobj);
+    lv_label_set_long_mode(weight, LV_LABEL_LONG_CLIP);
     lv_obj_set_pos(weight, WGT_X, WGT_Y);
     lv_obj_set_size(weight, WGT_W, WGT_H);
     etx_font(weight, FONT_XS_INDEX, LV_STATE_USER_1);
@@ -97,6 +113,7 @@ void InputMixButtonBase::setSource(mixsrc_t idx)
 {
   if (!source) {
     source = etx_label_create(lvobj);
+    lv_label_set_long_mode(source, LV_LABEL_LONG_CLIP);
     lv_obj_set_pos(source, SRC_X, SRC_Y);
     lv_obj_set_size(source, SRC_W, SRC_H);
     etx_font(source, FONT_XS_INDEX, LV_STATE_USER_1);
@@ -115,6 +132,7 @@ void InputMixButtonBase::setOpts(const char* s)
 {
   if (!opts) {
     opts = etx_label_create(lvobj);
+    lv_label_set_long_mode(opts, LV_LABEL_LONG_CLIP);
     lv_obj_set_pos(opts, OPT_X, OPT_Y);
     lv_obj_set_size(opts, OPT_W, OPT_H);
     etx_font(opts, FONT_XS_INDEX, LV_STATE_USER_1);
@@ -221,7 +239,15 @@ void InputMixButtonBase::updateHeight()
 
 static void group_constructor(const lv_obj_class_t* class_p, lv_obj_t* obj)
 {
-  etx_std_style(obj, LV_PART_MAIN, PAD_TINY);
+  // FPV dark theme: match stylePageGroupControl
+  lv_obj_set_style_bg_color(obj, lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(obj, LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_bg_grad_dir(obj, LV_GRAD_DIR_NONE, LV_PART_MAIN);
+  lv_obj_set_style_text_color(obj, lv_color_white(), LV_PART_MAIN);
+  lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN);
+  lv_obj_set_style_outline_width(obj, 0, LV_PART_MAIN | LV_STATE_FOCUS_KEY);
+  lv_obj_set_style_radius(obj, 0, LV_PART_MAIN);
+  lv_obj_set_style_pad_all(obj, PAD_TINY, LV_PART_MAIN);
 }
 
 static const lv_obj_class_t group_class = {

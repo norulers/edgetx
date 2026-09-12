@@ -27,6 +27,7 @@ using std::list;
 
 #include "edgetx.h"
 #include "storage/sdcard_yaml.h"
+#include "storage/ui_screens_yaml.h"
 #include "yaml/yaml_datastructs.h"
 #include "yaml/yaml_labelslist.h"
 #include "yaml/yaml_modelslist.h"
@@ -1328,6 +1329,8 @@ bool ModelsList::removeModel(ModelCell *model)
     TRACE("Labels: Unable to move file");
     return true;
   }
+
+  uiScreensDelete(model->modelFilename);
 
   // Free memory
   delete(model);

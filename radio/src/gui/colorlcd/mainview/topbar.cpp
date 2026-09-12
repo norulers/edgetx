@@ -163,11 +163,16 @@ void TopBar::setVisible(float visible) // 0.0 -> 1.0
 
 void TopBar::setEdgeTxButtonVisible(float visible) // 0.0 -> 1.0
 {
-  coord_t y = 0;
+  // Vertically centered position within the header
+  coord_t centeredY = (EdgeTxStyles::MENU_HEADER_HEIGHT - headerIcon->height()) / 2;
+  coord_t y;
   if (visible == 0.0) {
     y = -EdgeTxStyles::MENU_HEADER_HEIGHT;
-  } else if (visible > 0.0 && visible < 1.0){
-    y = -(float)EdgeTxStyles::MENU_HEADER_HEIGHT * (1.0 - visible);
+  } else if (visible == 1.0) {
+    y = centeredY;
+  } else {
+    // Interpolate from fully-hidden (-MENU_HEADER_HEIGHT) to centered (centeredY)
+    y = (coord_t)(centeredY * visible - (float)EdgeTxStyles::MENU_HEADER_HEIGHT * (1.0 - visible));
   }
   if (y != headerIcon->top()) headerIcon->setTop(y);
 }

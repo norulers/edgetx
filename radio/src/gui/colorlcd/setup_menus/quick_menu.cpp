@@ -30,6 +30,7 @@
 #include "screen_setup.h"
 #include "theme_manager.h"
 #include "view_channels.h"
+#include "view_telemetry_dash.h"
 #include "view_main.h"
 
 //-----------------------------------------------------------------------------
@@ -627,6 +628,13 @@ void QuickMenu::enableSubMenu()
 #if defined(HARDWARE_KEYS)
 void QuickMenu::doKeyShortcut(event_t event)
 {
+  if (event == EVT_KEY_LONG(KEY_TELE)) {
+    closeQM();
+    auto w = Window::topWindow();
+    while (w && w != ViewMain::instance()) { w->deleteLater(); w = Window::topWindow(); }
+    new TelemetryDashViewMenu();
+    return;
+  }
   QMPage pg = g_eeGeneral.getKeyShortcut(event);
   if (pg == QM_APP) {
     closeQM();

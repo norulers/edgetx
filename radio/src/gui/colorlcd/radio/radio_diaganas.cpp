@@ -24,6 +24,7 @@
 #include "edgetx.h"
 #include "etx_lv_theme.h"
 #include "hal/adc_driver.h"
+#include "pagegroup.h"
 #include "static.h"
 
 #if defined(LUMINOSITY_SENSOR)
@@ -42,13 +43,30 @@ static const lv_coord_t col_dsc[] = {
 
 #else
 
-static const lv_coord_t col_dsc[] = {LV_GRID_FR(30), LV_GRID_FR(30),
-                                     LV_GRID_FR(40), LV_GRID_FR(40),
-                                     LV_GRID_FR(40), LV_GRID_TEMPLATE_LAST};
+static const lv_coord_t col_dsc[] = {LV_GRID_FR(30), LV_GRID_FR(40),
+                                     LV_GRID_FR(45), LV_GRID_FR(45),
+                                     LV_GRID_FR(45), LV_GRID_TEMPLATE_LAST};
 
 #endif
 
 static const lv_coord_t row_dsc[] = {LV_GRID_CONTENT, LV_GRID_TEMPLATE_LAST};
+
+static void styleAnaDiagObject(lv_obj_t* obj)
+{
+  if (lv_obj_check_type(obj, &lv_label_class)) {
+    lv_obj_set_style_text_color(obj, lv_color_white(), LV_PART_MAIN);
+    lv_label_set_long_mode(obj, LV_LABEL_LONG_CLIP);
+  } else {
+    lv_obj_set_style_bg_color(obj, lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(obj, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN);
+    lv_obj_set_style_outline_width(obj, 0, LV_PART_MAIN | LV_STATE_FOCUS_KEY);
+  }
+
+  for (uint32_t i = 0; i < lv_obj_get_child_cnt(obj); i += 1) {
+    styleAnaDiagObject(lv_obj_get_child(obj, i));
+  }
+}
 
 class AnaViewWindow : public Window
 {
@@ -62,6 +80,12 @@ class AnaViewWindow : public Window
     padLeft(PAD_SMALL);
     padRight(PAD_SMALL);
     setFlexLayout();
+
+    // Dark FPV theme
+    lv_obj_set_style_bg_color(lvobj, lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(lvobj, LV_OPA_COVER, LV_PART_MAIN);
+    // Column spacing — applied to each grid line via newLine()
+    lv_obj_set_style_pad_column(lvobj, PAD_MEDIUM, LV_PART_MAIN);
   }
 
   virtual void build()
@@ -79,11 +103,11 @@ class AnaViewWindow : public Window
 #if LANDSCAPE
       if ((i & 1) == 0) {
         line = newLine(grid);
-        lv_obj_set_style_pad_column(line->getLvObj(), PAD_SMALL, LV_PART_MAIN);
+        lv_obj_set_style_pad_column(line->getLvObj(), PAD_MEDIUM, LV_PART_MAIN);
       }
 #else
       line = newLine(grid);
-      lv_obj_set_style_pad_column(line->getLvObj(), PAD_SMALL, LV_PART_MAIN);
+      lv_obj_set_style_pad_column(line->getLvObj(), PAD_MEDIUM, LV_PART_MAIN);
 #endif
 
       if (((adcGetInputMask() & (1 << i)) != 0) && i < adcGetMaxInputs(ADC_INPUT_MAIN))
@@ -127,7 +151,7 @@ class AnaViewWindow : public Window
 #if defined(IMU) && LANDSCAPE
     if (imuGetName()) {
       line = newLine(grid);
-      lv_obj_set_style_pad_column(line->getLvObj(), PAD_SMALL, LV_PART_MAIN);
+      lv_obj_set_style_pad_column(line->getLvObj(), PAD_MEDIUM, LV_PART_MAIN);
 
       grid.setColSpan(2);
       new StaticText(line, rect_t{}, STR_GYRO);
@@ -136,7 +160,7 @@ class AnaViewWindow : public Window
       grid.setColSpan(1);
 
       line = newLine(grid);
-      lv_obj_set_style_pad_column(line->getLvObj(), PAD_SMALL, LV_PART_MAIN);
+      lv_obj_set_style_pad_column(line->getLvObj(), PAD_MEDIUM, LV_PART_MAIN);
 
       grid.setColSpan(2);
       new StaticText(line, rect_t{}, "Tilt X");
@@ -147,7 +171,7 @@ class AnaViewWindow : public Window
       for (int i = 0; i < 3; i++) {grid.nextCell();}
 
       line = newLine(grid);
-      lv_obj_set_style_pad_column(line->getLvObj(), PAD_SMALL, LV_PART_MAIN);
+      lv_obj_set_style_pad_column(line->getLvObj(), PAD_MEDIUM, LV_PART_MAIN);
 
       grid.setColSpan(2);
       new StaticText(line, rect_t{}, "Tilt Y");
@@ -159,7 +183,7 @@ class AnaViewWindow : public Window
 
 #if defined(LUMINOSITY_SENSOR)
     line = newLine(grid);
-    lv_obj_set_style_pad_column(line->getLvObj(), PAD_SMALL, LV_PART_MAIN);
+    lv_obj_set_style_pad_column(line->getLvObj(), PAD_MEDIUM, LV_PART_MAIN);
 
     grid.setColSpan(2);
     new StaticText(line, rect_t{}, STR_SRC_LIGHT);
@@ -168,6 +192,8 @@ class AnaViewWindow : public Window
            line, rect_t{},
            [=]() { return getLuxSensorValue(); }, COLOR_THEME_PRIMARY1_INDEX, RIGHT);
 #endif
+
+    styleAnaDiagObject(getLvObj());
   }
 
  protected:
@@ -194,9 +220,11 @@ class AnaCalibratedViewWindow : public AnaViewWindow
 #if defined(HARDWARE_TOUCH)
     touchLines[0] = lv_line_create(parent->getParent()->getLvObj());
     etx_obj_add_style(touchLines[0], styles->div_line_edit, LV_PART_MAIN);
+    lv_obj_set_style_line_color(touchLines[0], lv_color_white(), LV_PART_MAIN);
     lv_obj_add_flag(touchLines[0], LV_OBJ_FLAG_HIDDEN);
     touchLines[1] = lv_line_create(parent->getParent()->getLvObj());
     etx_obj_add_style(touchLines[1], styles->div_line_edit, LV_PART_MAIN);
+    lv_obj_set_style_line_color(touchLines[1], lv_color_white(), LV_PART_MAIN);
     lv_obj_add_flag(touchLines[1], LV_OBJ_FLAG_HIDDEN);
 
     line = newLine(grid);
@@ -240,6 +268,9 @@ class AnaCalibratedViewWindow : public AnaViewWindow
 #endif  // defined(HARDWARE_TOUCH)
 
     setHeight(parent->height());
+
+    // Re-apply dark FPV styling to content added after the base class build()
+    styleAnaDiagObject(getLvObj());
   }
 
 #if defined(HARDWARE_TOUCH)

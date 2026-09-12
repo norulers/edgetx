@@ -24,11 +24,13 @@
 #include "edgetx.h"
 #include "mainwindow.h"
 #include "model_select.h"
+#include "model_setup.h"
 #include "quick_menu.h"
 #include "radio_tools.h"
 #include "screen_setup.h"
 #include "topbar.h"
 #include "view_channels.h"
+#include "view_telemetry_dash.h"
 #include "widget.h"
 
 static void saveViewId(unsigned view)
@@ -102,8 +104,24 @@ ViewMain::ViewMain() :
   lv_obj_add_event_cb(tile_view, tile_view_scroll, LV_EVENT_SCROLL, nullptr);
   lv_obj_add_event_cb(tile_view, tile_view_scroll_end, LV_EVENT_SCROLL_END, nullptr);
 
+  // Bottom dock — created before topbar so topbar renders on top
+  dock = new BottomDock(this);
+
   // create last to be on top
   topbar = new TopBar(this);
+
+  // RTN/EXIT → deselect all by focusing invisible sentinel
+  lv_obj_add_event_cb(lvobj, [](lv_event_t* e) {
+    uint32_t key = lv_indev_get_key(lv_indev_get_act());
+    if (key == LV_KEY_ESC) {
+      lv_obj_t* s = BottomDock::getFocusSentinel();
+      if (s) {
+        lv_group_t* g = lv_group_get_default();
+        if (!lv_obj_get_group(s)) lv_group_add_obj(g, s);
+        lv_group_focus_obj(s);
+      }
+    }
+  }, LV_EVENT_KEY, nullptr);
 }
 
 ViewMain::~ViewMain() { _instance = nullptr; }
@@ -233,11 +251,25 @@ void ViewMain::updateTopbarVisibility()
 #if defined(HARDWARE_KEYS)
 void ViewMain::doKeyShortcut(event_t event)
 {
+  if (event == EVT_KEY_LONG(KEY_TELE)) {
+    // Dismiss any open pages before showing telemetry dash
+    auto w = Window::topWindow();
+    while (w && w != this) { w->deleteLater(); w = Window::topWindow(); }
+    new TelemetryDashViewMenu();
+    return;
+  }
   QMPage pg = g_eeGeneral.getKeyShortcut(event);
   if (pg == QM_APP) {
     runLuaTool(g_eeGeneral.getKeyToolName(event));
   } else if (pg == QM_OPEN_QUICK_MENU) {
     QuickMenu::openQuickMenu();
+  } else if (pg == QM_MODEL_SETUP) {
+    // Show model menu grid page instead of going directly to ModelSetupPage
+    new ModelMenuPage();
+  } else if (pg == QM_RADIO_SETUP) {
+    new RadioMenuPage();
+  } else if (pg == QM_TOOLS_APPS) {
+    new ToolsMenuPage();
   } else {
     QuickMenu::openPage(pg);
   }
@@ -260,6 +292,15 @@ void ViewMain::onClicked() { QuickMenu::openQuickMenu(); }
 
 void ViewMain::onCancel()
 {
+  // If something is selected, deselect by focusing the sentinel
+  lv_obj_t* s = BottomDock::getFocusSentinel();
+  if (s) {
+    lv_group_t* g = lv_group_get_default();
+    if (!lv_obj_get_group(s)) lv_group_add_obj(g, s);
+    lv_group_focus_obj(s);
+    return;
+  }
+
   if (widget_select) {
     enableWidgetSelect(false);
   }
@@ -323,9 +364,20 @@ void ViewMain::show(bool visible)
 {
   if (deleted()) return;
   isVisible = visible;
-  int view = getCurrentMainView();
-  setTopbarVisible(visible && hasTopbar(view));
-  setEdgeTxButtonVisible(visible && (hasTopbar(view) || isAppMode()));
+
+  if (visible) {
+    // Screens may have been rebuilt while ViewMain was hidden
+    // (e.g. by ModelWizard → loadCustomScreens).  Re-validate
+    // the tileview scroll position and topbar visibility now
+    // that LVGL can correctly calculate tile layouts.
+    if (getMainViewsCount() > 0)
+      setCurrentMainView(g_model.view);
+    updateTopbarVisibility();
+  } else {
+    setTopbarVisible(false);
+    setEdgeTxButtonVisible(false);
+  }
+
   for (int i = 0; i < MAX_CUSTOM_SCREENS; i += 1) {
     if (customScreens[i]) {
       customScreens[i]->show(visible);

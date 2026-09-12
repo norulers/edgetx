@@ -26,6 +26,7 @@
 #include "storage.h"
 #include "sdcard_common.h"
 #include "sdcard_yaml.h"
+#include "ui_screens_yaml.h"
 #include "modelslist.h"
 
 #include "yaml/yaml_tree_walker.h"
@@ -390,7 +391,10 @@ const char * writeModelYaml(const char* filename)
     TRACE("YAML model writer");
     char path[256];
     getModelPath(path, filename);
-    return writeFileYaml(path, get_modeldata_nodes(), (uint8_t*)&g_model,0 );
+    uiScreensBeginModelWrite(filename);
+    const char* error = writeFileYaml(path, get_modeldata_nodes(), (uint8_t*)&g_model,0 );
+    uiScreensEndModelWrite();
+    return error;
 }
 
 #if !defined(STORAGE_MODELSLIST)

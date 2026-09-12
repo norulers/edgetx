@@ -43,7 +43,7 @@ class RadioCalibrationPage: public Page {
     void buildBody(Window * window);
     void setState();
 
-    static LAYOUT_VAL_SCALED(NXT_W, 80);
+    static LAYOUT_VAL_SCALED(NXT_W, 100);
     static constexpr coord_t NXT_X = LCD_W - NXT_W - PAD_LARGE * 4;
     static LAYOUT_VAL_SCALED(AXIS_W, 80);
     static constexpr coord_t AXIS_X = PAD_LARGE * 4;

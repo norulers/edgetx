@@ -26,3 +26,8 @@ struct YamlNode;
 const YamlNode* get_radiodata_nodes();
 const YamlNode* get_modeldata_nodes();
 const YamlNode* get_partialmodel_nodes();
+
+#if defined(COLORLCD)
+// Main-view configuration only (custom screens, top bar, current view).
+const YamlNode* get_screensdata_nodes();
+#endif

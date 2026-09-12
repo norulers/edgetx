@@ -23,6 +23,7 @@
 
 #include "bitmaps.h"
 #include "etx_lv_theme.h"
+#include "pagegroup.h"
 #include "static.h"
 
 #define VIEW_CHANNELS_LIMIT_PCT \
@@ -48,6 +49,7 @@ ChannelBar::ChannelBar(Window* parent, const rect_t& rect, uint8_t channel,
   coord_t yo = (height() < 10) ? -1 : -PAD_TINY;
 
   valText = etx_label_create(lvobj, FONT_XS_INDEX);
+  lv_label_set_long_mode(valText, LV_LABEL_LONG_CLIP);
   lv_obj_set_pos(valText, width() / 2 + VAL_XO, yo);
   lv_obj_set_size(valText, VAL_W, VAL_H);
   etx_obj_add_style(valText, styles->text_align_left, LV_PART_MAIN);
@@ -64,6 +66,13 @@ ChannelBar::ChannelBar(Window* parent, const rect_t& rect, uint8_t channel,
   lv_line_set_points(divLine, divPoints, 2);
 
   checkEvents();
+}
+
+void ChannelBar::setTrackColor(lv_color_t color)
+{
+  lv_obj_set_style_bg_color(lvobj, color, LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(lvobj, LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_bg_grad_dir(lvobj, LV_GRAD_DIR_NONE, LV_PART_MAIN);
 }
 
 void ChannelBar::checkEvents()
@@ -220,10 +229,16 @@ void OutputChannelBar::checkEvents()
 //-----------------------------------------------------------------------------
 
 ComboChannelBar::ComboChannelBar(Window* parent, const rect_t& rect,
-                                 uint8_t _channel, bool isInHeader) :
+                                 uint8_t _channel, bool isInHeader,
+                                 bool usePageGroupStyle) :
     Window(parent, rect), channel(_channel)
 {
-  LcdColorIndex txtColIdx = isInHeader ? COLOR_THEME_PRIMARY2_INDEX : COLOR_THEME_SECONDARY1_INDEX;
+  if (usePageGroupStyle) {
+    stylePageGroupControl(lvobj);
+  }
+
+  LcdColorIndex txtColIdx = usePageGroupStyle ? COLOR_THEME_PRIMARY2_INDEX :
+      (isInHeader ? COLOR_THEME_PRIMARY2_INDEX : COLOR_THEME_SECONDARY1_INDEX);
 
   auto invMask = getBuiltinIcon(ICON_CHAN_MONITOR_INVERTED);
 
@@ -232,11 +247,15 @@ ComboChannelBar::ComboChannelBar(Window* parent, const rect_t& rect,
   outputChannelBar = new OutputChannelBar(
       this, {PAD_TINY + invMask->width, ChannelBar::BAR_HEIGHT + PAD_TINY, barW, ChannelBar::BAR_HEIGHT},
       channel, isInHeader);
+  if (usePageGroupStyle)
+    outputChannelBar->setTrackColor(lv_color_make(0x18, 0x18, 0x18));
 
-  new MixerChannelBar(
+  auto mixerChannelBar = new MixerChannelBar(
       this,
       {PAD_TINY + invMask->width, (2 * ChannelBar::BAR_HEIGHT) + PAD_TINY + 1, barW, ChannelBar::BAR_HEIGHT},
       channel);
+  if (usePageGroupStyle)
+    mixerChannelBar->setTrackColor(lv_color_make(0x18, 0x18, 0x18));
 
   // Channel number
   char chanString[10];
@@ -255,7 +274,7 @@ ComboChannelBar::ComboChannelBar(Window* parent, const rect_t& rect,
 
   // Channel value in µS
   const char* suffix = (g_eeGeneral.ppmunit == PPM_US) ? "%" : STR_US;
-  new DynamicNumber<int16_t>(
+  auto chanVal = new DynamicNumber<int16_t>(
       this, {width() - ChannelBar::VAL_W, 0, ChannelBar::VAL_W, ChannelBar::VAL_H},
       [=] {
         if (g_eeGeneral.ppmunit == PPM_US)
@@ -263,6 +282,7 @@ ComboChannelBar::ComboChannelBar(Window* parent, const rect_t& rect,
         return PPM_CH_CENTER(channel) + channelOutputs[channel] / 2;
       },
       txtColIdx, FONT(XS) | RIGHT, "", suffix);
+  lv_label_set_long_mode(chanVal->getLvObj(), LV_LABEL_LONG_CLIP);
 
   // Override icon
 #if defined(OVERRIDE_CHANNEL_FUNCTION)

@@ -191,6 +191,10 @@ class LayoutFactory
 
   WidgetsContainer* createCustomScreen(unsigned customScreenIndex) const;
 
+  // True for layouts that only exist in this build: stock EdgeTX shows an
+  // empty main view when it finds one of them in a shared model file.
+  static bool isPrivateLayout(const char* id);
+
   static LAYOUT_ORIENTATION_SCALED(BM_W, 51, 22)
   static LAYOUT_ORIENTATION_SCALED(BM_H, 25, 34)
 

@@ -1,0 +1,94 @@
+{
+  "name": "at32f435",
+  "board": "at32f435",
+  "display": {
+    "lcd_w": 128,
+    "lcd_h": 64,
+    "lcd_phys_w": 128,
+    "lcd_phys_h": 64,
+    "lcd_depth": 1,
+    "oled_screen": true,
+    "lcd_horizontal_invert": true,
+    "lcd_vertical_invert": true
+  },
+  "hardware": {
+    "has_audio_mute": false,
+    "has_ext_module_support": true,
+    "has_int_module_support": true,
+    "cpu": "AT32F435ZMT7",
+    "cpu_type": "AT32F435"
+  },
+  "timers": {
+    "cpu_freq": 288000000,
+    "peri1_frequency": 144000000,
+    "peri2_frequency": 288000000,
+    "timer_mult_apb1": 2,
+    "timer_mult_apb2": 1,
+    "ms_timer": "TMR14",
+    "ms_timer_irqn": "TMR8_TRG_HALL_TMR14_IRQn",
+    "ms_timer_irqhandler": "TMR8_TRG_HALL_TMR14_IRQHandler",
+    "mixer_scheduler_timer": "TMR12",
+    "mixer_scheduler_timer_freq": "(PERI1_FREQUENCY * TIMER_MULT_APB1)",
+    "mixer_scheduler_timer_irqn": "TMR8_BRK_TMR12_IRQn",
+    "mixer_scheduler_timer_irqhandler": "TMR8_BRK_TMR12_IRQHandler"
+  },
+  "trims": [
+    {
+      "name": "T1",
+      "dec": { "gpio": "GPIOD", "pin": "GPIO_PINS_13", "active_low": true },
+      "inc": { "gpio": "GPIOG", "pin": "GPIO_PINS_2", "active_low": true },
+      "active_low": true
+    },
+    {
+      "name": "T2",
+      "dec": { "gpio": "GPIOG", "pin": "GPIO_PINS_3", "active_low": true },
+      "inc": { "gpio": "GPIOD", "pin": "GPIO_PINS_14", "active_low": true },
+      "active_low": true
+    },
+    {
+      "name": "T3",
+      "dec": { "gpio": "GPIOF", "pin": "GPIO_PINS_2", "active_low": true },
+      "inc": { "gpio": "GPIOE", "pin": "GPIO_PINS_6", "active_low": true },
+      "active_low": true
+    },
+    {
+      "name": "T4",
+      "dec": { "gpio": "GPIOE", "pin": "GPIO_PINS_5", "active_low": true },
+      "inc": { "gpio": "GPIOF", "pin": "GPIO_PINS_1", "active_low": true },
+      "active_low": true
+    },
+    {
+      "name": "T5",
+      "dec": { "gpio": "GPIOG", "pin": "GPIO_PINS_9", "active_low": true },
+      "inc": { "gpio": "GPIOG", "pin": "GPIO_PINS_10", "active_low": true },
+      "active_low": true
+    },
+    {
+      "name": "T6",
+      "dec": { "gpio": "GPIOD", "pin": "GPIO_PINS_7", "active_low": true },
+      "inc": { "gpio": "GPIOG", "pin": "GPIO_PINS_12", "active_low": true },
+      "active_low": true
+    },
+    {
+      "name": "T7",
+      "dec": { "gpio": "GPIOC", "pin": "GPIO_PINS_13", "active_low": true },
+      "inc": { "gpio": "GPIOG", "pin": "GPIO_PINS_15", "active_low": true },
+      "active_low": true
+    },
+    {
+      "name": "T8",
+      "dec": { "gpio": "GPIOG", "pin": "GPIO_PINS_13", "active_low": true },
+      "inc": { "gpio": "GPIOB", "pin": "GPIO_PINS_4", "active_low": true },
+      "active_low": true
+    }
+  ],
+  "adc_inputs": {
+    "adcs": [],
+    "inputs": []
+  },
+  "keys": [],
+  "switches": [],
+  "pwm_inputs": [],
+  "extras": [],
+  "function_switches": []
+}

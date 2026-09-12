@@ -33,6 +33,7 @@
 #include "page.h"
 #include "sourcechoice.h"
 #include "textedit.h"
+#include "timer_setup.h"
 
 #define SET_DIRTY() storageDirty(EE_MODEL)
 
@@ -57,6 +58,8 @@ class ScriptEditWindow : public Page
   explicit ScriptEditWindow(uint8_t idx) :
       Page(ICON_MODEL_LUA_SCRIPTS), idx(idx)
   {
+    setDarkHeader(ICON_MODEL_LUA_SCRIPTS);
+    setDarkBody();
     buildBody(body);
     buildHeader(header);
   }
@@ -84,7 +87,7 @@ class ScriptEditWindow : public Page
 
   void buildBody(Window* window, bool focusScript = false)
   {
-    window->setFlexLayout();
+    window->setFlexLayout(LV_FLEX_FLOW_COLUMN, PAD_TINY);
 
     FlexGridLayout grid(e_col_dsc, row_dsc, PAD_TINY);
 
@@ -95,8 +98,12 @@ class ScriptEditWindow : public Page
 
     // File
     auto line = window->newLine(grid);
-    new StaticText(line, rect_t{}, STR_SCRIPT);
-    new FileChoice(
+    lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    line->padAll(PAD_SMALL);
+    auto scriptLbl = new StaticText(line, rect_t{}, STR_SCRIPT);
+    lv_obj_set_style_text_color(scriptLbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
+    auto fileChoice = new FileChoice(
         line, rect_t{}, SCRIPTS_MIXES_PATH, SCRIPTS_EXT, LEN_SCRIPT_FILENAME,
         [=]() { return stringFromNtString(sd->file); },
         [=](std::string newValue) {
@@ -110,39 +117,62 @@ class ScriptEditWindow : public Page
           update = true;
         },
         true, STR_SCRIPT);
+    applyDarkBtnStyle(fileChoice->getLvObj());
 
     // Custom name
     line = window->newLine(grid);
-    new StaticText(line, rect_t{}, STR_NAME);
-    new ModelTextEdit(line, rect_t{}, sd->name, sizeof(sd->name));
+    lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    line->padAll(PAD_SMALL);
+    auto nameLbl = new StaticText(line, rect_t{}, STR_NAME);
+    lv_obj_set_style_text_color(nameLbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
+    auto nameEdit = new ModelTextEdit(line, rect_t{}, sd->name, sizeof(sd->name));
+    applyDarkBtnStyle(nameEdit->getLvObj());
 
     if (sio->inputsCount > 0) {
       line = window->newLine(grid);
-      new Subtitle(line, STR_INPUTS);
+      lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+      lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+      line->padAll(PAD_SMALL);
+      auto subIn = new Subtitle(line, STR_INPUTS);
+      lv_obj_set_style_text_color(subIn->getLvObj(), lv_color_white(), LV_PART_MAIN);
 
       for (int i = 0; i < sio->inputsCount; i++) {
         line = window->newLine(grid);
+        lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+        lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+        line->padAll(PAD_SMALL);
         ScriptInput& si = sio->inputs[i];
         auto lbl =
             new StaticText(line, rect_t{}, si.name);
+        lv_obj_set_style_text_color(lbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
         lbl->padLeft(PAD_LARGE);
         if (si.type == INPUT_TYPE_VALUE) {
-          (new NumberEdit(line, rect_t{}, si.min, si.max,
-                          GET_SET_WITH_OFFSET(sd->inputs[i].value, si.def)))
-              ->setDefault(si.def);
+          auto ne = new NumberEdit(line, rect_t{}, si.min, si.max,
+                          GET_SET_WITH_OFFSET(sd->inputs[i].value, si.def));
+          ne->setDefault(si.def);
+          applyDarkBtnStyle(ne->getLvObj());
         } else {
-          new SourceChoice(line, rect_t{}, 0, MIXSRC_LAST_TELEM,
+          auto sc = new SourceChoice(line, rect_t{}, 0, MIXSRC_LAST_TELEM,
                            GET_SET_DEFAULT(sd->inputs[i].source));
+          applyDarkBtnStyle(sc->getLvObj());
         }
       }
     }
 
     if (sio->outputsCount > 0) {
       line = window->newLine(grid);
-      new Subtitle(line, STR_OUTPUTS);
+      lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+      lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+      line->padAll(PAD_SMALL);
+      auto subOut = new Subtitle(line, STR_OUTPUTS);
+      lv_obj_set_style_text_color(subOut->getLvObj(), lv_color_white(), LV_PART_MAIN);
 
       for (int i = 0; i < sio->outputsCount; i++) {
         line = window->newLine(grid);
+        lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+        lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+        line->padAll(PAD_SMALL);
         ScriptOutput* so = &(sio->outputs[i]);
         auto lbl = new DynamicText(
             line, rect_t{},
@@ -150,10 +180,12 @@ class ScriptEditWindow : public Page
               char* s = getSourceString(MIXSRC_FIRST_LUA + (idx * MAX_SCRIPT_OUTPUTS) + i);
               return std::string(s);
             });
+        lv_obj_set_style_text_color(lbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
         lbl->padLeft(PAD_LARGE);
-        new DynamicNumber<int16_t>(
+        auto dn = new DynamicNumber<int16_t>(
             line, rect_t{}, [=]() { return calcRESXto1000(so->value); },
             COLOR_THEME_PRIMARY1_INDEX, PREC1);
+        applyDarkBtnStyle(dn->getLvObj());
       }
     }
   }
@@ -162,6 +194,7 @@ class ScriptEditWindow : public Page
   {
     auto scroll_y = lv_obj_get_scroll_y(window->getLvObj());
     window->clear();
+    setDarkBody();
     buildBody(window);
     lv_obj_scroll_to_y(window->getLvObj(), scroll_y, LV_ANIM_OFF);
   }
@@ -177,6 +210,7 @@ class ScriptLineButton : public ListLineButton
       scriptData(scriptData),
       runtimeData(runtimeData)
   {
+    stylePageGroupControl(lvobj);
     setHeight(EdgeTxStyles::UI_ELEMENT_HEIGHT);
     padTop(PAD_SMALL);
     padLeft(PAD_TINY);
@@ -269,6 +303,11 @@ void ModelMixerScriptsPage::rebuild(Window* window, int8_t focusIdx)
 
 void ModelMixerScriptsPage::build(Window* window, int8_t focusIdx)
 {
+  // FPV dark theme
+  lv_obj_set_style_bg_color(window->getLvObj(), lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(window->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_text_color(window->getLvObj(), lv_color_white(), LV_PART_MAIN);
+
   window->padBottom(PAD_LARGE);
   window->setFlexLayout(LV_FLEX_FLOW_COLUMN, PAD_TINY);
 

@@ -74,15 +74,22 @@ class InputMixButtonBase : public ListLineButton
 #endif
   static constexpr coord_t BTN_W = ListLineButton::GRP_W - LN_X - PAD_BORDER * 2 - PAD_OUTLINE * 2;
   static constexpr coord_t WGT_X = PAD_TINY;
-  static constexpr coord_t WGT_Y = PAD_TINY;
-  static LAYOUT_VAL_SCALED(WGT_W, 50)
-  static LAYOUT_VAL_SCALED(WGT_H, 21)
+#if WIDE_LAYOUT
+  static LAYOUT_VAL_SCALED(WGT_W, 62)
+#else
+  static LAYOUT_VAL_SCALED(WGT_W, 58)
+#endif
+  // Orbitron STD max descender bottom = 25px (ascent=20, base_line=5).
+  // Need >= 26 to avoid clipping. STD_FONT_HEIGHT (24) is 2px short.
+  static LAYOUT_VAL_SCALED(WGT_H, 26)
+  // Center label vertically in button: BTN_H=32, WGT_H=26 → Y=(32-26)/2=3
+  static constexpr coord_t WGT_Y = (ListLineButton::BTN_H > WGT_H) ? ((ListLineButton::BTN_H - WGT_H) / 2) : 0;
   static constexpr coord_t SRC_X = WGT_X + WGT_W + PAD_TINY;
   static constexpr coord_t SRC_Y = WGT_Y;
 #if WIDE_LAYOUT
-  static LAYOUT_VAL_SCALED(SRC_W, 80)
+  static LAYOUT_VAL_SCALED(SRC_W, 100)
 #else
-  static LAYOUT_VAL_SCALED(SRC_W, 72)
+  static LAYOUT_VAL_SCALED(SRC_W, 80)
 #endif
   static constexpr coord_t SRC_H = WGT_H;
   static constexpr coord_t OPT_X = SRC_X + SRC_W + PAD_TINY;

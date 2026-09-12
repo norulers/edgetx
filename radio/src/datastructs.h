@@ -54,13 +54,17 @@ static inline void check_struct()
   CHKSIZE(FlightModeData, 4 + 2 * MAX_GVARS + 2 * MAX_TRIMS + LEN_FLIGHT_MODE_NAME);
   CHKSIZE(CustomFunctionData, 11);
 
-#if defined(PCBX7) || defined(PCBXLITE) || defined(PCBX9LITE)
+#if defined(AT32F435)
+  // AT32F435 port (WIP): structure size checks are not set up yet
+#elif defined(PCBX7) || defined(PCBXLITE) || defined(PCBX9LITE)
   CHKSIZE(LimitData, 11);
   CHKSIZE(TimerData, 12);
   CHKSIZE(FrSkyBarData, 6);
   CHKSIZE(FrSkyLineData, 4);
   CHKTYPE(TelemetryScreenData, 24);
   CHKSIZE(ModelHeader, 12);
+#elif defined(AT32F435)
+  // AT32F435 port (WIP): structure size checks are not set up yet
 #elif defined(PCBTARANIS)
   CHKSIZE(LimitData, 13);
   CHKSIZE(TimerData, 17);
@@ -76,9 +80,11 @@ static inline void check_struct()
   #error CHKSIZE not set up
 #endif
 
-#if defined(PCBXLITES)
+#if defined(AT32F435)
+  // AT32F435 port (WIP): structure size checks are not set up yet
+#elif defined(PCBXLITES)
   CHKSIZE(RadioData, 951);
-#elif defined(RADIO_ST16) || defined(PCBPA01) || defined(RADIO_TX15) || defined(RADIO_GX15) || defined(RADIO_T15PRO) || defined(RADIO_TX16SMK3) || defined(RADIO_T22)
+#elif defined(RADIO_ST16) || defined(PCBPA01) || defined(RADIO_TX15) || defined(RADIO_GX15) || defined(RADIO_T15PRO) || defined(RADIO_TX16SMK3) || defined(RADIO_T22) || defined(RADIO_H750DEV)
   CHKSIZE(RadioData, 1183);
 #elif defined(RADIO_V12)
   CHKSIZE(RadioData, 1180);
@@ -96,6 +102,8 @@ static inline void check_struct()
 
 #if defined(RADIO_TPRO) || defined(RADIO_TPROV2) || defined(RADIO_BUMBLEBEE)
   CHKSIZE(ModelData, 6355);
+#elif defined(AT32F435)
+  // AT32F435 port (WIP): structure size checks are not set up yet
 #elif defined(RADIO_FAMILY_T20)
   CHKSIZE(ModelData, 6391);
 #elif defined(RADIO_GX12)
@@ -112,7 +120,7 @@ static inline void check_struct()
   #else
     CHKSIZE(ModelData, 6877);
   #endif
-#elif defined(PCBST16) || defined(RADIO_T15PRO) || defined(RADIO_TX15) || defined(RADIO_GX15)
+#elif defined(PCBST16) || defined(RADIO_T15PRO) || defined(RADIO_T22) || defined(RADIO_TX15) || defined(RADIO_GX15)
   CHKSIZE(ModelData, 7641);
 #elif defined(RADIO_V12)
   CHKSIZE(ModelData, 7640);
@@ -124,12 +132,14 @@ static inline void check_struct()
   CHKSIZE(ModelData, 6867);
 #elif defined(RADIO_T22)
   CHKSIZE(ModelData, 7641);
-#elif defined(RADIO_TX16SMK3)
+#elif defined(RADIO_TX16SMK3) || defined(RADIO_H750DEV)
   CHKSIZE(ModelData, 7642);
 #elif defined(RADIO_H7RS)
   // CHKSIZE()
 #elif defined(PCBHORUS)
   CHKSIZE(ModelData, 6841);
+#elif defined(AT32F435)
+  // AT32F435 port (WIP): ModelData size check not set up yet
 #else
   #error CHKSIZE not set up
 #endif

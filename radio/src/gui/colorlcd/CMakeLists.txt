@@ -71,6 +71,7 @@ set(GUI_SRC
   model/model_setup.cpp
   model/model_telemetry.cpp
   model/model_templates.cpp
+  model/model_wizard.cpp
   model/output_edit.cpp
   model/preflight_checks.cpp
   model/special_functions.cpp
@@ -98,6 +99,7 @@ set(GUI_SRC
   radio/radio_trainer.cpp
   radio/radio_version.cpp
   radio/radio_gps_tool.cpp
+  radio/elrs_param_browser.cpp
   radio/radio_mic_recorder.cpp
   )
 
@@ -212,3 +214,8 @@ set(SRC ${SRC}
 )
 
 add_definitions(-DCOLORLCD)
+
+option(UI_SCREENS_SEPARATE_STORAGE "Keep the main view configuration in /SCREENS instead of the model file, so the SD card can be shared with stock EdgeTX" ON)
+if(UI_SCREENS_SEPARATE_STORAGE)
+  add_definitions(-DUI_SCREENS_SEPARATE_STORAGE)
+endif()

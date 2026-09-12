@@ -107,6 +107,7 @@ class FunctionsPage : public PageGroupItem
   virtual FunctionEditPage* editPage(uint8_t index) const = 0;
   virtual FunctionLineButton* functionButton(Window* parent, const rect_t& rect,
                                          uint8_t index) const = 0;
+  virtual bool usePageGroupControlStyle() const { return false; }
   virtual void setDirty() const = 0;
 };
 
@@ -122,6 +123,7 @@ class SpecialFunctionsPage : public FunctionsPage
   FunctionEditPage* editPage(uint8_t index) const override;
   FunctionLineButton* functionButton(Window* parent, const rect_t& rect,
                                  uint8_t index) const override;
+  bool usePageGroupControlStyle() const override { return true; }
   void setDirty() const override;
 };
 
@@ -137,5 +139,6 @@ class GlobalFunctionsPage : public FunctionsPage
   FunctionEditPage* editPage(uint8_t index) const override;
   FunctionLineButton* functionButton(Window* parent, const rect_t& rect,
                                  uint8_t index) const override;
+  bool usePageGroupControlStyle() const override { return true; }
   void setDirty() const override;
 };
