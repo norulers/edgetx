@@ -1,16 +1,16 @@
 /*
- * Yaapu-style telemetry dashboard for EdgeTX C++
- * Supports ArduPilot (yaapu) and INAV (OpenTX-Telemetry-Widget) controllers
- * 480x320 layout matching yaapu layout_def.lua + right_def.lua + left_wp_def.lua
+ * Yaapu-style telemetry dashboard for EdgeTX C++ (screen content only).
  *
- * Layout (480x320), dark theme (~RGB 20,20,20):
- *   Top bar (0-18, black):       Clock HH:MM:SS | RSSI | TX voltage
- *   Left panel (0,18):           GALT/RNG value | HOME-TRAVEL (dist + total)
- *   Center HUD (120,18):         240x150 artificial horizon (roll+pitch) + compass + speed
- *   Right panel (360,18):        CELL(V) | BATT(V) | CURR(A) | Batt% bar | Capa
- *   Status bar (194-320, dark):  GPS(lat lon) | Timer | FM | Sats+HDOP
+ * Layout, design space 480x320, uniformly scaled to the actual LCD:
  *
- * Font mapping: yaapu DBLSIZE→FONT(BOLD), MIDSIZE→FONT(STD), SMLSIZE→FONT(XS)
+ *   y   0.. 56  [sat] SATELLITE / SAT: n      BATTERY / n.nV [batt]
+ *   y  57       tan rule, interrupted by the dial
+ *   y  18..224  circular horizon dial, centre (240,121), r=103: roll scale,
+ *               pitch ladder, aircraft symbol and a compass rose band across
+ *               the lower half (canvas y 2..240)
+ *   y  58..182  altitude tape (left) / ground-speed tape (right)
+ *   y 184..222  readouts: 312 m (left)  GND SPD / 40 km/h (right)
+ *   y 222..318  chamfered 3x2 panel: VSpd RxV Curr / Bat% RSSI FRv
  */
 #pragma once
 
@@ -36,86 +36,89 @@ class TelemetryDashViewMenu : public NavWindow
 #endif
 
  protected:
+  // Vertical value tape: 5 scale numbers, 6 tick marks and a centre box
+  // showing the current value. The box outline is a pentagon whose tip points
+  // at the dial (lv_line keeps a pointer to the points, so they live here).
+  // The geometry is filled in by buildTape() and reused by updateTape().
+  struct Tape {
+    bool        left = true;
+    coord_t     x = 0, y = 0, w = 0, h = 0;
+    coord_t     numX = 0, numW = 0, tickX = 0, centerY = 0, stepPx = 0;
+    StaticText* num[5] = {};
+    lv_obj_t*   tick[6] = {};
+    lv_obj_t*   box = nullptr;
+    lv_obj_t*   boxOutline = nullptr;
+    lv_point_t  boxPts[6] = {};
+    StaticText* boxValue = nullptr;
+  };
+
   void buildUI();
   void buildTopBar();
-  void buildCenterHUD();
-  void buildLeftPanel();
-  void buildRightPanel();
-  void buildStatusBar();
+  void buildDial();
+  void buildSkirt();
+  void buildTape(Tape& t, coord_t designX, bool left);
+  void buildReadouts();
+  void buildGrid();
+
   void updateValues();
+  void updateTape(Tape& t, float value, float step, bool valid);
+  void drawDial();
+  void drawSkirt();
+  uint32_t dialPixel(int dx, int dy) const;
+  bool bandPixel(int dx, int dy, uint32_t& col) const;
 
-  int findSensor(const char* name) const;
+  // attitude factors cached by drawDial() and used by dialPixel()
+  float dashCosR = 1.0f;
+  float dashSinR = 0.0f;
+  float dashPitchOff = 0.0f;
+
+  // telemetry helpers
+  int   findSensor(const char* name) const;
+  int   findMappedSensor(const char* primary, const char* secondary) const;
+  int   findForController(const char* apName, const char* inavName) const;
   float getSensorValue(int idx) const;
+  float getSensorValueIn(int idx, uint8_t dstUnit, uint8_t dstPrec) const;
 
-  // Sensor name mapping: returns controller-appropriate sensor name
-  struct SensorMap { const char* ardupilot; const char* inav; };
-  int findMappedSensor(const SensorMap& map) const;
-
-  // Current controller type (set externally or via menu)
   static TelemetryController controllerType;
-  bool menuActive = false;
+  bool        menuActive = false;
   StaticText* menuText = nullptr;
 
-  // Top bar
-  StaticText* clockLabel = nullptr;
-  StaticText* txVoltLabel = nullptr;
-  StaticText* rssiLabel = nullptr;
+  // top bar
+  lv_obj_t*   satIcon = nullptr;
+  uint8_t*    satIconBuf = nullptr;
+  lv_obj_t*   battIcon = nullptr;
+  uint8_t*    battIconBuf = nullptr;
+  StaticText* satValue = nullptr;
+  StaticText* battValue = nullptr;
 
-  // Center HUD
-  lv_obj_t* hudCanvas = nullptr;
-  uint8_t* hudBuf = nullptr;
-  static constexpr coord_t HUD_W = 240;
-  static constexpr coord_t HUD_H = 150;
-  static constexpr coord_t HUD_X = 120;
-  static constexpr coord_t HUD_Y = 18;
-  StaticText* hudSpeedLabel = nullptr;
+  // centre dial
+  lv_obj_t*   dialCanvas = nullptr;
+  uint8_t*    dialBuf = nullptr;
+  lv_obj_t*   skirtCanvas = nullptr;   // dial rim that overlaps the panel
+  uint8_t*    skirtBuf = nullptr;
 
-  // Left panel (left_wp_def.lua: x=0, y=18)
-  StaticText* galtRngLabel = nullptr;
-  StaticText* galtRngValue = nullptr;
-  StaticText* homeDistLabel = nullptr;
-  StaticText* totalDistLabel = nullptr;
+  // tapes / readouts
+  Tape        altTape;
+  Tape        spdTape;
+  StaticText* altReadout = nullptr;
+  StaticText* spdTitle = nullptr;
+  StaticText* spdReadout = nullptr;
 
-  // Right panel (right_def.lua: x=360, y=18)
-  StaticText* cellVoltLabel = nullptr;
-  StaticText* battVoltLabel = nullptr;
-  StaticText* currLabel = nullptr;
-  lv_obj_t* battBarBg = nullptr;
-  lv_obj_t* battBarFill = nullptr;
-  StaticText* capaLabel = nullptr;
+  // bottom grid (3 columns x 2 rows)
+  lv_obj_t*   gridFrame = nullptr;
+  lv_obj_t*   gridOutline = nullptr;
+  lv_point_t  gridPts[9] = {};
+  StaticText* cellLabel[6] = {};
+  StaticText* cellValue[6] = {};
 
-  // Status bar (y=194-320)
-  StaticText* fmLabel = nullptr;
-  StaticText* timerLabel = nullptr;
-  StaticText* gpsLabel = nullptr;
-  StaticText* satsLabel = nullptr;
-
-  // HUD drawing
-  void drawHUD();
-  void drawArtificialHorizon(lv_color_t* buf, int pitch, int roll);
-  void drawCompassRibbon(lv_color_t* buf, int yaw);
-  void drawHomeArrow(lv_color_t* buf, int yaw, int homeAngle);
-
-  // Last-value cache
-  int lastRssi = -999;
-  float lastTxV = -1;
-  int lastHdg = -1;
-  int lastPitch = 0;
-  int lastRoll = 0;
-  float lastGAlt = -9999;
-  float lastHomeDist = -1;
-  float lastTotalDist = -1;
-  float lastCell = -1;
+  // cached values
+  int   lastSats = -1;
   float lastBattV = -1;
-  float lastCurr = -1;
-  int lastBattPct = -1;
-  float lastCapa = -1;
-  float lastGSpd = -1;
-  int lastSats = -1;
-  int lastTimerSec = -1;
-  int lastHomeAngle = -1;
-  float lastHdop = -1;
-  char lastFM[16] = {};
-  float lastLat = 0;
-  float lastLon = 0;
+  float lastAlt = -100000;
+  float lastSpd = -100000;
+  int   lastHdg = -1;
+  int   lastPitch = 0;
+  int   lastRoll = 0;
+  int   lastHomeAngle = -1;
+  int   lastCells[6] = {-100000, -100000, -100000, -100000, -100000, -100000};
 };
