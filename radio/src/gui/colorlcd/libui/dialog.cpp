@@ -94,7 +94,7 @@ void ProgressDialog::updateProgress(int percentage)
 
 void ProgressDialog::closeDialog()
 {
-  deleteLater();
+  closeWindow();
   onClose();
 }
 
@@ -114,7 +114,7 @@ MessageDialog::MessageDialog(const char* title,
   }
 }
 
-void MessageDialog::onClicked() { deleteLater(); }
+void MessageDialog::onClicked() { closeWindow(); }
 
 //-----------------------------------------------------------------------------
 
@@ -130,7 +130,7 @@ DynamicMessageDialog::DynamicMessageDialog(
                                textHandler, color, textFlags);
 }
 
-void DynamicMessageDialog::onClicked() { deleteLater(); }
+void DynamicMessageDialog::onClicked() { closeWindow(); }
 
 //-----------------------------------------------------------------------------
 
@@ -175,7 +175,7 @@ ConfirmDialog::ConfirmDialog(const char* title,
   lv_obj_set_style_border_width(noBtn->getLvObj(), 0, LV_PART_MAIN | LV_STATE_FOCUS_KEY);
 
   auto yesBtn = new TextButton(box, rect_t{0, 0, 96, 0}, STR_YES, [=]() -> int8_t {
-    this->deleteLater();
+    this->closeWindow();
     this->confirmHandler();
     return 0;
   });
@@ -191,14 +191,15 @@ ConfirmDialog::ConfirmDialog(const char* title,
 
 void ConfirmDialog::onCancel()
 {
-  deleteLater();
+  closeWindow();
   if (cancelHandler) cancelHandler();
 }
 
 //-----------------------------------------------------------------------------
 
 LabelDialog::LabelDialog(const char *label, int length, const char* title,
-            std::function<void(std::string)> _saveHandler) :
+            std::function<void(std::string)> _saveHandler,
+            const char* excludedChars) :
     ModalWindow(false), saveHandler(std::move(_saveHandler))
 {
   strncpy(this->label, label, std::min(length, MAX_LABEL_LENGTH));
@@ -225,7 +226,9 @@ LabelDialog::LabelDialog(const char *label, int length, const char* title,
   lv_obj_set_flex_align(box->getLvObj(), LV_FLEX_ALIGN_CENTER,
                         LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_SPACE_BETWEEN);
 
-  new TextEdit(box, rect_t{0, 0, LV_PCT(100), 0}, this->label, length);
+  auto edit = new TextEdit(box, rect_t{0, 0, LV_PCT(100), 0}, this->label, length);
+  if (excludedChars)
+    edit->setExcludedCharacters(excludedChars);
 
   box = new Window(form, rect_t{});
   box->padAll(PAD_MEDIUM);
@@ -234,7 +237,7 @@ LabelDialog::LabelDialog(const char *label, int length, const char* title,
                         LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_SPACE_BETWEEN);
 
   auto cancelBtn = new TextButton(box, rect_t{0, 0, 96, 0}, STR_CANCEL, [=]() {
-    deleteLater();
+    closeWindow();
     return 0;
   });
   lv_obj_set_style_bg_color(cancelBtn->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
@@ -247,7 +250,7 @@ LabelDialog::LabelDialog(const char *label, int length, const char* title,
   lv_obj_set_style_border_width(cancelBtn->getLvObj(), 0, LV_PART_MAIN | LV_STATE_FOCUS_KEY);
 
   auto saveBtn = new TextButton(box, rect_t{0, 0, 96, 0}, STR_SAVE, [=]() {
-    deleteLater();
+    closeWindow();
     if (saveHandler != nullptr) saveHandler(this->label);
     return 0;
   });

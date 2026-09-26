@@ -34,8 +34,6 @@ class ViewMain : public NavWindow
   explicit ViewMain();
 
  public:
-  ~ViewMain() override;
-
   static ViewMain* instance();
 
 #if defined(DEBUG_WINDOWS)

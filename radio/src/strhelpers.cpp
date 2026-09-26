@@ -29,6 +29,9 @@
 #include "hal/switch_driver.h"
 #include "edgetx.h"
 #include "switches.h"
+#if defined(VOICE_CONTROL_SENSOR)
+#include "drivers/CI1302_voice_integration.h"
+#endif
 
 static char _static_str_buffer[32];
 static const char s_charTab[] = "_-.,";
@@ -745,6 +748,12 @@ char *getSourceString(char (&destRef)[L], mixsrc_t idx, bool defaultOnly)
     strncpy(dest, STR_SRC_LIGHT, dest_len - 1);
   }
 #endif
+#if defined(VOICE_CONTROL_SENSOR)
+  else if (idx >= MIXSRC_VGR && idx <= MIXSRC_LAST_VOICE) {
+    const char* voiceName = CI1302_voiceIntegrationMixSrcName(idx);
+    strncpy(dest, voiceName ? voiceName : "", dest_len - 1);
+  }
+#endif
   else if (idx <= MIXSRC_LAST_HELI) {
     idx -= MIXSRC_FIRST_HELI;
     getStringAtIndex(dest, STR_CYC_VSRCRAW, idx);
@@ -1183,6 +1192,7 @@ char *strAppendSigned(char *dest, int32_t value, uint8_t digits, uint8_t radix)
   return strAppendUnsigned(dest, (uint32_t)value, digits, radix);
 }
 
+// NOTE: 'dest' buffer must be at least 'len + 1' bytes long to allow for nul terminator
 char *strAppend(char *dest, const char *source, int len)
 {
   if (source == nullptr) { *dest = '\0'; return dest; }

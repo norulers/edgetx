@@ -218,13 +218,13 @@
 #define TR_CSWSTAY                     "Puls"  // Edge = einstellbarer Impuls
 
 #define TR_SF_TRAINER                  "Lehrer"
-#define TR_SF_INST_TRIM                "Inst. Trim"
+#define TR_SF_INST_TRIM                "Instant Trim"
 #define TR_SF_RESET                    "Rücksetz."
 #define TR_SF_SET_TIMER                "Setze"
 #define TR_SF_VOLUME                   "Lautstr."
-#define TR_SF_FAILSAFE                 "SetFailsafe"
-#define TR_SF_RANGE_CHECK              "RangeCheck"
-#define TR_SF_MOD_BIND                 "ModuleBind"
+#define TR_SF_FAILSAFE                 "Set Failsafe"
+#define TR_SF_RANGE_CHECK              "Range Check"
+#define TR_SF_MOD_BIND                 "Module Bind"
 #define TR_SF_RGBLEDS                  "RGB LED"
 
 #define TR_SOUND                       "Spiel Töne"
@@ -242,7 +242,7 @@
 #define TR_SF_SAFETY                   TR("Übersch.", "Überschreibe")
 
 #define TR_SF_SCREENSHOT               "Screenshot"
-#define TR_SF_RACING_MODE              "RacingMode"
+#define TR_SF_RACING_MODE              "Racing Mode"
 #define TR_SF_DISABLE_TOUCH            "Kein Touch"
 #define TR_SF_DISABLE_KEYS             "No Keys"
 #define TR_SF_DISABLE_AUDIO_AMP        "Audio Verst. Aus"
@@ -564,13 +564,13 @@
 #define TR_BLOFFBRIGHTNESS             "Aus-Helligkeit"
 #define TR_KEYS_BACKLIGHT              "Tastenbeleucht."
 #define TR_BLCOLOR                     "Farbe"
-#define TR_ONE_LOG_PER_DAY             "One log per day"
-#define TR_KEY_LOCK_FMT                "Key lock (%s+%s hold)"
-#define TR_KEYS_LOCKED                 "Keys locked"
-#define TR_KEYS_LOCKED_FMT             TR_BW_COL("%s+%s to unlock", "Keys locked (%s+%s to unlock)")
-#define TR_KEYS_UNLOCKED               "Keys unlocked"
-#define TR_TOUCH_ENABLED               "Touch screen enabled"
-#define TR_TOUCH_DISABLED              "Touch screen disabled"
+#define TR_ONE_LOG_PER_DAY             "1 Log pro Tag"
+#define TR_KEY_LOCK_FMT                TR_BW_COL("T.Sperre %s+%s", "Tastensperre (%s+%s halten)")
+#define TR_KEYS_LOCKED                 "Tasten gesperrt"
+#define TR_KEYS_LOCKED_FMT             TR_BW_COL("%s+%s Entsp.", "Tasten gesperrt (%s+%s zum Entsperren)")
+#define TR_KEYS_UNLOCKED               "Tasten entsperrt"
+#define TR_TOUCH_ENABLED               "Touchscreen aktiviert"
+#define TR_TOUCH_DISABLED              "Touchscreen deaktiviert"
 #define TR_SPLASHSCREEN                TR("Startbild Ein", "Startbild Anzeigedauer")
 #define TR_PLAY_HELLO                  "Startton abspielen"
 #define TR_PWR_ON_DELAY                TR("PWR EIN Verzög.", "Einschaltverzögerung")

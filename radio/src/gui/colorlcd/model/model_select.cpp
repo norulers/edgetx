@@ -116,7 +116,7 @@ class ModelButton : public Button
     }
     lv_label_set_long_mode(modelName->getLvObj(), LV_LABEL_LONG_DOT);
 
-    bool chk = (modelCell == modelslist.getCurrentModel());
+    bool chk = (modelCell == modelCellManager.getCurrentModel());
     if (chk != checked()) {
       check(chk);
       if (chk)
@@ -215,15 +215,15 @@ class ModelsPageBody : public Window
 
     ModelsVector models;
     if (selectedLabels.size()) {
-      models = modelslabels.getModelsInLabels(selectedLabels);
+      models = modelCellManager.getFilteredModelList(selectedLabels);
     } else {
-      models = modelslabels.getAllModels();
+      models = modelCellManager.getAllModels();
     }
 
     // Used to work out which button to set focus to.
     // Priority -
-    //     current active model
     //     previously selected model
+    //     current active model
     //     first model in the list
     ModelButton *firstButton = nullptr;
     ModelButton *focusedButton = nullptr;
@@ -256,8 +256,8 @@ class ModelsPageBody : public Window
       }
 
       if (!firstButton) firstButton = button;
-      if (model == modelslist.getCurrentModel()) focusedButton = button;
-      if (model == focusedModel && !focusedButton) focusedButton = button;
+      if (model == focusedModel) focusedButton = button;
+      if (model == modelCellManager.getCurrentModel() && !focusedButton) focusedButton = button;
 
       // Press Handler for Models
       button->setPressHandler([=]() -> uint8_t {
@@ -269,7 +269,7 @@ class ModelsPageBody : public Window
         } else {
           focusedModel = model;
         }
-        return model == modelslist.getCurrentModel();
+        return model == modelCellManager.getCurrentModel();
       });
 
       // Long Press Handler for Models
@@ -279,7 +279,7 @@ class ModelsPageBody : public Window
           focusedModel = model;
         }
         openMenu();
-        return model == modelslist.getCurrentModel();
+        return model == modelCellManager.getCurrentModel();
       });
     }
 
@@ -311,11 +311,11 @@ class ModelsPageBody : public Window
 
   inline void setSortOrder(ModelsSortBy sortOrder)
   {
-    modelslabels.setSortOrder(sortOrder);
+    modelCellManager.setSortOrder(sortOrder);
     update();
   }
 
-  ModelsSortBy getSortOrder() const { return modelslabels.sortOrder(); }
+  ModelsSortBy getSortOrder() const { return modelCellManager.sortOrder(); }
 
   void setLblRefreshFunc(std::function<void()> fnc)
   {
@@ -323,7 +323,6 @@ class ModelsPageBody : public Window
   }
 
  protected:
-  ModelsSortBy _sortOrder;
   bool isDirty = false;
   bool refresh = false;
   std::string selectedLabel;
@@ -346,13 +345,13 @@ class ModelsPageBody : public Window
     Menu *menu = new Menu();
     menu->setTitle(focusedModel->modelName);
     if (g_eeGeneral.modelQuickSelect ||
-        focusedModel != modelslist.getCurrentModel()) {
+        focusedModel != modelCellManager.getCurrentModel()) {
       menu->addLine(STR_SELECT_MODEL, [=]() { selectModel(focusedModel); });
     }
     menu->addLine(STR_DUPLICATE_MODEL, [=]() { duplicateModel(focusedModel); });
     menu->addLine(STR_LABEL_MODEL, [=]() { editLabels(focusedModel); });
     menu->addLine(STR_SAVE_TEMPLATE, [=]() { saveAsTemplate(focusedModel); });
-    if (focusedModel != modelslist.getCurrentModel()) {
+    if (focusedModel != modelCellManager.getCurrentModel()) {
       menu->addLine(STR_DELETE_MODEL, [=]() { deleteModel(focusedModel); });
     }
   }
@@ -361,7 +360,7 @@ class ModelsPageBody : public Window
   {
     // Don't need to check connection to receiver if re-selecting the active
     // model
-    if (model != modelslist.getCurrentModel()) {
+    if (model != modelCellManager.getCurrentModel()) {
       bool modelConnected =
           TELEMETRY_STREAMING() && !g_eeGeneral.disableRssiPoweroffAlarm;
       if (modelConnected) {
@@ -379,10 +378,8 @@ class ModelsPageBody : public Window
       }
     }
 
-    closeHandler();
-
     // Skip reloading model if re-selecting the active model
-    if (model != modelslist.getCurrentModel()) {
+    if (model != modelCellManager.getCurrentModel()) {
       // store changes (if any) and load selected model
       storageFlushCurrentModel();
       storageCheck(true);
@@ -400,7 +397,7 @@ class ModelsPageBody : public Window
       LayoutFactory::deleteTopBarWidgets();
 
       loadModel(g_eeGeneral.currModelFilename, true);
-      modelslist.setCurrentModel(model);
+      modelCellManager.setCurrentModel(model);
 
       // Load new main view layout
       LayoutFactory::loadCustomScreens();
@@ -411,6 +408,8 @@ class ModelsPageBody : public Window
       storageDirty(EE_GENERAL);
       storageCheck(true);
     }
+
+    Messaging::send(Messaging::ON_CLOSE);
   }
 
   void duplicateModel(ModelCell *model)
@@ -432,10 +431,12 @@ class ModelsPageBody : public Window
             // Make a new model which is a copy of the selected one, set the
             // same labels
             auto new_model =
-                modelslist.addModel(duplicatedFilename, true, model);
-            for (const auto &lbl : modelslabels.getLabelsByModel(model)) {
-              modelslabels.addLabelToModel(lbl, new_model);
-            }
+                modelCellManager.addModel(duplicatedFilename, true, model);
+            // Give the copy a unique name and save it to disk
+            new_model->setUniqueName();
+            new_model->updateModelFile();
+            // Set new model as focused button
+            focusedModel = new_model;
             update();
           } else {
             TRACE("ModelsListError: Invalid File");
@@ -448,7 +449,7 @@ class ModelsPageBody : public Window
     new ConfirmDialog(
         STR_DELETE_MODEL,
         std::string(model->modelName, sizeof(model->modelName)).c_str(), [=] {
-          modelslist.removeModel(model);
+          modelCellManager.removeModel(model);
           if (refreshLabels != nullptr) refreshLabels();
 
           update();
@@ -457,31 +458,31 @@ class ModelsPageBody : public Window
 
   void editLabels(ModelCell *model)
   {
-    auto labels = modelslabels.getLabels();
+    auto labels = modelCellManager.getLabels();
 
     // dont display menu if there will be no labels
     if (labels.size()) {
       auto menu = new Menu(true);
       menu->setTitle(model->modelName);
-      menu->setCloseHandler([=]() {
+      menu->onClosing([=]() {
         if (isDirty) {
           isDirty = false;
           update();
         }
       });
 
-      for (auto &label : modelslabels.getLabels()) {
+      for (auto &label : modelCellManager.getLabels()) {
         menu->addLineBuffered(
             label,
             [=]() {
-              if (!modelslabels.isLabelSelected(label, model))
-                modelslabels.addLabelToModel(label, model, true);
+              if (!model->hasLabel(label))
+                modelCellManager.addLabelToModel(label, model);
               else
-                modelslabels.removeLabelFromModel(label, model, true);
+                modelCellManager.removeLabelFromModel(label, model);
               isDirty = true;
               if (refreshLabels != nullptr) refreshLabels();
             },
-            [=]() { return modelslabels.isLabelSelected(label, model); });
+            [=]() { return model->hasLabel(label); });
       }
       menu->updateLines();
     }
@@ -577,9 +578,9 @@ ModelLabelsWindow::ModelLabelsWindow() : Page(ICON_MODEL_SELECT, PAD_ZERO, true)
   buildBody(body);
 
   // find the first label of the current model and make that label active
-  auto currentModel = modelslist.getCurrentModel();
+  auto currentModel = modelCellManager.getCurrentModel();
   if (currentModel != nullptr) {
-    auto modelLabels = modelslabels.getLabelsByModel(currentModel);
+    auto modelLabels = currentModel->getLabels();
     if (modelLabels.size() > 0) {
       auto allLabels = getLabels();
       auto found =
@@ -653,8 +654,8 @@ void ModelLabelsWindow::newModel()
   new SelectTemplateFolder([=](std::string folder, std::string name) {
     // Create a new blank ModelCell and activate it first, createmodel() will
     // modify the model in memory.
-    auto newCell = modelslist.addModel("", false);
-    modelslist.setCurrentModel(newCell);
+    auto newCell = modelCellManager.addModel("", false);
+    modelCellManager.setCurrentModel(newCell);
 
     // Make the new model
     createModel();
@@ -688,7 +689,7 @@ void ModelLabelsWindow::newModel()
       storageCheck(true);
 
       // Update the current cell's data
-      modelslist.updateCurrentModelCell();
+      modelCellManager.updateCurrentModelCell();
 
 #if defined(LUA)
       // If there is a wizard Lua script, fire it up
@@ -712,12 +713,12 @@ void ModelLabelsWindow::newLabel()
 {
   tmpLabel[0] = '\0';
   new LabelDialog(tmpLabel, LABEL_LENGTH, STR_ENTER_LABEL, [=](std::string label) {
-    int newlabindex = modelslabels.addLabel(label);
+    int newlabindex = modelCellManager.addLabel(label);
     if (newlabindex >= 0) {
       auto labels = getLabels();
       lblselector->setNames(labels);
     }
-  });
+  }, labelExcludedChars);
 }
 
 void ModelLabelsWindow::buildHead(Window *hdr)
@@ -794,7 +795,6 @@ void ModelLabelsWindow::buildBody(Window *window)
 {
   // Models List - dark background
   mdlselector = new ModelsPageBody(window, {MDLS_X, MDLS_Y, MDLS_W, MDLS_H});
-  mdlselector->setCloseHandler([=]() { onCancel(); });
   mdlselector->setLblRefreshFunc([=]() { labelRefreshRequest(); });
   auto mdl_obj = mdlselector->getLvObj();
   lv_obj_set_style_max_width(mdl_obj, MDLS_W, LV_PART_MAIN);
@@ -805,6 +805,8 @@ void ModelLabelsWindow::buildBody(Window *window)
 
   if (mdlselector->getSortOrder() == NO_SORT)
     mdlselector->setSortOrder(NAME_ASC);
+
+  closeMessage.subscribe(Messaging::ON_CLOSE, [=](uint32_t) { onCancel(); });
 
   // Reserve space for two button rows below labels
   coord_t labelsH = LABELS_HEIGHT - EdgeTxStyles::UI_ELEMENT_HEIGHT - PAD_SMALL;
@@ -909,14 +911,14 @@ void ModelLabelsWindow::buildBody(Window *window)
                               LV_PART_MAIN | LV_STATE_FOCUS_KEY);
 #endif
 
-  std::set<uint32_t> filteredLabels = modelslabels.filteredLabels();
+  std::set<uint32_t> filteredLabels = modelCellManager.filteredLabels();
 
   if (g_eeGeneral.labelSingleSelect == 0) {
     lblselector->setMultiSelect(true);
     lblselector->setSelected(filteredLabels);
     lblselector->setMultiSelectHandler([=](std::set<uint32_t> selected,
                                            std::set<uint32_t> oldselection) {
-      if (modelslabels.getUnlabeledModels().size() != 0) {
+      if (modelCellManager.getUnlabeledModels().size() != 0) {
         // Special case for mutually exclusive Unsorted
         bool unsrt_is_selected =
             selected.find(lblselector->getRowCount() - 1) != selected.end();
@@ -993,7 +995,7 @@ void ModelLabelsWindow::buildBody(Window *window)
             if (newLabel.size() > 0) {
               auto rndialog =
                   new ProgressDialog(STR_RENAME_LABEL, [=]() {});
-              modelslabels.renameLabel(
+              modelCellManager.renameLabel(
                   oldLabel, newLabel, [=](const char *name, int percentage) {
                     rndialog->setTitle(std::string(STR_RENAME_LABEL) + " " +
                                        name);
@@ -1002,8 +1004,7 @@ void ModelLabelsWindow::buildBody(Window *window)
                   });
               auto labels = getLabels();
               lblselector->setNames(labels);
-              mdlselector->clearButtons();
-              updateFilteredLabels(modelslabels.filteredLabels(), false);
+              updateFilteredLabels(modelCellManager.filteredLabels(), false);
             }
           });
           return 0;
@@ -1014,7 +1015,7 @@ void ModelLabelsWindow::buildBody(Window *window)
               STR_DELETE_LABEL, labelToDelete.c_str(), [=]() {
                 auto deldialog =
                     new ProgressDialog(STR_DELETE_LABEL, [=]() {});
-                modelslabels.removeLabel(
+                modelCellManager.removeLabel(
                     labelToDelete, [=](const char *name, int percentage) {
                       deldialog->setTitle(std::string(STR_DELETE_LABEL) + " " +
                                           name);
@@ -1031,19 +1032,18 @@ void ModelLabelsWindow::buildBody(Window *window)
                   else
                     newset.insert(lblselector->getActiveItem());
                 }
-                mdlselector->clearButtons();
                 updateFilteredLabels(newset);
               });
           return 0;
         });
-        if (modelslabels.getLabels().size() > 1) {
+        if (modelCellManager.getLabels().size() > 1) {
           if (selected != 0) {
             menu->addLine(STR_MOVE_UP, [=]() {
               moveLabel(selected, -1);
               return 0;
             });
           }
-          if (selected != (int)modelslabels.getLabels().size() - 1) {
+          if (selected != (int)modelCellManager.getLabels().size() - 1) {
             menu->addLine(STR_MOVE_DOWN, [=]() {
               moveLabel(selected, 1);
               return 0;
@@ -1059,7 +1059,7 @@ void ModelLabelsWindow::moveLabel(int selected, int direction)
 {
   int swapSelected = selected + direction;
 
-  modelslabels.moveLabelTo(selected, swapSelected);
+  modelCellManager.moveLabelUp(selected > swapSelected ? selected : swapSelected);
 
   std::set<uint32_t> newset = lblselector->getSelection();
   bool isSelected = newset.find(selected) != newset.end();
@@ -1099,10 +1099,8 @@ void ModelLabelsWindow::updateFilteredLabels(std::set<uint32_t> selected,
   for (auto sel : selected) {
     if (sel < labels.size()) sellabels.push_back(labels[sel]);
   }
-  if (setdirty) {  // Save to file?
-    modelslabels.setFilteredLabels(selected);
-    modelslabels.setDirty();
-  }
+  if (setdirty) // Save to file?
+    modelCellManager.setFilteredLabels(selected);
   mdlselector->setLabels(sellabels);  // Update the list
 }
 
@@ -1114,7 +1112,7 @@ void ModelLabelsWindow::labelRefreshRequest()
 
 void ModelLabelsWindow::setTitle()
 {
-  auto curModel = modelslist.getCurrentModel();
+  auto curModel = modelCellManager.getCurrentModel();
   auto modelName = curModel != nullptr ? curModel->modelName : STR_NONE;
 
   std::string title2 = STR_ACTIVE;

@@ -61,27 +61,38 @@ class DateNumberEdit : public NumberEdit
                   std::function<void(int)> setValue,
                   coord_t w = DT_EDT_W) :
       NumberEdit(parent, {x, y, w, 0}, vmin, vmax,
-                  getValue,
-                  [=](int32_t newValue) {
-                    setValue(newValue);
-                    SET_DIRTY();
-                  })
+                [=]() {
+                  if (isEditing) return editValue;
+                  return getValue();
+                },
+                [=](int newValue) {
+                  if (isEditing)
+                    editValue = newValue;
+                })
   {
-    lastValue = this->getValue();
     if (leading0)
       setDisplayHandler([](int32_t value) { return formatNumberAsString(value, LEADING0, 2); });
+    setOnEditStartHandler([=]() {
+      isEditing = true;
+      editValue = getValue();
+    });
+    setOnEditedHandler([=](int newValue) {
+      isEditing = false;
+      setValue(newValue);
+    });
 }
 
   static LAYOUT_ORIENTATION(DT_EDT_W, EdgeTxStyles::EDIT_FLD_WIDTH_NARROW, LAYOUT_SCALE(52))
   static LAYOUT_ORIENTATION(DT_EDT_W_YEAR, EdgeTxStyles::EDIT_FLD_WIDTH_NARROW, LAYOUT_SCALE(70))
 
  protected:
-  int32_t lastValue;
+  int editValue;
+  bool isEditing = false;
 
   void checkEvents() override
   {
-    if (lastValue != getValue())
-      update();
+    if (!isEditing)
+      NumberEdit::checkEvents();
   }
 };
 
@@ -753,7 +764,7 @@ const static SetupLineDef manageModelsSetupLines[] = {
                 GET_DEFAULT(g_eeGeneral.labelSingleSelect),
                 [=](int newValue) {
                   g_eeGeneral.labelSingleSelect = newValue;
-                  modelslabels.clearFilter();
+                  modelCellManager.clearFilter();
                   Messaging::send(Messaging::REFRESH);
                   SET_DIRTY();
                 });
@@ -1112,10 +1123,10 @@ const static PageButtonDef radioSetupButtons[] = {
     menu->addLine(STR_FACTORY_RESET_CLEAR_MODELS, []() {
       new ConfirmDialog(STR_FACTORY_RESET_CLEAR_MODELS, STR_CONFIRM_CLEAR_MODELS, []() {
         // Delete all model files
-        while (modelslist.size() > 0) {
-          modelslist.removeModel(modelslist[0]);
+        while (modelCellManager.size() > 0) {
+          modelCellManager.removeModel(modelCellManager[0]);
         }
-        modelslist.save();
+        modelCellManager.save();
         storageCheck(true);
         // Reboot to fully reset all UI state
         NVIC_SystemReset();

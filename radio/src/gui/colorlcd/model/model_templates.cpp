@@ -232,7 +232,7 @@ class SelectTemplate : public TemplatePage
         auto tb = new TextButton(
             listWindow, rect_t{0, 0, lv_pct(100), EdgeTxStyles::STD_FONT_HEIGHT * 2}, name,
             [=]() -> uint8_t {
-              deleteLater();
+              closeWindow();
               templateFolderPage->doUpdate(folder, name);
               return 0;
             });
@@ -313,7 +313,7 @@ SelectTemplateFolder::SelectTemplateFolder(
           auto btn = new TextButton(
               page->listWindow, rect_t{0, 0, lv_pct(100), EdgeTxStyles::STD_FONT_HEIGHT * 2},
               label, [=]() -> uint8_t {
-                page->deleteLater();
+                page->closeWindow();
                 doUpdate("__cppwiz__", name);
                 return 0;
               });
@@ -374,7 +374,7 @@ SelectTemplateFolder::SelectTemplateFolder(
                   page->listWindow,
                   rect_t{0, 0, lv_pct(100), EdgeTxStyles::STD_FONT_HEIGHT * 2},
                   name, [=]() -> uint8_t {
-                    page->deleteLater();
+                    page->closeWindow();
                     new SelectTemplate(this, name);
                     return 0;
                   });

@@ -836,7 +836,7 @@ void ModelTelemetryPage::editSensor(uint8_t index)
 {
   lastKnownIndex = -1;
   Window* editWindow = new SensorEditWindow(index);
-  editWindow->setCloseHandler([=]() { buildSensorList(index); });
+  editWindow->onClosing([=]() { buildSensorList(index); });
 }
 
 void ModelTelemetryPage::buildSensorList(int8_t focusSensorIndex)

@@ -1487,11 +1487,11 @@ static uint8_t cmdModelList(const uint8_t* in, uint8_t inLen, uint8_t* out, uint
   uint8_t count = 0;
 
 #if defined(STORAGE_MODELSLIST)
-  uint8_t total = modelslist.size() > 255 ? 255 : (uint8_t)modelslist.size();
-  ModelCell* current = modelslist.getCurrentModel();
+  uint8_t total = modelCellManager.size() > 255 ? 255 : (uint8_t)modelCellManager.size();
+  ModelCell* current = modelCellManager.getCurrentModel();
 
   for (uint8_t i = start; i < total && pos < (APP_MAX_PAYLOAD - 18); i++) {
-    ModelCell* cell = modelslist[i];
+    ModelCell* cell = modelCellManager[i];
     uint8_t nameLen = copyNameOut(&out[pos + 2], cell->modelName,
                                   (uint8_t)sizeof(cell->modelName) - 1);
     out[pos] = (cell == current) ? 0x01 : 0x00;
@@ -1533,9 +1533,9 @@ static uint8_t cmdModelSelect(const uint8_t* in, uint8_t inLen, uint8_t* out, ui
   uint8_t idx = in[0];
 
 #if defined(STORAGE_MODELSLIST)
-  if (idx >= modelslist.size()) return APP_STATUS_RANGE;
-  ModelCell* cell = modelslist[idx];
-  if (cell == modelslist.getCurrentModel()) return APP_STATUS_OK;
+  if (idx >= modelCellManager.size()) return APP_STATUS_RANGE;
+  ModelCell* cell = modelCellManager[idx];
+  if (cell == modelCellManager.getCurrentModel()) return APP_STATUS_OK;
 
   strncpy(g_eeGeneral.currModelFilename, cell->modelFilename, LEN_MODEL_FILENAME);
   g_eeGeneral.currModelFilename[LEN_MODEL_FILENAME] = '\0';
@@ -1561,8 +1561,8 @@ static uint8_t cmdModelSelect(const uint8_t* in, uint8_t inLen, uint8_t* out, ui
 #if defined(STORAGE_MODELSLIST)
 static ModelCell* modelCellAt(uint8_t idx)
 {
-  if (idx >= modelslist.size()) return nullptr;
-  return modelslist[idx];
+  if (idx >= modelCellManager.size()) return nullptr;
+  return modelCellManager[idx];
 }
 #endif
 
@@ -1593,7 +1593,7 @@ static uint8_t cmdModelCreate(const uint8_t* in, uint8_t inLen, uint8_t* out, ui
     return APP_STATUS_ERROR;
   }
 
-  ModelCell* cell = modelslist.addModel(filename, true);
+  ModelCell* cell = modelCellManager.addModel(filename, true);
   if (!cell) return APP_STATUS_ERROR;
 
   if (nameLen) {
@@ -1601,11 +1601,11 @@ static uint8_t cmdModelCreate(const uint8_t* in, uint8_t inLen, uint8_t* out, ui
     memcpy(name, &in[1], nameLen);
     name[nameLen] = '\0';
     cell->setModelName(name);
-    modelslabels.setDirty();
+    cell->updateModelFile();
   }
 
-  for (uint8_t i = 0; i < modelslist.size(); i++) {
-    if (modelslist[i] == cell) { out[0] = i; break; }
+  for (uint8_t i = 0; i < modelCellManager.size(); i++) {
+    if (modelCellManager[i] == cell) { out[0] = i; break; }
   }
   return APP_STATUS_OK;
 #else
@@ -1635,7 +1635,7 @@ static uint8_t cmdModelDuplicate(const uint8_t* in, uint8_t inLen, uint8_t* out,
 #if defined(COLORLCD)
   uiScreensCopy(cell->modelFilename, filename);
 #endif
-  if (!modelslist.addModel(filename, true, cell)) return APP_STATUS_ERROR;
+  if (!modelCellManager.addModel(filename, true, cell)) return APP_STATUS_ERROR;
   return APP_STATUS_OK;
 #else
   return APP_STATUS_UNSUPPORTED;
@@ -1649,9 +1649,9 @@ static uint8_t cmdModelDelete(const uint8_t* in, uint8_t inLen, uint8_t* out, ui
   ModelCell* cell = modelCellAt(in[0]);
   if (!cell) return APP_STATUS_RANGE;
   // the active model cannot be deleted; select another model first
-  if (cell == modelslist.getCurrentModel()) return APP_STATUS_ERROR;
+  if (cell == modelCellManager.getCurrentModel()) return APP_STATUS_ERROR;
   // removeModel() returns false on success
-  if (modelslist.removeModel(cell)) return APP_STATUS_ERROR;
+  if (modelCellManager.removeModel(cell)) return APP_STATUS_ERROR;
   return APP_STATUS_OK;
 #else
   return APP_STATUS_UNSUPPORTED;
@@ -1678,9 +1678,9 @@ static uint8_t cmdModelRename(const uint8_t* in, uint8_t inLen, uint8_t* out, ui
   name[nameLen] = '\0';
 
   cell->setModelName(name);
-  modelslabels.setDirty();
+  cell->updateModelFile();
 
-  if (cell == modelslist.getCurrentModel()) {
+  if (cell == modelCellManager.getCurrentModel()) {
     setNameIn(g_model.header.name, (uint8_t)sizeof(g_model.header.name), &in[2], nameLen);
     storageDirty(EE_MODEL);
   }

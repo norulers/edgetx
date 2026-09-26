@@ -1,4 +1,10 @@
 {
+  "identity": {
+    "manufacturer": "EdgeTX",
+    "model": "H750DEV",
+    "usb_manufacturer": "EDGETX",
+    "usb_product": "H750DEV"
+  },
   "adc_inputs": {
     "adcs": [
       {

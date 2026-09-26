@@ -264,11 +264,12 @@ ElrsParamBrowser::~ElrsParamBrowser()
 {
   // Close any open command dialog to avoid dangling pointer
   if (_cmdDialog) {
-    _cmdDialog->setCloseHandler(nullptr);
-    _cmdDialog->deleteLater();
+    _suppressCmdClose = true;
+    _cmdDialog->closeWindow();
+    _suppressCmdClose = false;
     _cmdDialog = nullptr;
   }
-  deregisterTelemetryQueue(&_rxQueue);
+  destroyTelemetryQueue(&_rxQueue);
   for (auto* d : _rowClickData) delete (ElrsRowData*)d;
   _rowClickData.clear();
 }
@@ -280,8 +281,9 @@ void ElrsParamBrowser::onCancel()
   if (_cmdDialog) {
     uint8_t cancelStatus = 5;
     sendParamWrite(_cmdFieldId, &cancelStatus, 1);
-    _cmdDialog->setCloseHandler(nullptr);
-    _cmdDialog->deleteLater();
+    _suppressCmdClose = true;
+    _cmdDialog->closeWindow();
+    _suppressCmdClose = false;
     _cmdDialog  = nullptr;
     _cmdLastStatus = 0;
     _cmdFieldId = 0;
@@ -363,7 +365,7 @@ void ElrsParamBrowser::buildUI()
   auto closeBtn = new TextButton(
       this, {LCD_W - TITLE_H * 2, 0, TITLE_H * 2, TITLE_H}, STR_ELRS_CLOSE,
       [this]() -> uint8_t {
-        deleteLater();
+        closeWindow();
         return 0;
       });
   lv_group_remove_obj(closeBtn->getLvObj());
@@ -462,7 +464,7 @@ void ElrsParamBrowser::checkEvents()
   processRxQueue();
 
   if (_shouldClose) {
-    deleteLater();
+    closeWindow();
     return;
   }
 
@@ -647,7 +649,7 @@ void ElrsBgLoader::start()
 void ElrsBgLoader::finish()
 {
   if (timer) { lv_timer_del(timer); timer = nullptr; }
-  deregisterTelemetryQueue(&rxQueue);
+  destroyTelemetryQueue(&rxQueue);
   g_bgLoader = nullptr;
   delete this;
 }
@@ -1118,8 +1120,9 @@ void ElrsParamBrowser::parseParamInfo(const uint8_t* p, uint8_t len)
         return;
       }
       _cmdLastStatus = 0;
-      _cmdDialog->setCloseHandler(nullptr);
-      _cmdDialog->deleteLater();
+      _suppressCmdClose = true;
+      _cmdDialog->closeWindow();
+      _suppressCmdClose = false;
       _cmdDialog     = nullptr;
       _cmdFieldId    = 0;
       // Reload all fields — matches Lua reloadAllField() after command stops
@@ -1130,8 +1133,9 @@ void ElrsParamBrowser::parseParamInfo(const uint8_t* p, uint8_t len)
 
       if (f.cmdStatus == 3) {
         // Confirmation required: replace running dialog with ConfirmDialog.
-        _cmdDialog->setCloseHandler(nullptr);
-        _cmdDialog->deleteLater();
+        _suppressCmdClose = true;
+        _cmdDialog->closeWindow();
+        _suppressCmdClose = false;
         _cmdDialog = nullptr;
         uint8_t  cid     = _cmdFieldId;
         uint8_t  timeout = (f.cmdTimeout > 0) ? f.cmdTimeout : 25;
@@ -1163,7 +1167,8 @@ void ElrsParamBrowser::parseParamInfo(const uint8_t* p, uint8_t len)
                   STR_ELRS_PRESS_RTN_CANCEL,
                   EdgeTxStyles::STD_FONT_HEIGHT,
                   COLOR_THEME_PRIMARY1_INDEX, CENTERED);
-              _cmdDialog->setCloseHandler([this]() {
+              _cmdDialog->onClosing([this]() {
+                if (_suppressCmdClose) return;
                 // RTN pressed on running dialog — send lcsCancel to device
                 if (_cmdFieldId >= 1) {
                   uint8_t cancel = 5;
@@ -1214,8 +1219,9 @@ void ElrsParamBrowser::parseParamInfo(const uint8_t* p, uint8_t len)
           _listDirty    = true;
           return;
         }
-        _cmdDialog->setCloseHandler(nullptr);
-        _cmdDialog->deleteLater();
+        _suppressCmdClose = true;
+        _cmdDialog->closeWindow();
+        _suppressCmdClose = false;
         _cmdDialog  = nullptr;
         _cmdFieldId = 0;
       }
@@ -1818,7 +1824,7 @@ void ElrsParamBrowser::openFieldPopup(Field* f)
     menu->select(selIdx);
   }
 
-  menu->setCloseHandler([this]() {
+  menu->onClosing([this]() {
     _editMode  = false;
     _listDirty = true;
   });
@@ -2024,7 +2030,7 @@ void ElrsParamBrowser::goBack()
 {
   if (_currentFolder < 0) {
     // Already at root — close browser
-    deleteLater();
+    closeWindow();
     return;
   }
 
@@ -2168,7 +2174,8 @@ void ElrsParamBrowser::activateField(Field* f)
             STR_ELRS_PRESS_RTN_CANCEL,
             EdgeTxStyles::STD_FONT_HEIGHT,
             COLOR_THEME_PRIMARY1_INDEX, CENTERED);
-        _cmdDialog->setCloseHandler([this]() {
+        _cmdDialog->onClosing([this]() {
+          if (_suppressCmdClose) return;
           // RTN: send lcsCancel=5 to device
           if (_cmdFieldId >= 1) {
             uint8_t cancel = 5;
@@ -2288,7 +2295,7 @@ void ElrsParamBrowser::handleKey(uint32_t key)
       }
       if (_selectedIdx == cnt)     { applyDefaultSettings(); break; }
       if (_selectedIdx == cnt + 1) { doReload(); break; }
-      if (_selectedIdx == cnt + 2) { deleteLater(); break; }
+      if (_selectedIdx == cnt + 2) { closeWindow(); break; }
       activateField(f);
       break;
 
@@ -2331,6 +2338,6 @@ void ElrsParamBrowser::showModuleSetupMenu()
 #endif
 
   menu->addLine(STR_CANCEL, [this]() {
-    deleteLater();
+    closeWindow();
   });
 }

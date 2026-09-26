@@ -602,7 +602,7 @@ void ModelFlightModesPage::build(Window* form)
     btn->setWidth(ListLineButton::GRP_W);
 
     btn->setPressHandler([=]() {
-      (new FlightModeEdit(i))->setCloseHandler([=]() { btn->refresh(); });
+      (new FlightModeEdit(i))->onClosing([=]() { btn->refresh(); });
       return btn->isActive();
     });
   }

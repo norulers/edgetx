@@ -122,9 +122,11 @@ ViewMain::ViewMain() :
       }
     }
   }, LV_EVENT_KEY, nullptr);
-}
 
-ViewMain::~ViewMain() { _instance = nullptr; }
+  onClosing([=]() {
+    _instance = nullptr;
+  });
+}
 
 void ViewMain::addMainView(WidgetsContainer* view, uint32_t viewId)
 {
@@ -254,7 +256,7 @@ void ViewMain::doKeyShortcut(event_t event)
   if (event == EVT_KEY_LONG(KEY_TELE)) {
     // Dismiss any open pages before showing telemetry dash
     auto w = Window::topWindow();
-    while (w && w != this) { w->deleteLater(); w = Window::topWindow(); }
+    while (w && w != this) { w->closeWindow(); w = Window::topWindow(); }
     new TelemetryDashViewMenu();
     return;
   }
@@ -422,7 +424,7 @@ void ViewMain::hideTopBarEdgeTxButton()
 
 void ViewMain::_refreshWidgets()
 {
-  if (!_deleted) {
+  if (!deleted()) {
     topbar->refreshWidgets(isVisible && hasTopbar());
     for (int i = 0; i < MAX_CUSTOM_SCREENS; i += 1) {
       if (customScreens[i])

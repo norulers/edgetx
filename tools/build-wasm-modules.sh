@@ -47,9 +47,7 @@ if [[ -z ${EDGETX_VERSION_SUFFIX} ]]; then
   fi
 fi
 
-if [[ -n "$GITHUB_ACTIONS" ]]; then
-  MAX_JOBS=${MAX_JOBS:-3}
-fi
+determine_max_jobs
 
 BUILD_DIR="build/wasm"
 
@@ -226,7 +224,7 @@ else
         tx12mk2 zorro v14 v14lcd
         x7access x9dp2019 x9e
         # colour
-        c14 el18 nb4p nv14 st16 pa01
+        c14 el18 h17 nb4p nv14 st16 pa01
         pl18 pl18ev pl18u
         t15 t15pro t16 t18 t22
         tx15 gx15 tx16s tx16smk3 f16 v12 v16

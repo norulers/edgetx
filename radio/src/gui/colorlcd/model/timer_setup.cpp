@@ -56,7 +56,7 @@ static constexpr coord_t POPUP_MAX_H = LCD_H * 80 / 100;
 // ModalWindow subclass that closes itself on EXIT key
 struct PopupWindow : ModalWindow {
   using ModalWindow::ModalWindow;
-  void onCancel() override { deleteLater(); }
+  void onCancel() override { closeWindow(); }
 };
 
 // Create a popup (inherits 50% opacity black bg) that closes on EXIT key
@@ -86,7 +86,7 @@ static std::pair<Window*, Window*> createPopupForm(PopupWindow* dlg,
   // Intercept EXIT key: LV_EVENT_CANCEL bubbles up from focused child to form
   lv_obj_add_event_cb(form->getLvObj(), [](lv_event_t* e) {
     auto* d = (PopupWindow*)lv_event_get_user_data(e);
-    d->deleteLater();
+    d->closeWindow();
   }, LV_EVENT_CANCEL, dlg);
 
   // Title bar
@@ -197,14 +197,14 @@ static void openNameEditDialog(const char* title, char* nameBuf, uint8_t nameLen
                         LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_SPACE_BETWEEN);
 
   auto cancelBtn = new TextButton(box, rect_t{0, 0, 96, 0}, STR_CANCEL, [=]() {
-    dlg->deleteLater();
+    dlg->closeWindow();
     return 0;
   });
   applyDarkBtnStyle(cancelBtn->getLvObj());
 
   auto saveBtn = new TextButton(box, rect_t{0, 0, 96, 0}, STR_SAVE, [=]() {
     onSave();
-    dlg->deleteLater();
+    dlg->closeWindow();
     return 0;
   });
   applyDarkBtnStyle(saveBtn->getLvObj());
@@ -228,7 +228,7 @@ static void openListPopup(const std::string& title,
     auto btn = new TextButton(list,
         {0, 0, LV_PCT(100), EdgeTxStyles::UI_ELEMENT_HEIGHT + PAD_SMALL},
         items[i], [=]() -> uint8_t {
-          dlg->deleteLater();
+          dlg->closeWindow();
           onSelect(i);
           return 0;
         });
@@ -267,7 +267,7 @@ static void openSwitchListPopup(std::function<void(int)> onSelect)
     auto btn = new TextButton(list,
         {0, 0, LV_PCT(100), EdgeTxStyles::UI_ELEMENT_HEIGHT + PAD_SMALL},
         items[i], [=]() -> uint8_t {
-          dlg->deleteLater();
+          dlg->closeWindow();
           onSelect(srcs[i]);
           return 0;
         });

@@ -212,7 +212,7 @@ class QuickSubMenu
   void clearSubMenu()
   {
     if (subMenu) {
-      subMenu->deleteLater();
+      subMenu->closeWindow();
       subMenu = nullptr;
     }
   }
@@ -250,7 +250,7 @@ void QuickMenu::openQuickMenu()
 
 void QuickMenu::shutdownQuickMenu()
 {
-  if (instance) instance->deleteLater();
+  if (instance) instance->closeWindow();
 }
 
 QuickMenu::QuickMenu() :
@@ -299,14 +299,10 @@ QuickMenu::QuickMenu() :
 #endif
     }
   }
-}
 
-void QuickMenu::deleteLater()
-{
-  if (!_deleted) {
+  onClosing([=] () {
     instance = nullptr;
-    NavWindow::deleteLater();
-  }
+  });
 }
 
 void QuickMenu::openQM(PageGroupBase* newPageGroup, QMPage newCurPage)
@@ -631,7 +627,7 @@ void QuickMenu::doKeyShortcut(event_t event)
   if (event == EVT_KEY_LONG(KEY_TELE)) {
     closeQM();
     auto w = Window::topWindow();
-    while (w && w != ViewMain::instance()) { w->deleteLater(); w = Window::topWindow(); }
+    while (w && w != ViewMain::instance()) { w->closeWindow(); w = Window::topWindow(); }
     new TelemetryDashViewMenu();
     return;
   }

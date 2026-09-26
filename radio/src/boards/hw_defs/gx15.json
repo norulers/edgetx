@@ -1,4 +1,10 @@
 {
+  "identity": {
+    "manufacturer": "RadioMaster",
+    "model": "GX15",
+    "usb_manufacturer": "RM",
+    "usb_product": "GX15"
+  },
   "adc_inputs": {
     "adcs": [
       {
@@ -97,8 +103,8 @@
         "type": "FLEX",
         "adc": "MAIN",
         "gpio": "GPIOA",
-        "pin": "LL_GPIO_PIN_7",
-        "channel": "LL_ADC_CHANNEL_7",
+        "pin": "LL_GPIO_PIN_5",
+        "channel": "LL_ADC_CHANNEL_19",
         "inverted": true,
         "label": "RS",
         "short_label": "R",
@@ -109,8 +115,8 @@
         "type": "FLEX",
         "adc": "MAIN",
         "gpio": "GPIOA",
-        "pin": "LL_GPIO_PIN_5",
-        "channel": "LL_ADC_CHANNEL_19",
+        "pin": "LL_GPIO_PIN_7",
+        "channel": "LL_ADC_CHANNEL_7",
         "label": "EXT1",
         "short_label": "E1"
       },

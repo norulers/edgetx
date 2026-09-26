@@ -51,7 +51,6 @@ class MenuBody : public TableField
  public:
   MenuBody(Window* parent, const rect_t& rect) : TableField(parent, rect)
   {
-    lv_obj_add_flag(lvobj, LV_OBJ_FLAG_ENCODER_ACCEL);
     setColumnWidth(0, rect.w);
     setAutoEdit();
     setLongPressHandler([=]() { getParentMenu()->handleLongPress(); });
@@ -141,7 +140,9 @@ class MenuBody : public TableField
         if (selectedIndex == (int)row) lines[row]->onPress();
         else { setIndex(row); lines[row]->onPress(); }
       } else {
-        menu->deleteLater();
+        // delete menu first to avoid
+        // focus issues with onPress()
+        menu->closeWindow();
         lines[row]->onPress();
       }
     }
@@ -149,7 +150,8 @@ class MenuBody : public TableField
 
   void onDrawBegin(uint16_t row, uint16_t col, lv_obj_draw_part_dsc_t* dsc) override
   {
-    if (lines.size() == 0) return;
+    if (row >= lines.size()) return;
+
     lv_canvas_t* icon = (lv_canvas_t*)lines[row]->getIcon();
     if (!icon) return;
     lv_coord_t cell_left = lv_obj_get_style_pad_left(lvobj, LV_PART_ITEMS);
@@ -278,7 +280,7 @@ class MenuWindowContent : public NavWindow
       auto btn = new TextButton(body,
           {0, 0, LV_PCT(100), EdgeTxStyles::UI_ELEMENT_HEIGHT + PAD_SMALL},
           line.text, [=]() -> uint8_t {
-            if (!m->isMultiple()) m->deleteLater();
+            if (!m->isMultiple()) m->closeWindow();
             cb();
             return 0;
           });
@@ -327,7 +329,7 @@ class MenuWindowContent : public NavWindow
         {0,0,LV_PCT(100), EdgeTxStyles::UI_ELEMENT_HEIGHT + PAD_SMALL},
         text, [=]() -> uint8_t {
           // Same order as original Menu::onPress
-          if (!m->isMultiple()) m->deleteLater();
+          if (!m->isMultiple()) m->closeWindow();
           cb();
           return 0;
         });
@@ -401,7 +403,7 @@ void Menu::updatePosition()
     coord_t cw = lv_obj_get_width(content->getLvObj());
     coord_t ch = lv_obj_get_height(content->getLvObj());
     coord_t tw = lv_obj_get_width(toolbar->getLvObj());
-    coord_t th = lv_obj_get_height(toolbar->getLvObj());
+    coord_t th = max((coord_t)lv_obj_get_height(toolbar->getLvObj()), toolbar->height());
 
     lv_obj_align(toolbar->getLvObj(), LV_ALIGN_CENTER, -cw / 2, 0);
     lv_obj_align(content->getLvObj(), LV_ALIGN_CENTER, tw / 2, 0);
@@ -453,7 +455,7 @@ void Menu::removeLines()
 void Menu::onCancel()
 {
   if (cancelHandler) cancelHandler();
-  deleteLater();
+  closeWindow();
 }
 
 void Menu::setCancelHandler(std::function<void()> handler)

@@ -472,7 +472,7 @@ void TelemetryDashViewMenu::checkEvents()
 
 void TelemetryDashViewMenu::onCancel()
 {
-  deleteLater();
+  closeWindow();
 }
 
 void TelemetryDashViewMenu::onClicked()
@@ -486,7 +486,7 @@ void TelemetryDashViewMenu::onEvent(event_t event)
 #if defined(HARDWARE_KEYS)
   if (event == EVT_KEY_BREAK(KEY_EXIT) || event == EVT_KEY_LONG(KEY_EXIT)) {
     if (menuActive) { menuActive = false; return; }
-    deleteLater();
+    closeWindow();
     return;
   }
 #endif
@@ -496,7 +496,7 @@ void TelemetryDashViewMenu::onEvent(event_t event)
 #if defined(HARDWARE_KEYS)
 void TelemetryDashViewMenu::onLongPressRTN()
 {
-  deleteLater();
+  closeWindow();
 }
 #endif
 

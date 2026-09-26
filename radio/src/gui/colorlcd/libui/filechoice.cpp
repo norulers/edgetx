@@ -227,7 +227,7 @@ void FileChoice::openMenu()
 
     // fillMenu(menu); - called by MenuToolbar
 
-    menu->setCloseHandler([=]() {
+    menu->onClosing([=]() {
       setSelectionHandler(nullptr);
       preview = nullptr;
       setEditMode(false);

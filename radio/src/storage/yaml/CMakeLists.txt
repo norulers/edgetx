@@ -50,6 +50,8 @@ elseif(PCB STREQUAL TX15)
   set(YAML_GEN_OUTPUT storage/yaml/yaml_datastructs_gx15.cpp)
 elseif(PCB STREQUAL TX16SMK3)
     set(YAML_GEN_OUTPUT storage/yaml/yaml_datastructs_tx16smk3.cpp)
+elseif(PCB STREQUAL H17)
+  set(YAML_GEN_OUTPUT storage/yaml/yaml_datastructs_h17.cpp)
 elseif(PCB STREQUAL H750DEV)
     set(YAML_GEN_OUTPUT storage/yaml/yaml_datastructs_h750dev.cpp)
 elseif(PCB STREQUAL X7)
@@ -113,4 +115,4 @@ add_custom_target(yaml_data
             ${RADIO_DIRECTORY}/util/generate_yaml.py
 )
 
-add_dependencies(yaml_data hal_settings hal_keys_lock)
+add_dependencies(yaml_data hal_settings hal_pwm_sticks hal_keys_lock)

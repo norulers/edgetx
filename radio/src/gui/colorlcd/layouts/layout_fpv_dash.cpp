@@ -282,7 +282,7 @@ class BitmapPicker : public FileChoice
         [this](int idx) {
           if (idx >= 0 && idx <= getMax()) setValue(idx);
         });
-    menu->setCloseHandler([this]() { setEditMode(false); });
+    menu->onClosing([this]() { setEditMode(false); });
   }
 
  private:
@@ -737,7 +737,7 @@ void FpvDashLayout::delayedInit()
       []() { return std::string(g_model.header.bitmap, LEN_BITMAP_NAME); },
       [=](std::string newValue) {
         strncpy(g_model.header.bitmap, newValue.c_str(), LEN_BITMAP_NAME);
-        auto* m = modelslist.getCurrentModel();
+        auto* m = modelCellManager.getCurrentModel();
         if (m) {
           strncpy(m->modelBitmap, newValue.c_str(), LEN_BITMAP_NAME);
           m->modelBitmap[LEN_BITMAP_NAME] = '\0';
@@ -1317,7 +1317,7 @@ void FpvDashLayout::showBattSetupPopup()
   // Popup that closes on EXIT key (matches timer popup behaviour)
   struct PopupWindow : ModalWindow {
     using ModalWindow::ModalWindow;
-    void onCancel() override { deleteLater(); }
+    void onCancel() override { closeWindow(); }
   };
 
   // FPV dark popup style (matching timer/flight-mode popups)
@@ -1335,7 +1335,7 @@ void FpvDashLayout::showBattSetupPopup()
   // EXIT key closes popup
   lv_obj_add_event_cb(form->getLvObj(), [](lv_event_t* e) {
     auto* d = static_cast<PopupWindow*>(lv_event_get_user_data(e));
-    d->deleteLater();
+    d->closeWindow();
   }, LV_EVENT_CANCEL, dlg);
 
   // Title bar (#222222 bg, white text)
@@ -1388,7 +1388,7 @@ void FpvDashLayout::showBattSetupPopup()
   auto* scanBtn = new TextButton(content, {0, 0, LV_PCT(100), EdgeTxStyles::UI_ELEMENT_HEIGHT},
                                  STR_DISCOVER_SENSORS, [=]() -> uint8_t {
     startSensorDiscovery();
-    dlg->deleteLater();
+    dlg->closeWindow();
     return 1;
   });
   applyDarkBtnStyle(scanBtn->getLvObj());

@@ -184,6 +184,7 @@ class ElrsParamBrowser : public Window
   uint8_t               _cmdFieldId     = 0;   // field being waited on
   uint8_t               _cmdLastStatus  = 0;  // previous cmdStatus for transition detection
   tmr10ms_t             _cmdMinCloseTime = 0; // earliest time the dialog may auto-close
+  bool                  _suppressCmdClose = false; // skip _cmdDialog close handler while closing it
 
   // Parameter loading progress dialog (nullptr when not loading)
   lv_obj_t*             _loadBar       = nullptr;

@@ -62,7 +62,7 @@
 #elif defined(RADIO_V16)
   #define ADC_VREF_PREC2                330
 #elif defined(PCBX10)
-  #if defined(RADIO_X10) || defined(RADIO_X10E)
+  #if defined(RADIO_X10) || defined(RADIO_X10EXPRESS)
     #define PWM_STICKS
     #define PWM_TIMER                   TIM5
     #define PWM_TIMER_FREQ              (PERI1_FREQUENCY * TIMER_MULT_APB1)
@@ -70,7 +70,7 @@
     #define PWM_GPIO_AF                 GPIO_AF2
     #define PWM_IRQHandler              TIM5_IRQHandler
     #define PWM_IRQn                    TIM5_IRQn
-    #define PWM_GPIOA_PINS              (LL_GPIO_PIN_0 | LL_GPIO_PIN_1 | LL_GPIO_PIN_2 | LL_GPIO_PIN_3)
+    #include "hal_pwm_sticks.h"
   #endif
   // VBat divider is /4 on F42x and F43x devices
   #if defined(RADIO_TX16S) || defined(RADIO_T15) || defined(RADIO_F16) || defined(RADIO_V16) || defined(RADIO_T18)
@@ -483,6 +483,20 @@
   #define FLYSKY_HALL_SERIAL_DMA                   DMA1
   #define FLYSKY_HALL_DMA_Stream_RX                LL_DMA_STREAM_2
   #define FLYSKY_HALL_DMA_Stream_TX                LL_DMA_STREAM_4
+#endif
+
+#if defined(VOICE_CONTROL_SENSOR)
+#if defined(RADIO_V16)
+  #define VOICE_CTRL_BAUD               115200
+  #define VOICE_CONTROL_USART           UART7
+  #define VOICE_CONTROL_USART_IRQn      UART7_IRQn
+  #define VOICE_CONTROL_GPIO            GPIOF
+  #define VOICE_CONTROL_TX_GPIO         GPIO_PIN(GPIOF, 7) // PF.7
+  #define VOICE_CONTROL_RX_GPIO         GPIO_PIN(GPIOF, 6)  // PF.6
+  #define VOICE_CONTROL_PWR_GPIO        GPIO_PIN(GPIOH, 13) // PH.13  1=ON, 0=OFF
+#else
+  #error VOICE_CONTROL_SENSOR is only supported on RADIO_V16
+#endif
 #endif
 
 // Internal Module

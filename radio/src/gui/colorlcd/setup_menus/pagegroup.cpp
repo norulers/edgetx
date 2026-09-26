@@ -179,6 +179,12 @@ PageGroupHeaderBase::PageGroupHeaderBase(Window* parent, coord_t height, EdgeTxI
 
     selectedIcon = new SelectedTabIcon(carousel);
 #endif
+
+  onClosing([=]() {
+    for (uint8_t i = 0; i < pages.size(); i += 1)
+      delete pages[i];
+    pages.clear();
+  });
 }
 
 #if VERSION_MAJOR == 2
@@ -256,17 +262,6 @@ bool PageGroupHeaderBase::hasSubMenu(QMPage qmPage)
       return true;
   }
   return false;
-}
-
-void PageGroupHeaderBase::deleteLater()
-{
-  if (deleted()) return;
-
-  for (uint8_t i = 0; i < pages.size(); i += 1)
-    delete pages[i];
-  pages.clear();
-
-  Window::deleteLater();
 }
 
 #if VERSION_MAJOR == 2
@@ -359,9 +354,7 @@ void PageGroupBase::onClicked() { Keyboard::hide(false); }
 
 void PageGroupBase::onCancel()
 {
-  if (!_deleted) {
-    deleteLater();
-  }
+  closeWindow();
 }
 
 uint8_t PageGroupBase::tabCount() const
@@ -385,7 +378,7 @@ void PageGroupBase::setCurrentTab(unsigned index)
 
   PageGroupItem* tab = header->pageTab(index);
 
-  if (tab != currentTab && !deleted()) {
+  if (tab != currentTab) {
     header->setTitle(tab->getTitle().c_str());
 #if VERSION_MAJOR > 2
     header->setIcon(tab->getIcon());
@@ -433,7 +426,7 @@ void PageGroupBase::doKeyShortcut(event_t event)
   if (event == EVT_KEY_LONG(KEY_TELE)) {
     onCancel();
     auto w = Window::topWindow();
-    while (w && w != ViewMain::instance()) { w->deleteLater(); w = Window::topWindow(); }
+    while (w && w != ViewMain::instance()) { w->closeWindow(); w = Window::topWindow(); }
     new TelemetryDashViewMenu();
     return;
   }
@@ -499,7 +492,7 @@ PageGroup::PageGroup(EdgeTxIcon icon, const char* title, const PageDef* pages) :
 #endif
 #endif
 
-  setCloseHandler([]{
+  onClosing([=]{
     storageCheck(true);
     ViewMain::instance()->updateTopbarVisibility();
   });

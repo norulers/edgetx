@@ -143,7 +143,7 @@ void ModelWizard::onCancel()
       // Rebuild screens even when wizard is cancelled early —
       // createModel() deleted them and nothing else recreates them.
       rebuildMainView();
-      deleteLater();
+      closeWindow();
     });
 }
 
@@ -273,7 +273,7 @@ void ModelWizard::createNavigationButtons()
                                 applyModelConfig();
                               nextPage();
                             } else {
-                              deleteLater();
+                              closeWindow();
                             }
                             return 0;
                           });
@@ -364,7 +364,7 @@ static constexpr coord_t POPUP_MAX_H = LCD_H * 80 / 100;
 
 struct PopupWindow : ModalWindow {
   using ModalWindow::ModalWindow;
-  void onCancel() override { deleteLater(); }
+  void onCancel() override { closeWindow(); }
 };
 
 static PopupWindow* createPopup(bool closeOnClickOutside)
@@ -389,7 +389,7 @@ static std::pair<Window*, Window*> createPopupForm(PopupWindow* dlg,
 
   lv_obj_add_event_cb(form->getLvObj(), [](lv_event_t* e) {
     auto* d = (PopupWindow*)lv_event_get_user_data(e);
-    d->deleteLater();
+    d->closeWindow();
   }, LV_EVENT_CANCEL, dlg);
 
   auto hdr = new StaticText(form, {0, 0, LV_PCT(100), 0}, title, COLOR_THEME_QM_FG_INDEX);
@@ -432,7 +432,7 @@ static void openSwitchPopup(std::function<void(int)> onSelect)
         {0, 0, LV_PCT(100), EdgeTxStyles::UI_ELEMENT_HEIGHT + PAD_SMALL},
         items[i], [=]() -> uint8_t {
           int sel = srcs[i];
-          dlg->deleteLater();
+          dlg->closeWindow();
           // Defer onSelect so buildPage() doesn't run inside button handler
           lv_timer_create([](lv_timer_t* t) {
             auto* fn = (std::function<void()>*)t->user_data;
@@ -1126,7 +1126,7 @@ void ModelWizard::showImage(const char* filename)
   auto img = new StaticImage(imageArea, {0, 0, IMG_W, IMG_H}, path);
 
   if (!img->hasImage()) {
-    img->deleteLater();
+    img->closeWindow();
     auto placeholder = lv_label_create(imageArea->getLvObj());
     lv_label_set_text(placeholder, STR_WIZARD_NO_IMAGE);
     lv_obj_set_style_text_color(placeholder, lv_color_make(0x66, 0x66, 0x66), LV_PART_MAIN);

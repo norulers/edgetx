@@ -242,5 +242,5 @@ void Choice::openMenu()
 
   fillMenu(menu);
 
-  menu->setCloseHandler([=]() { setEditMode(false); });
+  menu->onClosing([=]() { setEditMode(false); });
 }

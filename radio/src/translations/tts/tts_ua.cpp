@@ -76,13 +76,20 @@ I18N_PLAY_FUNCTION(ua, playNumber, getvalue_t number, uint8_t unit, uint8_t att)
 
   div_t qr = div((int)number, 10);
   int8_t mode = MODE(att);
+  uint8_t rem2 = 0;
   if (mode > 0 && att != UA_FEMALE_UNIT) {
     if (mode == 2) {
-      number /= 10;
+      div_t qr2 = div((int)number, 10);
+      number = qr2.quot;
+      rem2 = qr2.rem;
     }
-    if (qr.rem) {
+    qr = div((int)number, 10);
+    if (qr.rem || (mode == 2 && rem2)) {
       PLAY_NUMBER(qr.quot, 0, 0);
       PUSH_NUMBER_PROMPT(UA_PROMPT_POINT_BASE + qr.rem);
+      if (mode == 2 && rem2) {
+        PLAY_NUMBER(rem2, 0, 0);
+      }
       number = -1;
     }
     else {
@@ -143,7 +150,7 @@ I18N_PLAY_FUNCTION(ua, playNumber, getvalue_t number, uint8_t unit, uint8_t att)
   }
 
   if (unit) {
-    if (mode > 0 && qr.rem) // number with decimal point
+    if (mode > 0 && (qr.rem || rem2)) // number with decimal point
       UA_PUSH_UNIT_PROMPT(unit, -1); // force 2 units form, if float value
     else
       UA_PUSH_UNIT_PROMPT(unit, tmp);
@@ -162,15 +169,15 @@ I18N_PLAY_FUNCTION(ua, playDuration, int seconds PLAY_DURATION_ATT)
     seconds = -seconds;
   }
 
+  if (IS_PLAY_LONG_TIMER()) {
+    seconds += 30;
+  }
+
   int hours, minutes;
   hours = seconds / 3600;
   seconds = seconds % 3600;
   minutes = seconds / 60;
   seconds = seconds % 60;
-
-  if (IS_PLAY_LONG_TIMER() && seconds >= 30) {
-    minutes += 1;
-  }
 
   if (hours > 0 || IS_PLAY_TIME()) {
     PLAY_NUMBER(hours, UNIT_HOURS, 0);

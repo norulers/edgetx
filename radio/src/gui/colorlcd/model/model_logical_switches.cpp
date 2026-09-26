@@ -634,7 +634,7 @@ void ModelLogicalSwitchesPage::newLS(Window* window, bool pasteLS)
           rebuild(window);
         } else {
           Window* lsWindow = new LogicalSwitchEditPage(i);
-          lsWindow->setCloseHandler([=]() {
+          lsWindow->onClosing([=]() {
             if (ls->func != LS_FUNC_NONE) {
               focusIndex = i;
               rebuild(window);
@@ -684,7 +684,7 @@ void ModelLogicalSwitchesPage::build(Window* window)
         Menu* menu = new Menu();
         menu->addLine(STR_EDIT, [=]() {
           Window* lsWindow = new LogicalSwitchEditPage(i);
-          lsWindow->setCloseHandler([=]() {
+          lsWindow->onClosing([=]() {
             if (ls->func == LS_FUNC_NONE)
               rebuild(window);
             else

@@ -625,7 +625,7 @@ The list of valid sources is available:
  * `id`   (number) field identifier
  * `name` (string) field name
  * `desc` (string) field description
- * `unit` (number) unit identifier [Full list](../appendix/units.html)
+ * `unit` (number) unit identifier, see the Units reference for the full list
 
 @retval nil the requested field was not found
 
@@ -1206,13 +1206,19 @@ static int luaCrossfireTelemetryPush(lua_State* L)
 
   if (lua_gettop(L) == 0) {
     lua_pushboolean(L, outputTelemetryBuffer.isAvailable());
-  } else if (lua_gettop(L) > TELEMETRY_OUTPUT_BUFFER_SIZE) {
-    lua_pushboolean(L, false);
-    return 1;
   } else if (outputTelemetryBuffer.isAvailable()) {
     uint8_t command = luaL_checkinteger(L, 1);
     luaL_checktype(L, 2, LUA_TTABLE);
-    uint8_t length = luaL_len(L, 2);
+    lua_Integer payloadLen = luaL_len(L, 2);
+
+    // ADDRESS + LENGTH + COMMAND + payload + CRC (2 bytes for COMMAND_ID)
+    lua_Integer frameLen = 3 + payloadLen + (command == COMMAND_ID ? 2 : 1);
+    if (payloadLen < 0 || frameLen > TELEMETRY_OUTPUT_BUFFER_SIZE) {
+      lua_pushboolean(L, false);
+      return 1;
+    }
+
+    uint8_t length = (uint8_t)payloadLen;
 
     outputTelemetryBuffer.pushByte(MODULE_ADDRESS);
 
@@ -1232,6 +1238,7 @@ static int luaCrossfireTelemetryPush(lua_State* L)
     for (int i = 0; i < length; i++) {
       lua_rawgeti(L, 2, i + 1);
       outputTelemetryBuffer.pushByte(luaL_checkinteger(L, -1));
+      lua_pop(L, 1);
     }
 
     // CRC
@@ -1324,19 +1331,17 @@ static int luaGhostTelemetryPush(lua_State * L)
   if (lua_gettop(L) == 0) {
     lua_pushboolean(L, outputTelemetryBuffer.isAvailable());
   }
-  else if (lua_gettop(L) > TELEMETRY_OUTPUT_BUFFER_SIZE ) {
-    lua_pushboolean(L, false);
-    return 1;
-  }
   else if (outputTelemetryBuffer.isAvailable()) {
     uint8_t type = luaL_checkinteger(L, 1);
     luaL_checktype(L, 2, LUA_TTABLE);
-    uint8_t length = luaL_len(L, 2);              // payload length
+    lua_Integer payloadLen = luaL_len(L, 2);      // payload length
 
-    if( length > 10 ) {                           // max 10B payload
+    if (payloadLen < 0 || payloadLen > 10) {      // max 10B payload
       lua_pushboolean(L, false);
       return 1;
     }
+
+    uint8_t length = (uint8_t)payloadLen;
 
     // Ghost frames are fixed 14B:
     // address(1B) + len (1B) + type(1B) + payload(10B) + crc(1B)
@@ -1346,6 +1351,7 @@ static int luaGhostTelemetryPush(lua_State * L)
     for (; i < length; i++) {                     // data, max 10B
       lua_rawgeti(L, 2, i + 1);
       outputTelemetryBuffer.pushByte(luaL_checkinteger(L, -1));
+      lua_pop(L, 1);
     }
     for (; i < 10; i++) {                         // fill zeroes to frame size
       outputTelemetryBuffer.pushByte(0);
@@ -1505,7 +1511,7 @@ Play a numerical value (text to speech)
 
 @param value (number) number to play. Value is interpreted as integer.
 
-@param unit (number) unit identifier [Full list]((../appendix/units.html))
+@param unit (number) unit identifier, see the Units reference for the full list
 
 @param attributes (unsigned number) possible values:
  * `0 or not present` plays integral part of the number (for a number 123 it plays 123)
@@ -1634,21 +1640,17 @@ static int luaPlayTone(lua_State * L)
 }
 
 /*luadoc
-@name screenshot
+@function screenshot()
 
-@description Takes a screenshot, which is saved to the SCREENSHOTS folder on the radio SD card.
+Takes a screenshot, which is saved to the SCREENSHOTS folder on the radio SD card.
 
-@syntax screenshot()
+@retval none
 
-@return none
-
-@notes This command is currently not rate limited, so repeated frequent calls will slow down the UI and can even freeze the entire radio, so should be used with care. 
-
-@target [BW]
-@target [GS]
-@target [COLOR]
+@notice This command is currently not rate limited, so repeated frequent calls will slow down the UI and can even freeze the entire radio, so should be used with care.
 
 @status current Introduced in 2.11
+
+// targets: BW, GS, COLOR
 */
 static int luaScreenshot(lua_State * L)
 {
@@ -1658,7 +1660,7 @@ static int luaScreenshot(lua_State * L)
 }
 
 /*luadoc
-@function playHaptic(duration, pause [, flags])
+@function playHaptic(duration, pause [, flags [, intensity]])
 
 Generate haptic feedback
 
@@ -1670,7 +1672,11 @@ Generate haptic feedback
  * `0 or not present` play with normal priority
  * `PLAY_NOW` play immediately
 
-@status current Introduced in 2.2.0
+@param intensity (number) [optional] haptic motor strength, 0-100 (only
+effective on boards with PWM-driven haptic support); defaults to the user's
+configured haptic strength setting
+
+@status current Introduced in 2.2.0, intensity added in 3.0
 */
 static int luaPlayHaptic(lua_State * L)
 {
@@ -1678,7 +1684,12 @@ static int luaPlayHaptic(lua_State * L)
   int length = luaL_checkinteger(L, 1);
   int pause = luaL_checkinteger(L, 2);
   int flags = luaL_optinteger(L, 3, 0);
-  haptic.play(length, pause, flags);
+  int intensity = luaL_optinteger(L, 4, userHapticStrength);
+  if (intensity != userHapticStrength) {
+    if (intensity < 0) intensity = 0;
+    else if (intensity > 100) intensity = 100;
+  }
+  haptic.play(length, pause, flags, intensity);
 #else
   UNUSED(L);
 #endif
@@ -1996,7 +2007,7 @@ static int luaDefaultStick(lua_State * L)
 
 @param value fed to the sensor
 
-@param unit unit of the sensor [Full list](../../appendix/units.html)
+@param unit unit of the sensor, see the Units reference for the full list
 
 @param precision the precision of the sensor
  * `0 or not present` no decimal precision.

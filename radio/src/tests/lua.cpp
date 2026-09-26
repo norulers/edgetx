@@ -198,6 +198,46 @@ TEST(Lua, Switches)
 #endif
 }
 
+TEST(Lua, testFloatIntegerEquality)
+{
+  // 0.5 is not an integer, so it must not equal 0 (regression #7587)
+  // both directions asserted explicitly so the intent is obvious at a glance
+  luaExecStr("if 0.5 == 0 then error('0.5 == 0') end");
+  luaExecStr("if not (0.5 ~= 0) then error('0.5 ~= 0') end");
+  luaExecStr("if 0.50 == 0 then error('0.50 == 0') end");
+  luaExecStr("if not (0.50 ~= 0) then error('0.50 ~= 0') end");
+  luaExecStr("if 0.50 == 0.0 then error('0.50 == 0.0') end");
+  // ... even when the value comes from a variable, as in the reported issue
+  luaExecStr("local v = 0.50; if v == 0 then error('v == 0') end");
+  luaExecStr("local v = 0.50; if not (v ~= 0) then error('v ~= 0') end");
+  // negative non-integral floats must not equal integers either
+  luaExecStr("if -0.5 == 0 then error('-0.5 == 0') end");
+  luaExecStr("if not (-0.5 ~= 0) then error('-0.5 ~= 0') end");
+  luaExecStr("if not (-0.5 < 0) then error('-0.5 < 0') end");
+  luaExecStr("if -0.5 > 0 then error('-0.5 > 0') end");
+  // integral floats still compare equal to their integer counterpart
+  luaExecStr("if 1.0 ~= 1 then error('1.0 ~= 1') end");
+  luaExecStr("if 0.0 ~= 0 then error('0.0 ~= 0') end");
+  luaExecStr("if -1.0 ~= -1 then error('-1.0 ~= -1') end");
+  // order comparisons on the same values must remain consistent
+  luaExecStr("if not (0.5 >= 0) then error('0.5 >= 0') end");
+  luaExecStr("if 0.5 <= 0 then error('0.5 <= 0') end");
+  luaExecStr("if not (0.5 > 0) then error('0.5 > 0') end");
+  luaExecStr("if 0.5 < 0 then error('0.5 < 0') end");
+  luaExecStr("if not (0.50 >= 0) then error('0.50 >= 0') end");
+  luaExecStr("if 0.50 <= 0 then error('0.50 <= 0') end");
+  luaExecStr("if not (1.0 >= 1) then error('1.0 >= 1') end");
+  luaExecStr("if not (1.0 <= 1) then error('1.0 <= 1') end");
+  luaExecStr("if not (0.0 >= 0) then error('0.0 >= 0') end");
+  luaExecStr("if not (0.0 <= 0) then error('0.0 <= 0') end");
+  // mixed arithmetic must still yield floats; the fix only affects equality
+  luaExecStr("if math.type(0.5 + 0) ~= 'float' then error('0.5 + 0') end");
+  luaExecStr("if math.type(1.0 + 1) ~= 'float' then error('1.0 + 1') end");
+  luaExecStr("if math.type(1 / 2) ~= 'float' then error('1 / 2') end");
+  luaExecStr("if math.type(7.5 % 2) ~= 'float' then error('7.5 % 2') end");
+  luaExecStr("if math.type(0.5 * 2) ~= 'float' then error('0.5 * 2') end");
+}
+
 TEST(Lua, testLegacyNames)
 {
   MODEL_RESET();
@@ -241,6 +281,63 @@ TEST(Lua, ioSeek)
 
   luaExecStr(io_seek_tst);
   std::filesystem::remove(simuFatfsGetRealPath("seek-test.txt"));
+}
+
+// Adapted from the sample script in PR #7562 (minus the LVGL UI part):
+// populates the same app/key/value set and exercises the full Lua API
+// through the real binding layer, not just the underlying C++ store.
+TEST(Lua, testUserData)
+{
+  MODEL_RESET();
+
+  const char userdata_tst[] =
+      "model.setUserData('App', 'K1', 'String')\n"
+      "model.setUserData('App', 'K2', 12345)\n"
+      "model.setUserData('App', 'K3', 12.345)\n"
+
+      "assert(model.getUserData('App', 'K1') == 'String')\n"
+      "assert(model.getUserData('App', 'K2') == 12345)\n"
+      "assert(math.abs(model.getUserData('App', 'K3') - 12.345) < 0.001)\n"
+      "assert(model.getUserData('Other', 'K1') == nil)\n"
+
+      "local ud = model.getAllUserData('App')\n"
+      "local n = 0\n"
+      "for k in pairs(ud) do n = n + 1 end\n"
+      "assert(n == 3)\n"
+      "assert(ud.K1 == 'String')\n"
+
+      "local all = model.getAllUserData()\n"
+      "assert(all['App|K1'] == 'String')\n"
+
+      "model.deleteUserData('App', 'K1')\n"
+      "assert(model.getUserData('App', 'K1') == nil)\n"
+      "assert(model.getUserData('App', 'K2') == 12345)\n";
+
+  luaExecStr(userdata_tst);
+}
+
+// string.char() builds the value at runtime, sidestepping the fact that
+// luaL_loadstring() (used to load this test's own Lua source) is itself
+// strlen()-based and couldn't carry a literal embedded NUL through.
+TEST(Lua, testUserDataEmbeddedNul)
+{
+  MODEL_RESET();
+
+  const char userdata_nul_tst[] =
+      "local v = string.char(65, 0, 66)\n"
+      "assert(#v == 3)\n"
+      "model.setUserData('App', 'NulKey', v)\n"
+
+      "local got = model.getUserData('App', 'NulKey')\n"
+      "assert(#got == 3)\n"
+      "assert(got == v)\n"
+      "assert(string.byte(got, 2) == 0)\n"
+
+      "local all = model.getAllUserData('App')\n"
+      "assert(#all.NulKey == 3)\n"
+      "assert(all.NulKey == v)\n";
+
+  luaExecStr(userdata_nul_tst);
 }
 
 #endif   // #if defined(LUA)

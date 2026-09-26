@@ -149,7 +149,7 @@ HWPots::HWPots(Window* parent) :
 
   potsChanged = false;
 
-  setCloseHandler([=]() {
+  onClosing([=]() {
     if (potsChanged)
       LayoutFactory::loadCustomScreens();
   });
@@ -354,7 +354,7 @@ HWInputDialog<T>::HWInputDialog(const char* title, coord_t w) :
   lv_obj_add_flag(rightBg->getLvObj(), LV_OBJ_FLAG_CLICKABLE);
   lv_obj_add_event_cb(rightBg->getLvObj(), [](lv_event_t* e) {
     auto dlg = static_cast<HWInputDialog*>(lv_event_get_user_data(e));
-    if (dlg) dlg->deleteLater();
+    if (dlg) dlg->closeWindow();
   }, LV_EVENT_CLICKED, this);
 
   new T(form);
