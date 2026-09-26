@@ -1128,8 +1128,10 @@ const static PageButtonDef radioSetupButtons[] = {
         }
         modelCellManager.save();
         storageCheck(true);
-        // Reboot to fully reset all UI state
+        // Reboot to fully reset all UI state (not available in the simulator)
+#if !defined(SIMU)
         NVIC_SystemReset();
+#endif
       });
     });
   }},
