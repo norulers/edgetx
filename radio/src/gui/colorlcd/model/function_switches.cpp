@@ -28,6 +28,7 @@
 #include "edgetx.h"
 #include "getset_helpers.h"
 #include "hal/rgbleds.h"
+#include "pagegroup.h"
 #include "strhelpers.h"
 #include "switches.h"
 #include "textedit.h"
@@ -47,21 +48,24 @@ FunctionSwitchBase::FunctionSwitchBase(Window* parent, uint8_t sw) :
       Window(parent, {0, 0, LCD_W - PAD_SMALL * 2, ROW_H}),
       switchIndex(sw)
 {
+  stylePageGroupControl(lvobj);
   padAll(PAD_TINY);
 
   std::string s(CHAR_SWITCH);
   s += switchGetDefaultName(switchIndex);
 
-  new StaticText(this, {PAD_LARGE, PAD_MEDIUM, SW_W, EdgeTxStyles::STD_FONT_HEIGHT}, s);
+  // Use full NM_X width (text starts at x=0); ModelTextEdit starts at NM_X so no overlap
+  new StaticText(this, {0, PAD_MEDIUM, NM_X, EdgeTxStyles::STD_FONT_HEIGHT}, s,
+                 COLOR_THEME_QM_FG_INDEX);
 
 #if defined(FUNCTION_SWITCHES_RGB_LEDS)
 #if NARROW_LAYOUT
-  offLabel = new StaticText(this, {C1_X - C1_W - PAD_TINY, C1_Y + COLLBL_YO, C1_W, 0}, STR_OFF, COLOR_THEME_PRIMARY1_INDEX, FONT(XS) | RIGHT);
-  onLabel = new StaticText(this, {C2_X - C2_W - PAD_TINY, C2_Y + COLLBL_YO, C2_W, 0}, STR_ON_ONE_SWITCHES[0], COLOR_THEME_PRIMARY1_INDEX, FONT(XS) | RIGHT);
+  offLabel = new StaticText(this, {C1_X - C1_W - PAD_TINY, C1_Y + COLLBL_YO, C1_W, 0}, STR_OFF, COLOR_THEME_QM_FG_INDEX, FONT(XS) | RIGHT);
+  onLabel = new StaticText(this, {C2_X - C2_W - PAD_TINY, C2_Y + COLLBL_YO, C2_W, 0}, STR_ON_ONE_SWITCHES[0], COLOR_THEME_QM_FG_INDEX, FONT(XS) | RIGHT);
 #endif
 
   overrideLabel = new StaticText(this, {OVRLBL_X, C1_Y + EdgeTxStyles::UI_ELEMENT_HEIGHT + PAD_LARGE, OVRLBL_W, 0},
-                                 STR_LUA_OVERRIDE, COLOR_THEME_PRIMARY1_INDEX, FONT(XS) | RIGHT);
+                                 STR_LUA_OVERRIDE, COLOR_THEME_QM_FG_INDEX, FONT(XS) | RIGHT);
 #endif
 }
 
@@ -309,7 +313,7 @@ class SwitchGroup : public Window
 
 //-----------------------------------------------------------------------------
 
-FunctionSwitchesBase::FunctionSwitchesBase(EdgeTxIcon icon, const char* title) : Page(icon)
+FunctionSwitchesBase::FunctionSwitchesBase(EdgeTxIcon icon, const char* title, bool showGroup) : Page(icon)
 {
   header->setTitle(title);
   header->setTitle2(STR_FUNCTION_SWITCHES);
@@ -326,17 +330,22 @@ FunctionSwitchesBase::FunctionSwitchesBase(EdgeTxIcon icon, const char* title) :
 #endif
 
   auto box = new Window(body, {0, 0, LV_PCT(100), LV_SIZE_CONTENT});
-  new StaticText(box, {0, 0, FunctionSwitch::SW_W, 0}, STR_SWITCHES);
-  new StaticText(box, {FunctionSwitch::NM_X + PAD_OUTLINE, 0, FunctionSwitch::NM_W, 0}, STR_NAME, COLOR_THEME_PRIMARY1_INDEX, FONT(XS));
-  new StaticText(box, {FunctionSwitch::TP_X + PAD_OUTLINE, 0, FunctionSwitch::TP_W, 0}, STR_SWITCH_TYPE,
-                 COLOR_THEME_PRIMARY1_INDEX, FONT(XS));
-  if (icon == ICON_MODEL_SETUP)
-    new StaticText(box, {FunctionSwitch::GR_X + PAD_OUTLINE, 0, FunctionSwitch::GR_W, 0}, STR_GROUP, COLOR_THEME_PRIMARY1_INDEX, FONT(XS));
-  startupHeader = new StaticText(box, {FunctionSwitch::ST_X + PAD_OUTLINE, 0, FunctionSwitch::ST_W, 0}, STR_SWITCH_STARTUP,
-                 COLOR_THEME_PRIMARY1_INDEX, FONT(XS));
+  stylePageGroupControl(box->getLvObj());
+  new StaticText(box, {0, 0, FunctionSwitch::SW_W, 0}, STR_SWITCHES,
+                 COLOR_THEME_QM_FG_INDEX);
+  new StaticText(box, {FunctionSwitch::NM_X + PAD_OUTLINE, 0, FunctionSwitch::NM_W, 0}, STR_NAME, COLOR_THEME_QM_FG_INDEX, FONT(XS));
+  {
+    const coord_t tp_w_hdr = showGroup ? (coord_t)FunctionSwitchBase::TP_W : (coord_t)(FunctionSwitchBase::TP_W + FunctionSwitchBase::GR_W + PAD_SMALL);
+    new StaticText(box, {FunctionSwitchBase::TP_X + PAD_OUTLINE, 0, tp_w_hdr, 0}, STR_SWITCH_TYPE,
+                   COLOR_THEME_QM_FG_INDEX, FONT(XS));
+  }
+  if (showGroup)
+    groupHeader = new StaticText(box, {FunctionSwitchBase::GR_X + PAD_OUTLINE, 0, FunctionSwitchBase::GR_W, 0}, STR_GROUP, COLOR_THEME_QM_FG_INDEX, FONT(XS));
+  startupHeader = new StaticText(box, {FunctionSwitchBase::ST_X + PAD_OUTLINE, 0, FunctionSwitchBase::ST_W, 0}, STR_SWITCH_STARTUP,
+                 COLOR_THEME_QM_FG_INDEX, FONT(XS));
 #if defined(FUNCTION_SWITCHES_RGB_LEDS) && !NARROW_LAYOUT
-  new StaticText(box, {FunctionSwitch::C1_X + PAD_OUTLINE, 0, FunctionSwitch::C1_W, 0}, STR_OFF, COLOR_THEME_PRIMARY1_INDEX, FONT(XS));
-  new StaticText(box, {FunctionSwitch::C2_X + PAD_OUTLINE, 0, FunctionSwitch::C2_W, 0}, STR_ON_ONE_SWITCHES[0], COLOR_THEME_PRIMARY1_INDEX, FONT(XS));
+  new StaticText(box, {FunctionSwitchBase::C1_X + PAD_OUTLINE, 0, FunctionSwitchBase::C1_W, 0}, STR_OFF, COLOR_THEME_QM_FG_INDEX, FONT(XS));
+  new StaticText(box, {FunctionSwitchBase::C2_X + PAD_OUTLINE, 0, FunctionSwitchBase::C2_W, 0}, STR_ON_ONE_SWITCHES[0], COLOR_THEME_QM_FG_INDEX, FONT(XS));
 #endif
 }
 
@@ -345,7 +354,9 @@ void FunctionSwitchesBase::addQRCode()
 #if defined(HARDWARE_TOUCH)
   body->padBottom(PAD_LARGE);
 
-  auto box = new Window(body, {0, 0, LV_PCT(100), LV_SIZE_CONTENT});
+  // lv_qrcode_create is a raw LVGL object and does not contribute to LV_SIZE_CONTENT;
+  // use an explicit height so the 150px QR code is not clipped by the box.
+  auto box = new Window(body, {0, 0, LV_PCT(100), EdgeTxStyles::STD_FONT_HEIGHT + 150 + PAD_SMALL});
 
   new StaticText(box, rect_t{}, STR_MORE_INFO);
 

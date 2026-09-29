@@ -22,6 +22,7 @@
 #include "serial.h"
 #include "board.h"
 #include "debug.h"
+#include "app_config.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -279,6 +280,10 @@ static void serialSetCallBacks(int mode, void* ctx, const etx_serial_port_t* por
     break;
 #endif
 
+  case UART_MODE_APP_CONFIG:
+    appConfigSetSerialDriver(ctx, drv);
+    break;
+
 #endif
   }
 }
@@ -353,6 +358,11 @@ static void serialSetupPort(int mode, etx_serial_init& params)
     params.direction = ETX_Dir_TX_RX;
     break;
 #endif
+
+  case UART_MODE_APP_CONFIG:
+    params.baudrate = APP_CONFIG_BAUDRATE;
+    params.direction = ETX_Dir_TX_RX;
+    break;
 
 #endif // BOOT
   }

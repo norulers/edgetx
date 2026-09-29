@@ -55,6 +55,13 @@ class Page : public NavWindow
 
   void enableRefresh();
 
+  // Recursively darken the body (3 levels) to match the Dark FPV theme
+  void setDarkBody();
+
+  // Replace the default header icons with dark bg + orange icon chips
+  // (matches Flight Modes / model edit pages pattern)
+  void setDarkHeader(EdgeTxIcon icon);
+
  protected:
   PageHeader* header = nullptr;
   Window* body = nullptr;

@@ -24,6 +24,7 @@
 #include "choice.h"
 #include "edgetx.h"
 #include "getset_helpers.h"
+#include "pagegroup.h"
 #include "static.h"
 
 #if defined(CROSSFIRE)
@@ -35,36 +36,41 @@
 InternalModuleWindow::InternalModuleWindow(Window *parent, FlexGridLayout& grid)
 {
   auto line = parent->newLine(grid);
+  stylePageGroupControl(line->getLvObj());
   line->padLeft(PAD_SMALL);
-  new StaticText(line, rect_t{}, STR_TYPE);
+  new StaticText(line, rect_t{}, STR_TYPE, COLOR_THEME_QM_FG_INDEX);
   auto internalModule =
       new Choice(line, rect_t{}, STR_MODULE_PROTOCOLS, MODULE_TYPE_NONE,
                  MODULE_TYPE_COUNT - 1, GET_DEFAULT(g_eeGeneral.internalModule),
                  [=](int type) { return setModuleType(type); });
+  stylePageGroupControl(internalModule->getLvObj());
 
   internalModule->setAvailableHandler(
       [](int module) { return isInternalModuleSupported(module); });
 
 #if defined(EXTERNAL_ANTENNA)
   ant_box = parent->newLine(grid);
+  stylePageGroupControl(ant_box->getLvObj());
   ant_box->padLeft(PAD_SMALL);
-  new StaticText(ant_box, rect_t{}, STR_ANTENNA);
-  new Choice(
+  new StaticText(ant_box, rect_t{}, STR_ANTENNA, COLOR_THEME_QM_FG_INDEX);
+  auto antennaMode = new Choice(
       ant_box, rect_t{}, STR_ANTENNA_MODES, ANTENNA_MODE_INTERNAL,
       ANTENNA_MODE_EXTERNAL, GET_DEFAULT(g_eeGeneral.antennaMode),
       [](int antenna) {
         setAntennaModeWithConfirm(antenna, EE_GENERAL,
             [](int8_t mode) { g_eeGeneral.antennaMode = mode; });
       });
+  stylePageGroupControl(antennaMode->getLvObj());
 
   updateAntennaLine();
 #endif
 
 #if defined(CROSSFIRE)
   br_box = parent->newLine(grid);
+  stylePageGroupControl(br_box->getLvObj());
   br_box->padLeft(PAD_SMALL);
-  new StaticText(br_box, rect_t{}, STR_BAUDRATE);
-  new Choice(
+  new StaticText(br_box, rect_t{}, STR_BAUDRATE, COLOR_THEME_QM_FG_INDEX);
+  auto baudrate = new Choice(
       br_box, rect_t{}, STR_CRSF_BAUDRATE, 0, CROSSFIRE_MAX_INTERNAL_BAUDRATE,
       [=]() {
         return CROSSFIRE_STORE_TO_INDEX(g_eeGeneral.internalModuleBaudrate);
@@ -74,6 +80,7 @@ InternalModuleWindow::InternalModuleWindow(Window *parent, FlexGridLayout& grid)
         restartModule(INTERNAL_MODULE);
         SET_DIRTY();
       });
+  stylePageGroupControl(baudrate->getLvObj());
 
   updateBaudrateLine();
 #endif

@@ -26,6 +26,7 @@
 #include "edgetx.h"
 #include "etx_lv_theme.h"
 #include "getset_helpers.h"
+#include "gvars.h"
 #include "list_line_button.h"
 #include "menu.h"
 #include "messaging.h"
@@ -36,6 +37,22 @@
 
 #define ETX_STATE_MINMAX_BOLD LV_STATE_USER_1
 #define ETX_STATE_NAME_FONT_SMALL LV_STATE_USER_1
+
+// Show Min/Max as whole numbers (rounded) to save horizontal space in the list;
+// GVar-linked values keep showing the GVar name unchanged.
+static void getMinMaxString(char* dest, size_t len, gvar_t value, gvar_t offset)
+{
+  if (GV_IS_GV_VALUE(value)) {
+    int index = GV_INDEX_FROM_VALUE(value);
+    getGVarString(dest, index);
+    return;
+  }
+  value += offset;
+  if (g_eeGeneral.ppmunit == PPM_US)
+    value = value * 128 / 25;
+  int32_t rounded = (value >= 0) ? (value + 5) / 10 : -((-value + 5) / 10);
+  formatNumberAsString(dest, len, rounded);
+}
 
 class OutputLineButton : public ListLineButton
 {
@@ -54,6 +71,7 @@ class OutputLineButton : public ListLineButton
     source = etx_label_create(lvobj);
     lv_obj_set_pos(source, SRC_X, SRC_Y);
     lv_obj_set_size(source, SRC_W, SRC_H);
+    lv_label_set_long_mode(source, LV_LABEL_LONG_CLIP);
 
 #if !NARROW_LAYOUT
     etx_font(source, FONT_XS_INDEX, ETX_STATE_NAME_FONT_SMALL);
@@ -66,22 +84,26 @@ class OutputLineButton : public ListLineButton
     etx_font(min, FONT_BOLD_INDEX, ETX_STATE_MINMAX_BOLD);
     lv_obj_set_pos(min, MIN_X, MIN_Y);
     lv_obj_set_size(min, MIN_W, EdgeTxStyles::STD_FONT_HEIGHT);
+    lv_label_set_long_mode(min, LV_LABEL_LONG_CLIP);
 
     max = etx_label_create(lvobj);
     etx_obj_add_style(max, styles->text_align_right, LV_PART_MAIN);
     etx_font(max, FONT_BOLD_INDEX, ETX_STATE_MINMAX_BOLD);
     lv_obj_set_pos(max, MAX_X, MAX_Y);
     lv_obj_set_size(max, MAX_W, EdgeTxStyles::STD_FONT_HEIGHT);
+    lv_label_set_long_mode(max, LV_LABEL_LONG_CLIP);
 
     offset = etx_label_create(lvobj);
     etx_obj_add_style(offset, styles->text_align_right, LV_PART_MAIN);
     lv_obj_set_pos(offset, OFF_X, OFF_Y);
     lv_obj_set_size(offset, OFF_W, EdgeTxStyles::STD_FONT_HEIGHT);
+    lv_label_set_long_mode(offset, LV_LABEL_LONG_CLIP);
 
     center = etx_label_create(lvobj);
     etx_obj_add_style(center, styles->text_align_right, LV_PART_MAIN);
     lv_obj_set_pos(center, CTR_X, CTR_Y);
     lv_obj_set_size(center, CTR_W, EdgeTxStyles::STD_FONT_HEIGHT);
+    lv_label_set_long_mode(center, LV_LABEL_LONG_CLIP);
 
     revert = lv_img_create(lvobj);
     lv_img_set_src(revert, LV_SYMBOL_SHUFFLE);
@@ -107,6 +129,7 @@ class OutputLineButton : public ListLineButton
   OutputLineButton(Window* parent, uint8_t channel) :
       ListLineButton(parent, channel)
   {
+    stylePageGroupControl(lvobj);
     setHeight(CH_LINE_H);
     padAll(PAD_ZERO);
 
@@ -143,12 +166,10 @@ class OutputLineButton : public ListLineButton
     }
 
     char s[32];
-    getValueOrGVarString(s, sizeof(s), output->min, PREC1,
-                         nullptr, -LIMITS_MIN_MAX_OFFSET, true);
+    getMinMaxString(s, sizeof(s), output->min, -LIMITS_MIN_MAX_OFFSET);
     lv_label_set_text(min, s);
 
-    getValueOrGVarString(s, sizeof(s), output->max, PREC1,
-                         nullptr, +LIMITS_MIN_MAX_OFFSET, true);
+    getMinMaxString(s, sizeof(s), output->max, +LIMITS_MIN_MAX_OFFSET);
     lv_label_set_text(max, s);
 
     getValueOrGVarString(s, sizeof(s), output->offset, PREC1, nullptr, 0, true);
@@ -161,32 +182,40 @@ class OutputLineButton : public ListLineButton
   }
 
   static LAYOUT_SIZE_SCALED(CH_LINE_H, 32, 50)
-  static LAYOUT_VAL_SCALED(CH_BAR_WIDTH, 100)
+#if WIDE_LAYOUT
+  static LAYOUT_VAL_SCALED(CH_BAR_WIDTH, 132)
+#else
+  static LAYOUT_VAL_SCALED(CH_BAR_WIDTH, 125)
+#endif
   static LAYOUT_VAL_SCALED(CH_BAR_HEIGHT, 16)
-  static LAYOUT_VAL_SCALED(BAR_XO, 17)
+  static LAYOUT_VAL_SCALED(BAR_XO, 7)
   static constexpr coord_t BAR_X = LCD_W - CH_BAR_WIDTH - BAR_XO;
 
   static constexpr coord_t SRC_X = PAD_TINY;
-  static constexpr coord_t SRC_Y = 1;
-  static LAYOUT_VAL_SCALED(SRC_W, 80)
+  static LAYOUT_SIZE_SCALED(SRC_Y, 4, 2)
+  static LAYOUT_VAL_SCALED(SRC_W, 58)
   static constexpr coord_t SRC_H = CH_LINE_H - PAD_MEDIUM;
-  static constexpr coord_t MIN_X = SRC_X + SRC_W + PAD_TINY;
+  static constexpr coord_t MIN_X = SRC_X + SRC_W + PAD_MEDIUM;
   static LAYOUT_SIZE_SCALED(MIN_Y, 4, 2)
-  static LAYOUT_VAL_SCALED(MIN_W, 52)
-  static constexpr coord_t MAX_X = MIN_X + MIN_W + PAD_TINY;
+  // Column widths tuned so right-aligned text has equal gaps:
+  //   W_col - worst_case_text_width = K for all columns
+  // worst-case text: "-100"≈20px, "100"≈16px, "-100.0"≈30px, "1500 ="≈30px
+  static constexpr coord_t MIN_W = 48;  // K=28
+  static constexpr coord_t MAX_X = MIN_X + MIN_W + PAD_MEDIUM;
   static constexpr coord_t MAX_Y = MIN_Y;
-  static LAYOUT_SIZE_SCALED(MAX_W, 52, 60)
-  static LAYOUT_SIZE(OFF_X, MAX_X + MAX_W + PAD_TINY, SRC_X + SRC_W + PAD_TINY)
+  static constexpr coord_t MAX_W = 44;  // K=28
+  static LAYOUT_SIZE(OFF_X, MAX_X + MAX_W + PAD_MEDIUM, SRC_X + SRC_W + PAD_TINY)
   static LAYOUT_SIZE_SCALED(OFF_Y, 4, 24)
-  static LAYOUT_SIZE_SCALED(OFF_W, 44, 52)
-  static constexpr coord_t CTR_X = OFF_X + OFF_W + PAD_TINY;
+  static constexpr coord_t OFF_W = 44;  // right-aligned: narrow col pulls "0.0" left
+  static constexpr coord_t CTR_X = OFF_X + OFF_W + PAD_MEDIUM;
   static constexpr coord_t CTR_Y = OFF_Y;
-  static LAYOUT_VAL_SCALED(CTR_W, 60)
-  static constexpr coord_t REV_X = CTR_X + CTR_W + PAD_TINY;
-  static constexpr coord_t REV_Y = CTR_Y;
+  static constexpr coord_t CTR_W = 72;  // "1500 =" needs extra width, LONG_CLIP was cutting "1"
+  static constexpr coord_t REV_X = CTR_X + CTR_W + PAD_MEDIUM;
   static LAYOUT_VAL_SCALED(REV_W, 16)
-  static constexpr coord_t CRV_X = REV_X + REV_W + PAD_TINY;
-  static constexpr coord_t CRV_Y = REV_Y + 1;
+  static constexpr coord_t REV_Y = (CH_LINE_H - EdgeTxStyles::STD_FONT_HEIGHT) / 2;
+  static constexpr coord_t CRV_X = REV_X + REV_W + PAD_MEDIUM;
+  // Curve icon bitmap is shorter than font glyph; offset to visually center
+  static constexpr coord_t CRV_Y = REV_Y + 3;  // curve icon 17px vs font 24px  // same row, same gap
 
  protected:
   int value = -10000;
@@ -228,10 +257,15 @@ ModelOutputsPage::ModelOutputsPage(const PageDef& pageDef) :
 
 void ModelOutputsPage::build(Window* window)
 {
+  // FPV dark theme
+  lv_obj_set_style_bg_color(window->getLvObj(), lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(window->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_text_color(window->getLvObj(), lv_color_white(), LV_PART_MAIN);
+
   window->padAll(PAD_ZERO);
   window->padBottom(PAD_LARGE);
 
-  new TextButton(window, {ADD_TRIMS_X, ADD_TRIMS_Y, ADD_TRIMS_W, ADD_TRIMS_H}, STR_ADD_ALL_TRIMS_TO_SUBTRIMS, [=]() {
+  auto trimsBtn = new TextButton(window, {ADD_TRIMS_X, ADD_TRIMS_Y, ADD_TRIMS_W, ADD_TRIMS_H}, STR_ADD_ALL_TRIMS_TO_SUBTRIMS, [=]() {
     new ConfirmDialog(
         STR_TRIMS2OFFSETS, STR_ADD_ALL_TRIMS_TO_SUBTRIMS,
         [=] {
@@ -240,8 +274,9 @@ void ModelOutputsPage::build(Window* window)
         });
     return 0;
   });
+  stylePageGroupControl(trimsBtn->getLvObj());
 
-  new StaticText(window, {EXLIM_X, EXLIM_Y, EXLIM_W, EdgeTxStyles::STD_FONT_HEIGHT}, STR_ELIMITS, COLOR_THEME_PRIMARY1_INDEX, RIGHT);
+  new StaticText(window, {EXLIM_X, EXLIM_Y, EXLIM_W, EdgeTxStyles::STD_FONT_HEIGHT}, STR_ELIMITS, COLOR_THEME_QM_FG_INDEX, RIGHT);
   new ToggleSwitch(window, {EXLIMCB_X, EXLIMCB_Y, EXLIMCB_W, EXLIMCB_H}, GET_SET_DEFAULT(g_model.extendedLimits));
 
   for (uint8_t ch = 0; ch < MAX_OUTPUT_CHANNELS; ch++) {
@@ -252,7 +287,7 @@ void ModelOutputsPage::build(Window* window)
 
     LimitData* output = limitAddress(ch);
     btn->setPressHandler([=]() -> uint8_t {
-      Menu* menu = new Menu();
+      Menu* menu = new Menu(false, 280);
       menu->addLine(STR_EDIT, [=]() { editOutput(ch, btn); });
       menu->addLine(STR_RESET, [=]() {
         output->min = 0;

@@ -1448,6 +1448,8 @@ void LvglWidgetObject::parseParam(lua_State *L, const char *key)
 {
   if (!strcmp(key, "flexFlow")) {
     flexFlow = luaL_checkinteger(L, -1);
+    if (!(flexFlow & LV_FLEX_FLOW_COLUMN) && flexPad == PAD_OUTLINE)
+      flexPad = PAD_ZERO;
   } else if (!strcmp(key, "flexPad")) {
     flexPad = luaL_checkinteger(L, -1);
   } else if (!strcmp(key, "borderPad")) {
@@ -2800,8 +2802,35 @@ void LvglWidgetChoice::clearRefs(lua_State *L)
   LvglWidgetPicker::clearRefs(L);
 }
 
+bool LvglWidgetChoice::callRefs(lua_State *L)
+{
+  if (!LvglWidgetPicker::callRefs(L)) return false;
+
+  if (isVisible() && window)
+    ((Choice*)window)->update();
+
+  return true;
+}
+
 void LvglWidgetChoice::build(lua_State *L)
 {
+  if (w == LV_SIZE_CONTENT) {
+    coord_t textWidth = 0;
+    for (const auto& value: values)
+      textWidth = std::max(textWidth, (coord_t)getTextWidth(value.c_str(), 0, FONT(STD)));
+    w = std::min<coord_t>(EdgeTxStyles::EDIT_FLD_WIDTH_NARROW,
+                          std::max<coord_t>(ChoiceBase::ICON_W + PAD_MEDIUM * 2,
+                                            textWidth + ChoiceBase::ICON_W + PAD_TINY * 3 + PAD_SMALL));
+    auto parent = lvglManager->getCurrentParent();
+    coord_t parentWidth = parent ? parent->width() : 0;
+    if (parentWidth <= 0 && parent)
+      parentWidth = lv_obj_get_width(parent->getLvObj());
+    if (parentWidth > 0 && x >= 0) {
+      coord_t availableWidth = parentWidth - x - PAD_MEDIUM;
+      if (availableWidth > 0)
+        w = std::min(w, availableWidth);
+    }
+  }
   if (h == LV_SIZE_CONTENT) h = EdgeTxStyles::UI_ELEMENT_HEIGHT;
   auto c = new Choice(
       lvglManager->getCurrentParent(), {x, y, w, h}, values, 0, values.size() - 1,

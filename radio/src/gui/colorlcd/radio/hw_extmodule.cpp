@@ -24,6 +24,7 @@
 #include "choice.h"
 #include "edgetx.h"
 #include "getset_helpers.h"
+#include "pagegroup.h"
 #include "static.h"
 
 #define SET_DIRTY() storageDirty(EE_GENERAL)
@@ -32,15 +33,17 @@
 ExternalModuleWindow::ExternalModuleWindow(Window *parent, FlexGridLayout& grid)
 {
   auto line = parent->newLine(grid);
+  stylePageGroupControl(line->getLvObj());
   line->padLeft(PAD_SMALL);
 
-  new StaticText(line, rect_t{}, STR_SAMPLE_MODE);
+  new StaticText(line, rect_t{}, STR_SAMPLE_MODE, COLOR_THEME_QM_FG_INDEX);
 
-  new Choice(line, rect_t{}, STR_SAMPLE_MODES, 0, UART_SAMPLE_MODE_MAX,
+  auto sampleMode = new Choice(line, rect_t{}, STR_SAMPLE_MODES, 0, UART_SAMPLE_MODE_MAX,
              GET_DEFAULT(g_eeGeneral.uartSampleMode), [=](int modeValue) {
                g_eeGeneral.uartSampleMode = modeValue;
                SET_DIRTY();
                restartModule(EXTERNAL_MODULE);
              });
+  stylePageGroupControl(sampleMode->getLvObj());
 }
 #endif

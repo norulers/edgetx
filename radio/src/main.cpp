@@ -99,6 +99,30 @@ void openUsbMenu()
     setSelectedUsbMode(USB_SERIAL_MODE);
   });
 #endif
+
+  // Apply FPV-dash dark style to the popup
+  lv_obj_t* overlay = _usbMenu->getLvObj();
+  if (overlay && lv_obj_get_child_cnt(overlay) > 0) {
+    lv_obj_t* content = lv_obj_get_child(overlay, 0);
+    // Main container: dark background, green border
+    etx_solid_bg(content, COLOR_BLACK_INDEX);
+    etx_border_color(content, COLOR_BRIGHTGREEN_INDEX);
+    lv_obj_set_style_border_width(content, 2, LV_PART_MAIN);
+    // Children: header label + body table
+    uint32_t n = lv_obj_get_child_cnt(content);
+    for (uint32_t i = 0; i < n; i++) {
+      lv_obj_t* child = lv_obj_get_child(content, i);
+      // Dark background, white text for all children
+      etx_solid_bg(child, COLOR_BLACK_INDEX);
+      etx_txt_color(child, COLOR_WHITE_INDEX);
+      // Table rows (only affects MenuBody/TableField — ignored by StaticText header)
+      etx_solid_bg(child, COLOR_DARKGREY_INDEX, LV_PART_ITEMS);
+      etx_txt_color(child, COLOR_WHITE_INDEX, LV_PART_ITEMS);
+      // Selected row: bright green highlight (TableField uses LV_STATE_EDITED for selection)
+      etx_solid_bg(child, COLOR_BRIGHTGREEN_INDEX, LV_PART_ITEMS | LV_STATE_EDITED);
+      etx_txt_color(child, COLOR_BLACK_INDEX, LV_PART_ITEMS | LV_STATE_EDITED);
+    }
+  }
 }
 
 #else
@@ -150,7 +174,6 @@ class UsbSDConnected : public Window
     pushLayer(false);
 
     etx_solid_bg(lvobj, COLOR_THEME_PRIMARY1_INDEX);
-    new HeaderDateTime(this, LCD_W - TopBar::HDR_DATE_XO, PAD_MEDIUM);
 
     auto icon = new StaticIcon(this, 0, 0, ICON_USB_PLUGGED, COLOR_THEME_PRIMARY2_INDEX);
     lv_obj_center(icon->getLvObj());
@@ -647,6 +670,16 @@ void perMain()
 #if defined(PCBX9E) && !defined(SIMU)
   toplcdRefreshStart();
   setTopFirstTimer(getValue(MIXSRC_FIRST_TIMER + g_model.toplcdTimer));
+  setTopSecondTimer(g_eeGeneral.globalTimer + sessionTimer);
+  setTopRssi(TELEMETRY_RSSI());
+  setTopBatteryValue(g_vbat100mV);
+  setTopBatteryState(GET_TXBATT_BARS(10), IS_TXBATT_WARNING());
+  toplcdRefreshEnd();
+#endif
+
+#if defined(PCBH750DEV) && !defined(SIMU)
+  toplcdRefreshStart();
+  setTopFirstTimer(getValue(MIXSRC_FIRST_TIMER));  // timer 1
   setTopSecondTimer(g_eeGeneral.globalTimer + sessionTimer);
   setTopRssi(TELEMETRY_RSSI());
   setTopBatteryValue(g_vbat100mV);

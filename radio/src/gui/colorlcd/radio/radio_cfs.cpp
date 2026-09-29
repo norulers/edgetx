@@ -27,6 +27,7 @@
 #include "color_picker.h"
 #include "edgetx.h"
 #include "hal/rgbleds.h"
+#include "pagegroup.h"
 #include "strhelpers.h"
 #include "switches.h"
 #include "textedit.h"
@@ -39,16 +40,30 @@ extern const char* edgetx_fs_manual_url;
 
 //-----------------------------------------------------------------------------
 
+static void styleCfsItem(lv_obj_t* obj)
+{
+  lv_obj_set_style_bg_color(obj, lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(obj, LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_text_color(obj, lv_color_white(), LV_PART_MAIN);
+  lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN);
+  lv_obj_set_style_outline_width(obj, 0, LV_PART_MAIN | LV_STATE_FOCUS_KEY);
+  lv_obj_set_style_bg_color(obj, lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN | LV_STATE_PRESSED);
+  lv_obj_set_style_text_color(obj, lv_color_white(), LV_PART_MAIN | LV_STATE_PRESSED);
+  lv_obj_set_style_bg_color(obj, lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN | LV_STATE_FOCUSED);
+  lv_obj_set_style_text_color(obj, lv_color_black(), LV_PART_MAIN | LV_STATE_FOCUSED);
+}
+
 class RadioFunctionSwitch : public FunctionSwitchBase
 {
  public:
   RadioFunctionSwitch(Window* parent, uint8_t sw) : FunctionSwitchBase(parent, sw)
   {
-    new ModelTextEdit(this, {NM_X, 0, NM_W, 0},
-                      g_eeGeneral.switchName(switchIndex), LEN_SWITCH_NAME);
+    auto nameEdit = new ModelTextEdit(this, {NM_X, 0, NM_W, 0},
+                                      g_eeGeneral.switchName(switchIndex), LEN_SWITCH_NAME);
+    styleCfsItem(nameEdit->getLvObj());
 
     typeChoice = new Choice(
-        this, {TP_X, 0, TP_W, 0}, STR_SWTYPES, SWITCH_NONE, SWITCH_GLOBAL,
+        this, {TP_X, 0, TP_W + GR_W + PAD_SMALL, 0}, STR_SWTYPES, SWITCH_NONE, SWITCH_GLOBAL,
         [=]() { return g_eeGeneral.switchType(switchIndex); },
         [=](int val) {
             g_eeGeneral.switchSetType(switchIndex, (SwitchConfig)val);
@@ -64,6 +79,7 @@ class RadioFunctionSwitch : public FunctionSwitchBase
           }
           SET_DIRTY();
         });
+    styleCfsItem(typeChoice->getLvObj());
     typeChoice->setAvailableHandler([=](int typ) -> bool {
       if (typ == SWITCH_3POS || typ == SWITCH_GLOBAL) return false;
       int group = g_eeGeneral.switchGroup(switchIndex);
@@ -79,6 +95,7 @@ class RadioFunctionSwitch : public FunctionSwitchBase
             g_eeGeneral.switchSetStart(switchIndex, (fsStartPositionType)val);
           SET_DIRTY();
         });
+    styleCfsItem(startChoice->getLvObj());
 
 #if defined(FUNCTION_SWITCHES_RGB_LEDS)
     offValue = g_eeGeneral.switchOffColor(switchIndex);
@@ -128,6 +145,8 @@ class RadioFunctionSwitch : public FunctionSwitchBase
     onOverride = new ToggleSwitch(this, {C2_X, C1_Y + EdgeTxStyles::UI_ELEMENT_HEIGHT + PAD_OUTLINE, 0, 0},
                                   [=]() { return g_eeGeneral.cfsOnColorLuaOverride(switchIndex); },
                                   [=](bool v) { g_eeGeneral.cfsSetOnColorLuaOverride(switchIndex, v); });
+    styleCfsItem(offOverride->getLvObj());
+    styleCfsItem(onOverride->getLvObj());
 #endif //FUNCTION_SWITCHES_RGB_LEDS
 
     setState();
@@ -155,8 +174,11 @@ class RadioFunctionSwitch : public FunctionSwitchBase
 
 //-----------------------------------------------------------------------------
 
-RadioFunctionSwitches::RadioFunctionSwitches() : FunctionSwitchesBase(ICON_RADIO_HARDWARE, STR_HARDWARE)
+RadioFunctionSwitches::RadioFunctionSwitches() : FunctionSwitchesBase(ICON_RADIO_HARDWARE, STR_HARDWARE, false)
 {
+  setDarkHeader(ICON_RADIO_HARDWARE);
+  setDarkBody();
+
   for (uint8_t i = 0; i < switchGetMaxSwitches(); i += 1) {
     if (switchIsCustomSwitch(i))
       new RadioFunctionSwitch(body, i);

@@ -291,6 +291,18 @@ unsigned int YamlTreeWalker::getBitOffset()
     return stack[stack_level].getOfs();
 }
 
+bool YamlTreeWalker::outputCurrentAttr(yaml_writer_func wf, void* opaque)
+{
+    if (virt_level)
+        return false;
+
+    const struct YamlNode* attr = getAttr();
+    if (!attr || attr->type == YDT_NONE)
+        return false;
+
+    return yaml_output_attr(this, data, getBitOffset(), attr, wf, opaque);
+}
+
 bool YamlTreeWalker::toParent()
 {
     if(virt_level) {

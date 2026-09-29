@@ -30,6 +30,7 @@
 #include "gvar_numberedit.h"
 #include "pagegroup.h"
 #include "textedit.h"
+#include "timer_setup.h"
 #include "toggleswitch.h"
 
 #define SET_DIRTY() storageDirty(EE_MODEL)
@@ -62,6 +63,29 @@ OutputEditWindow::OutputEditWindow(uint8_t channel) :
   std::string title2(getSourceString(MIXSRC_FIRST_CH + channel));
   header->setTitle(STR_MENULIMITS);
   header->setTitle2(title2);
+
+  // Dark FPV header: hide original canvas icons, place new ones with orange color
+  for (uint32_t i = 0; i < lv_obj_get_child_cnt(header->getLvObj()); i++) {
+    auto child = lv_obj_get_child(header->getLvObj(), i);
+    if (lv_obj_check_type(child, &lv_canvas_class))
+      lv_obj_add_flag(child, LV_OBJ_FLAG_HIDDEN);
+  }
+  auto leftBg = new StaticIcon(header, 0, 0, ICON_TOPLEFT_BG, COLOR_THEME_PRIMARY2_INDEX);
+  lv_obj_set_style_img_recolor_opa(leftBg->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_img_recolor(leftBg->getLvObj(), lv_color_make(0x22, 0x22, 0x22), LV_PART_MAIN);
+  leftBg->setTop((EdgeTxStyles::MENU_HEADER_HEIGHT - leftBg->height()) / 2);
+  auto leftIco = new StaticIcon(leftBg, 0, 0, ICON_MODEL_OUTPUTS, COLOR_THEME_PRIMARY2_INDEX);
+  lv_obj_set_style_img_recolor_opa(leftIco->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_img_recolor(leftIco->getLvObj(), lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN);
+  leftIco->center(leftBg->width() + PAD_MEDIUM, leftBg->height());
+  auto rightBg = new StaticIcon(header, LCD_W, 0, ICON_TOPRIGHT_BG, COLOR_THEME_PRIMARY2_INDEX);
+  lv_obj_set_style_img_recolor_opa(rightBg->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_img_recolor(rightBg->getLvObj(), lv_color_make(0x22, 0x22, 0x22), LV_PART_MAIN);
+  rightBg->setPos(LCD_W - rightBg->width(), (EdgeTxStyles::MENU_HEADER_HEIGHT - rightBg->height()) / 2);
+  auto rightIco = new StaticIcon(rightBg, 0, 0, ICON_BTN_CLOSE, COLOR_THEME_PRIMARY2_INDEX);
+  lv_obj_set_style_img_recolor_opa(rightIco->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_img_recolor(rightIco->getLvObj(), lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN);
+  rightIco->center(rightBg->width() + PAD_MEDIUM, rightBg->height());
 
   buildHeader(header);
   buildBody(body);
@@ -105,8 +129,8 @@ void OutputEditWindow::buildHeader(Window *window)
 }
 
 #if !NARROW_LAYOUT
-static const lv_coord_t col_dsc[] = {LV_GRID_FR(1), LV_GRID_FR(2),
-                                     LV_GRID_FR(1), LV_GRID_FR(2),
+static const lv_coord_t col_dsc[] = {LV_GRID_FR(1), LV_GRID_FR(1),
+                                     LV_GRID_FR(1), LV_GRID_FR(1),
                                      LV_GRID_TEMPLATE_LAST};
 static const lv_coord_t row_dsc[] = {LV_GRID_CONTENT, LV_GRID_TEMPLATE_LAST};
 #else
@@ -118,21 +142,33 @@ static const lv_coord_t row_dsc[] = {LV_GRID_CONTENT, LV_GRID_CONTENT,
 
 void OutputEditWindow::buildBody(Window *form)
 {
-  FlexGridLayout grid(col_dsc, row_dsc, PAD_TINY);
+  FlexGridLayout grid(col_dsc, row_dsc, PAD_MEDIUM);
   form->setFlexLayout();
+
+  // Dark FPV theme
+  lv_obj_set_style_bg_color(form->getLvObj(), lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(form->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_text_color(form->getLvObj(), lv_color_white(), LV_PART_MAIN);
 
   int limit = (g_model.extendedLimits ? LIMIT_EXT_MAX : LIMIT_STD_MAX);
   LimitData *output = limitAddress(channel);
 
   // Name
   auto line = form->newLine(grid);
-  new StaticText(line, rect_t{}, STR_NAME);
-  new ModelTextEdit(line, rect_t{}, output->name, sizeof(output->name));
+  lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  line->padAll(PAD_SMALL);
+  auto lbl = new StaticText(line, rect_t{}, STR_NAME);
+  lv_obj_set_style_text_color(lbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
+  auto nameEdit = new ModelTextEdit(line, rect_t{}, output->name, sizeof(output->name));
+  applyDarkBtnStyle(nameEdit->getLvObj());
 
   // Offset
-  new StaticText(line, rect_t{}, STR_LIMITS_HEADERS_SUBTRIM);
+  lbl = new StaticText(line, rect_t{}, STR_LIMITS_HEADERS_SUBTRIM);
+  lv_obj_set_style_text_color(lbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
   auto off = new GVarNumberEdit(line, -LIMIT_STD_MAX, +LIMIT_STD_MAX,
                                 GET_SET_DEFAULT(output->offset), PREC1);
+  lv_obj_set_style_grid_cell_x_align(off->getLvObj(), LV_GRID_ALIGN_STRETCH, 0);
   off->setFastStep(20);
   off->setAccelFactor(16);
   off->setDisplayHandler([=](int value) {
@@ -140,10 +176,15 @@ void OutputEditWindow::buildBody(Window *form)
       value = value * 128 / 25;
     return formatNumberAsString(value, PREC1);
   });
+  applyDarkBtnStyle(off->getLvObj());
 
   // Min
   line = form->newLine(grid);
+  lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  line->padAll(PAD_SMALL);
   minText = new StaticText(line, rect_t{}, STR_MIN);
+  lv_obj_set_style_text_color(minText->getLvObj(), lv_color_white(), LV_PART_MAIN);
   etx_solid_bg(minText->getLvObj(), COLOR_THEME_ACTIVE_INDEX, ETX_STATE_MINMAX_HIGHLIGHT);
   etx_font(minText->getLvObj(), FONT_BOLD_INDEX, ETX_STATE_MINMAX_HIGHLIGHT);
   minEdit = new GVarNumberEdit(line, -limit, 0,
@@ -157,9 +198,12 @@ void OutputEditWindow::buildBody(Window *form)
       value = value * 128 / 25;
     return formatNumberAsString(value, PREC1);
   });
+  applyDarkBtnStyle(minEdit->getLvObj());
+  lv_obj_set_style_grid_cell_x_align(minEdit->getLvObj(), LV_GRID_ALIGN_STRETCH, 0);
 
   // Max
   maxText = new StaticText(line, rect_t{}, STR_MAX);
+  lv_obj_set_style_text_color(maxText->getLvObj(), lv_color_white(), LV_PART_MAIN);
   etx_solid_bg(maxText->getLvObj(), COLOR_THEME_ACTIVE_INDEX, ETX_STATE_MINMAX_HIGHLIGHT);
   etx_font(maxText->getLvObj(), FONT_BOLD_INDEX, ETX_STATE_MINMAX_HIGHLIGHT);
   maxEdit = new GVarNumberEdit(line, 0, +limit,
@@ -173,23 +217,36 @@ void OutputEditWindow::buildBody(Window *form)
       value = value * 128 / 25;
     return formatNumberAsString(value, PREC1);
   });
+  applyDarkBtnStyle(maxEdit->getLvObj());
+  lv_obj_set_style_grid_cell_x_align(maxEdit->getLvObj(), LV_GRID_ALIGN_STRETCH, 0);
 
   // Direction
   line = form->newLine(grid);
-  new StaticText(line, rect_t{}, STR_INVERTED);
-  new ToggleSwitch(line, rect_t{}, GET_DEFAULT(output->revert),
+  lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  line->padAll(PAD_SMALL);
+  lbl = new StaticText(line, rect_t{}, STR_INVERTED);
+  lv_obj_set_style_text_color(lbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
+  auto revertSw = new ToggleSwitch(line, rect_t{}, GET_DEFAULT(output->revert),
                    [output, this](uint8_t newValue) {
                      output->revert = newValue;
                      SET_DIRTY();
                    });
+  applyDarkBtnStyle(revertSw->getLvObj());
 
   // Curve
-  new StaticText(line, rect_t{}, STR_CURVE);
-  new CurveChoice(line, GET_SET_DEFAULT(output->curve), channel + MIXSRC_FIRST_CH);
+  lbl = new StaticText(line, rect_t{}, STR_CURVE);
+  lv_obj_set_style_text_color(lbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
+  auto curveChoice = new CurveChoice(line, GET_SET_DEFAULT(output->curve), channel + MIXSRC_FIRST_CH);
+  applyDarkBtnStyle(curveChoice->getLvObj());
 
   // PPM center
   line = form->newLine(grid);
+  lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  line->padAll(PAD_SMALL);
   auto label = new StaticText(line, rect_t{}, STR_LIMITS_HEADERS_PPMCENTER);
+  lv_obj_set_style_text_color(label->getLvObj(), lv_color_white(), LV_PART_MAIN);
   lv_label_set_long_mode(label->getLvObj(), LV_LABEL_LONG_WRAP);
   lv_obj_set_style_grid_cell_x_align(label->getLvObj(), LV_GRID_ALIGN_STRETCH,
                                      0);
@@ -201,13 +258,17 @@ void OutputEditWindow::buildBody(Window *form)
   center->setFastStep(20);
   center->setAccelFactor(8);
   center->setDefault(PPM_CENTER);
+  applyDarkBtnStyle(center->getLvObj());
+  lv_obj_set_style_grid_cell_x_align(center->getLvObj(), LV_GRID_ALIGN_STRETCH, 0);
 
   // Subtrims mode
   label = new StaticText(line, rect_t{}, STR_LIMITS_HEADERS_SUBTRIMMODE);
+  lv_obj_set_style_text_color(label->getLvObj(), lv_color_white(), LV_PART_MAIN);
   lv_label_set_long_mode(label->getLvObj(), LV_LABEL_LONG_WRAP);
   lv_obj_set_style_grid_cell_x_align(label->getLvObj(), LV_GRID_ALIGN_STRETCH,
                                      0);
 
-  new Choice(line, rect_t{}, STR_SUBTRIMMODES, 0, 1,
+  auto symChoice = new Choice(line, rect_t{}, STR_SUBTRIMMODES, 0, 1,
              GET_SET_DEFAULT(output->symetrical));
+  applyDarkBtnStyle(symChoice->getLvObj());
 }

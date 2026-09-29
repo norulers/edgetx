@@ -31,7 +31,7 @@ extern const char time_stamp[];
 extern const char vers_stamp[];
 #endif
 
-#if defined(STM32)
+#if defined(STM32) || defined(AT32F435)
 /**
  * Tries to find opentx version in the first 1024 byte of either firmware/bootloader
  * (the one not running) or the buffer
