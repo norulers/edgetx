@@ -31,6 +31,13 @@
 
 #include "hal/watchdog_driver.h"
 
+#if defined(CRASH_DUMP)
+#include "hal/crash_dump.h"
+#define SET_LOCK_OWNER(o) (crashDumpMixerLockOwner = (o))
+#else
+#define SET_LOCK_OWNER(o)
+#endif
+
 #if defined(HALL_SYNC) && !defined(SIMU)
 #include "stm32_gpio.h"
 #include "hal/gpio.h"
@@ -56,16 +63,20 @@ static bool _mixer_running = false;
 void mixerTaskLock()
 {
   mutex_lock(&mixerMutex);
+  SET_LOCK_OWNER(xTaskGetCurrentTaskHandle());
 }
 
 // returns true if the lock could be acquired
 bool mixerTaskTryLock()
 {
-  return mutex_trylock(&mixerMutex);
+  if (!mutex_trylock(&mixerMutex)) return false;
+  SET_LOCK_OWNER(xTaskGetCurrentTaskHandle());
+  return true;
 }
 
 void mixerTaskUnlock()
 {
+  SET_LOCK_OWNER(nullptr);
   mutex_unlock(&mixerMutex);
 }
 

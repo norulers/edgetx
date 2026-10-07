@@ -33,12 +33,19 @@ class ChannelBar : public Window
              std::function<int16_t()> getValue, LcdColorIndex barColorIndex,
              LcdColorIndex textColorIndex = COLOR_THEME_SECONDARY1_INDEX);
 
+  void setTrackColor(lv_color_t color);
+
   static LAYOUT_VAL_SCALED(BAR_HEIGHT, 13)
 
-  static LAYOUT_VAL_SCALED(VAL_W, 45)
+#if WIDE_LAYOUT
+  static LAYOUT_VAL_SCALED(VAL_W, 70)   // was 60; increased to fit "2012us" without clipping
+  static LAYOUT_VAL_SCALED(VAL_XT, -79) // = -9 - VAL_W, keeps right edge 4px left of bar midpoint
+#else
+  static LAYOUT_VAL_SCALED(VAL_W, 65)   // was 55
+  static LAYOUT_VAL_SCALED(VAL_XT, -74) // = -9 - VAL_W
+#endif
   static LAYOUT_VAL_SCALED(VAL_H, 14)
   static LAYOUT_VAL_SCALED(VAL_XO, 5)
-  static LAYOUT_VAL_SCALED(VAL_XT, -54)
 
  protected:
   uint8_t channel = 0;
@@ -83,7 +90,7 @@ class ComboChannelBar : public Window
  public:
   // using ChannelBar::ChannelBar;
   ComboChannelBar(Window* parent, const rect_t& rect, uint8_t channel,
-                  bool isInHeader = false);
+                  bool isInHeader = false, bool usePageGroupStyle = false);
 
  protected:
   uint8_t channel;

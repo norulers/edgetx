@@ -132,8 +132,32 @@ event_t RadioData::getKeyShortcutEvent(int n)
 QMPage RadioData::getKeyShortcut(event_t event)
 {
   QMPage page = QM_NONE;
-  int n = getKeyShortcutNum(event);
-  if (n >= 0) page = (QMPage)keyShortcuts[n].shortcut;
+  switch(event) {
+    case EVT_KEY_BREAK(KEY_MODEL):
+      page = QM_MODEL_SETUP;
+      break;
+    case EVT_KEY_BREAK(KEY_SYS):
+      page = QM_OPEN_QUICK_MENU;
+      break;
+    case EVT_KEY_BREAK(KEY_TELE):
+      page = QM_TOOLS_CHAN_MON;
+      break;
+    case EVT_KEY_LONG(KEY_MODEL):
+      page = QM_MANAGE_MODELS;
+      break;
+    case EVT_KEY_LONG(KEY_SYS):
+      page = QM_TOOLS_APPS;
+      break;
+    case EVT_KEY_LONG(KEY_TELE):
+      page = QM_TOOLS_CHAN_MON;
+      break;
+    default:
+      break;
+  }
+  if (page == QM_NONE) {
+    int n = getKeyShortcutNum(event);
+    if (n >= 0) page = (QMPage)keyShortcuts[n].shortcut;
+  }
   if (page >= QM_UI_SCREEN1 && page <= QM_UI_SCREEN10)
     page = (QMPage)(QM_UI_SCREEN1 + ViewMain::instance()->getCurrentMainView());
   return page;
@@ -168,9 +192,9 @@ void RadioData::defaultKeyShortcuts()
 {
   setKeyShortcut(EVT_KEY_BREAK(KEY_MODEL), QM_MODEL_SETUP);
   setKeyShortcut(EVT_KEY_LONG(KEY_MODEL), QM_MANAGE_MODELS);
-  setKeyShortcut(EVT_KEY_BREAK(KEY_SYS), QM_OPEN_QUICK_MENU);
-  setKeyShortcut(EVT_KEY_LONG(KEY_SYS), QM_TOOLS_APPS);
-  setKeyShortcut(EVT_KEY_BREAK(KEY_TELE), QM_UI_SCREEN1);
+  setKeyShortcut(EVT_KEY_BREAK(KEY_SYS), QM_TOOLS_APPS);
+  setKeyShortcut(EVT_KEY_LONG(KEY_SYS), QM_RADIO_SETUP);
+  setKeyShortcut(EVT_KEY_BREAK(KEY_TELE), QM_TOOLS_CHAN_MON);
   setKeyShortcut(EVT_KEY_LONG(KEY_TELE), QM_TOOLS_CHAN_MON);
 }
 

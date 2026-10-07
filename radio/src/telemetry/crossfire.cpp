@@ -22,6 +22,7 @@
 #include "crossfire.h"
 #include "edgetx.h"
 #include "math.h"
+#include "os/time.h"
 
 #include "trainer.h"
 #include "sensor_names.h"
@@ -76,6 +77,7 @@ const CrossfireSensor crossfireSensors[] = {
   CS(BARO_ALT_ID,    0, STR_SENSOR_ALT,           UNIT_METERS,            2),
   CS(AIRSPEED_ID,    0, STR_SENSOR_ASPD,          UNIT_KMH,               1),
   CS(CF_RPM_ID,      0, STR_SENSOR_RPM,           UNIT_RPMS,              0),
+  CS(CF_RPM_ID,      1, STR_SENSOR_RPM2,          UNIT_RPMS,              0),
   CS(TEMP_ID,        0, STR_SENSOR_TEMP,          UNIT_DEGREE,            1),
   CS(CELLS_ID,       0, STR_SENSOR_CELLS,         UNIT_CELLS,             2),
   CS(VOLT_ARRAY_ID,  0, STR_SENSOR_VOLT,          UNIT_VOLTS,             2),
@@ -110,7 +112,7 @@ const CrossfireSensor & getCrossfireSensor(uint8_t id, uint8_t subId)
   else if (id == AIRSPEED_ID)
     return crossfireSensors[AIRSPEED_INDEX];
   else if (id == CF_RPM_ID)
-    return crossfireSensors[CF_RPM_INDEX];
+    return crossfireSensors[subId == 1 ? CF_RPM2_INDEX : CF_RPM_INDEX];
   else if (id == TEMP_ID)
     return crossfireSensors[TEMP_INDEX];
   else if (id == CELLS_ID)
@@ -143,6 +145,237 @@ int32_t getCrossfireTelemetryValue(uint8_t index, uint8_t* rxBuffer, uint8_t siz
   return value;
 }
 
+//-----------------------------------------------------------------------------
+// ArduPilot passthrough telemetry (the data source of the yaapu Lua script)
+//
+// With CRSF custom telemetry (ArduPilot RC_OPTIONS bit 8) the native frames are
+// throttled and the data arrives in the custom frames instead: 0x5006
+// roll/pitch, 0x5005 yaw (0.2 deg) and vertical speed, 0x5002 satellites (4
+// bits, 15 = "15 or more"), 0x5004 home bearing and altitude above home, and
+// 0x500A the two RPM sensors. They feed the regular sensors, the home frame
+// the HUD home marker and its altitude readout.
+//-----------------------------------------------------------------------------
+#define CRSF_AP_CUSTOM_TELEM_SINGLE_PACKET 0xF0
+#define CRSF_AP_CUSTOM_TELEM_MULTI_PACKET  0xF2
+#define CRSF_AP_PASSTHROUGH_ROLL_PITCH     0x5006
+#define CRSF_AP_PASSTHROUGH_VEL_YAW        0x5005
+#define CRSF_AP_PASSTHROUGH_HOME           0x5004
+#define CRSF_AP_PASSTHROUGH_GPS_STATUS     0x5002
+#define CRSF_AP_PASSTHROUGH_RPM            0x500A
+
+// 0x5006 every 350ms, 0x5005 every 250-400ms, 0x5004 every 500ms, 0x5002 every
+// 0.5-1s, 0x500A 300ms
+#define AP_PASSTHROUGH_ATTITUDE_TIMEOUT_MS 1200
+#define AP_PASSTHROUGH_HOME_TIMEOUT_MS     3000
+#define AP_PASSTHROUGH_GPS_TIMEOUT_MS      3000
+#define AP_PASSTHROUGH_VSPD_TIMEOUT_MS     3000
+
+// Per module state of the passthrough packets: while fresh, each one keeps the
+// slower native frame it replaces suppressed, and the home packet feeds the
+// HUD home marker. They all age out, so the native frames take over again
+static struct {
+  uint32_t attitudeMs;
+  bool     attitudeSeen;
+  uint32_t homeMs;
+  bool     homeSeen;
+  uint16_t homeBearingDeg;
+  uint32_t gpsMs;
+  bool     gpsSeen;
+  float    homeAltM;
+  float    homeDistM;
+  uint32_t vspdMs;
+  bool     vspdSeen;
+} apPassthrough[2];
+
+// the native ATTITUDE frame carries milliradians, as UNIT_RADIANS with a
+// precision of 3 expects
+static int32_t attitudeSensorValue(float degrees)
+{
+  return (int32_t)lroundf(degrees * M_PI / 180.0f * 1000.0f);
+}
+
+static bool isArduPilotPassthroughAttitudeFresh(uint8_t module)
+{
+  return apPassthrough[module].attitudeSeen &&
+         (time_get_ms() - apPassthrough[module].attitudeMs) <
+             AP_PASSTHROUGH_ATTITUDE_TIMEOUT_MS;
+}
+
+static void setArduPilotPassthroughAttitudeSeen(uint8_t module)
+{
+  apPassthrough[module].attitudeMs = time_get_ms();
+  apPassthrough[module].attitudeSeen = true;
+}
+
+// the passthrough satellite count wins while it is being received
+static bool isArduPilotPassthroughGpsFresh(uint8_t module)
+{
+  return apPassthrough[module].gpsSeen &&
+         (time_get_ms() - apPassthrough[module].gpsMs) <
+             AP_PASSTHROUGH_GPS_TIMEOUT_MS;
+}
+
+// the passthrough vertical speed is sent faster than the native vario frames,
+// which it replaces while it is being received
+static bool isArduPilotPassthroughVSpeedFresh(uint8_t module)
+{
+  return apPassthrough[module].vspdSeen &&
+         (time_get_ms() - apPassthrough[module].vspdMs) <
+             AP_PASSTHROUGH_VSPD_TIMEOUT_MS;
+}
+
+static void processArduPilotPassthroughPacket(uint8_t module, uint16_t appId,
+                                              uint32_t data)
+{
+  switch (appId) {
+    case CRSF_AP_PASSTHROUGH_GPS_STATUS:
+      // 4 bits of satellites (15 = "15 or more"), the rest is fix/HDOP/alt
+      processCrossfireTelemetryValue(GPS_SATELLITES_INDEX,
+                                     (int32_t)(data & 0x0F));
+      apPassthrough[module].gpsMs = time_get_ms();
+      apPassthrough[module].gpsSeen = true;
+      break;
+
+    case CRSF_AP_PASSTHROUGH_ROLL_PITCH:
+      // 0.2 deg steps: roll [0,1800] -> [-180,180], pitch [0,900] -> [-90,90]
+      processCrossfireTelemetryValue(
+          ATTITUDE_ROLL_INDEX,
+          attitudeSensorValue(((int32_t)(data & 0x7FF) - 900) * 0.2f));
+      processCrossfireTelemetryValue(
+          ATTITUDE_PITCH_INDEX,
+          attitudeSensorValue(((int32_t)((data >> 11) & 0x3FF) - 450) * 0.2f));
+      setArduPilotPassthroughAttitudeSeen(module);
+      break;
+
+    case CRSF_AP_PASSTHROUGH_VEL_YAW: {
+      // vertical speed in dm/s: 7 bit mantissa, exponent bit (x10) and sign
+      int32_t vspd = ((int32_t)data >> 1) & 0x7F;
+      if (data & 0x01) vspd *= 10;
+      if (data & 0x100) vspd = -vspd;
+      // the sensor carries cm/s, as the native vario frame does
+      processCrossfireTelemetryValue(VERTICAL_SPEED_INDEX, vspd * 10);
+      apPassthrough[module].vspdMs = time_get_ms();
+      apPassthrough[module].vspdSeen = true;
+
+      // 0.2 deg steps: yaw [0,1800] -> [0,360], normalized to the +-180 range
+      // used by the native ATTITUDE frame
+      float yaw = ((int32_t)((data >> 17) & 0x7FF)) * 0.2f;
+      if (yaw > 180.0f) yaw -= 360.0f;
+      processCrossfireTelemetryValue(ATTITUDE_YAW_INDEX,
+                                     attitudeSensorValue(yaw));
+      setArduPilotPassthroughAttitudeSeen(module);
+      break;
+    }
+
+    case CRSF_AP_PASSTHROUGH_HOME: {
+      // home bearing in 3 deg steps at bits 25-31
+      uint16_t bearing = ((data >> 25) & 0x7F) * 3;
+      if (bearing >= 360) bearing -= 360;
+      apPassthrough[module].homeBearingDeg = bearing;
+
+      // distance to home in m: 10 bit mantissa at bits 2-11, 2 bit exponent
+      // (x10^n) at bits 0-1
+      int32_t homeDistM = (data >> 2) & 0x3FF;
+      for (uint8_t i = data & 0x03; i > 0; i--) homeDistM *= 10;
+      apPassthrough[module].homeDistM = homeDistM;
+
+      // altitude above home in dm: 10 bit mantissa at bits 14-23, 2 bit
+      // exponent at bits 12-13 and a sign bit at bit 24
+      int32_t homeAltDm = (data >> 14) & 0x3FF;
+      for (uint8_t i = (data >> 12) & 0x03; i > 0; i--) homeAltDm *= 10;
+      if (data & 0x1000000) homeAltDm = -homeAltDm;
+      apPassthrough[module].homeAltM = homeAltDm * 0.1f;
+
+      apPassthrough[module].homeMs = time_get_ms();
+      apPassthrough[module].homeSeen = true;
+      break;
+    }
+
+    case CRSF_AP_PASSTHROUGH_RPM:
+      // the vehicle sends 0.1 rpm as two signed 16 bit values, the sensors
+      // carry whole rpm (as the yaapu script does: value * 10)
+      processCrossfireTelemetryValue(
+          CF_RPM_INDEX, (int32_t)(int16_t)(data & 0xFFFF) * 10);
+      processCrossfireTelemetryValue(
+          CF_RPM2_INDEX, (int32_t)(int16_t)((data >> 16) & 0xFFFF) * 10);
+      break;
+
+    default:
+      break;
+  }
+}
+
+// module with the freshest passthrough home frame, -1 if there is none
+static int freshestHomeModule()
+{
+  int best = -1;
+  uint32_t newest = 0;
+  const uint32_t now = time_get_ms();
+
+  for (uint8_t module = 0; module < 2; module++) {
+    if (!apPassthrough[module].homeSeen ||
+        (now - apPassthrough[module].homeMs) >= AP_PASSTHROUGH_HOME_TIMEOUT_MS) {
+      continue;
+    }
+    if (best < 0 || (int32_t)(apPassthrough[module].homeMs - newest) > 0) {
+      newest = apPassthrough[module].homeMs;
+      best = module;
+    }
+  }
+
+  return best;
+}
+
+int16_t getArduPilotHomeBearing()
+{
+  const int module = freshestHomeModule();
+  return module < 0 ? -1 : apPassthrough[module].homeBearingDeg;
+}
+
+// Altitude above home in meters (or -100000 when no home frame has been
+// received recently)
+float getArduPilotHomeAltitude()
+{
+  const int module = freshestHomeModule();
+  return module < 0 ? -100000.0f : apPassthrough[module].homeAltM;
+}
+
+// Distance to home in meters, from the same frame (-100000 while no home frame
+// has been received recently)
+float getArduPilotHomeDistance()
+{
+  const int module = freshestHomeModule();
+  return module < 0 ? -100000.0f : apPassthrough[module].homeDistM;
+}
+
+static void processArduPilotCustomTelemFrame(uint8_t module, uint8_t payloadSize,
+                                             const uint8_t* payload)
+{
+  if (payloadSize < 1) return;
+
+  if (payload[0] == CRSF_AP_CUSTOM_TELEM_SINGLE_PACKET) {
+    if (payloadSize < 7) return;
+    uint32_t data = payload[6];
+    data = (data << 8) | payload[5];
+    data = (data << 8) | payload[4];
+    data = (data << 8) | payload[3];
+    processArduPilotPassthroughPacket(module, payload[1] | (payload[2] << 8),
+                                      data);
+  } else if (payload[0] == CRSF_AP_CUSTOM_TELEM_MULTI_PACKET) {
+    if (payloadSize < 2) return;
+    const uint8_t count = min<uint8_t>(payload[1], (payloadSize - 2) / 6);
+    for (uint8_t i = 0; i < count; i++) {
+      const uint8_t* packet = payload + 2 + i * 6;
+      uint32_t data = packet[5];
+      data = (data << 8) | packet[4];
+      data = (data << 8) | packet[3];
+      data = (data << 8) | packet[2];
+      processArduPilotPassthroughPacket(module, packet[0] | (packet[1] << 8),
+                                        data);
+    }
+  }
+}
+
 void processCrossfireTelemetryFrame(uint8_t module, uint8_t* rxBuffer,
                                     uint8_t rxBufferCount)
 {
@@ -156,8 +389,12 @@ void processCrossfireTelemetryFrame(uint8_t module, uint8_t* rxBuffer,
   int32_t value;
   switch(id) {
     case CF_VARIO_ID:
-      processCrossfireTelemetryValue(VERTICAL_SPEED_INDEX,
-        getCrossfireTelemetryValue(3, rxBuffer, 2, true));
+      // the passthrough packet wins while it is fresh, see
+      // processArduPilotPassthroughPacket()
+      if (!isArduPilotPassthroughVSpeedFresh(module)) {
+        processCrossfireTelemetryValue(VERTICAL_SPEED_INDEX,
+          getCrossfireTelemetryValue(3, rxBuffer, 2, true));
+      }
       break;
 
     case GPS_ID:
@@ -171,8 +408,12 @@ void processCrossfireTelemetryFrame(uint8_t module, uint8_t* rxBuffer,
         getCrossfireTelemetryValue(13, rxBuffer, 2, false));
       processCrossfireTelemetryValue(GPS_ALTITUDE_INDEX,
         getCrossfireTelemetryValue(15, rxBuffer, 2, false) - 1000);
-      processCrossfireTelemetryValue(GPS_SATELLITES_INDEX,
-        getCrossfireTelemetryValue(17, rxBuffer, 1, false));
+      // the passthrough packet wins while it is fresh, see
+      // processArduPilotPassthroughPacket()
+      if (!isArduPilotPassthroughGpsFresh(module)) {
+        processCrossfireTelemetryValue(GPS_SATELLITES_INDEX,
+          getCrossfireTelemetryValue(17, rxBuffer, 1, false));
+      }
       break;
 
     case GPS_TIME_ID:
@@ -214,21 +455,23 @@ void processCrossfireTelemetryFrame(uint8_t module, uint8_t* rxBuffer,
 
       // Length of TBS BARO_ALT has 4 payload bytes with just 2 bytes of altitude
       // but support including TBS VARIO if the declared payload length is 5 bytes
-      if (crsfPayloadLen == 5) {
-        constexpr int Kl = 100;       // linearity constant;
-        constexpr float Kr = .026;    // range constant;
+      if (!isArduPilotPassthroughVSpeedFresh(module)) {
+        if (crsfPayloadLen == 5) {
+          constexpr int Kl = 100;       // linearity constant;
+          constexpr float Kr = .026;    // range constant;
 
-        value = getCrossfireTelemetryValue(5, rxBuffer, 1, true);
-        int8_t sign = value < 0 ? -1 : 1;
-        value =((expf(value * sign * Kr) - 1) * Kl) * sign;
-        processCrossfireTelemetryValue(VERTICAL_SPEED_INDEX, value);
+          value = getCrossfireTelemetryValue(5, rxBuffer, 1, true);
+          int8_t sign = value < 0 ? -1 : 1;
+          value =((expf(value * sign * Kr) - 1) * Kl) * sign;
+          processCrossfireTelemetryValue(VERTICAL_SPEED_INDEX, value);
+        }
+
+        // Length of TBS BARO_ALT has 4 payload bytes with just 2 bytes of altitude
+        // but support including ELRS VARIO if the declared payload length is 6 bytes or more
+        if (crsfPayloadLen > 5)
+          processCrossfireTelemetryValue(VERTICAL_SPEED_INDEX,
+            getCrossfireTelemetryValue(5, rxBuffer, 2, true));
       }
-
-      // Length of TBS BARO_ALT has 4 payload bytes with just 2 bytes of altitude
-      // but support including ELRS VARIO if the declared payload length is 6 bytes or more
-      if (crsfPayloadLen > 5)
-        processCrossfireTelemetryValue(VERTICAL_SPEED_INDEX,
-          getCrossfireTelemetryValue(5, rxBuffer, 2, true));
       break;
 
     case AIRSPEED_ID:
@@ -366,6 +609,9 @@ void processCrossfireTelemetryFrame(uint8_t module, uint8_t* rxBuffer,
       break;
 
     case ATTITUDE_ID:
+      // while the passthrough attitude packets are being received they are the
+      // faster source, see processArduPilotPassthroughPacket()
+      if (isArduPilotPassthroughAttitudeFresh(module)) break;
       processCrossfireTelemetryValue(ATTITUDE_PITCH_INDEX,
         getCrossfireTelemetryValue(3, rxBuffer, 2, true)/10);
       processCrossfireTelemetryValue(ATTITUDE_ROLL_INDEX,
@@ -394,6 +640,16 @@ void processCrossfireTelemetryFrame(uint8_t module, uint8_t* rxBuffer,
         //TRACE("[XF] Rate: %d, Lag: %d", update_interval, offset);
         getModuleSyncStatus(module).update(update_interval, offset);
       }
+      break;
+
+    case AP_CUSTOM_TELEM_ID:
+    case AP_CUSTOM_TELEM_LEGACY_ID:
+      processArduPilotCustomTelemFrame(
+          module, crsfPayloadLen > 2 ? crsfPayloadLen - 2 : 0, rxBuffer + 3);
+#if defined(LUA)
+      // Lua scripts (yaapu and friends) get the raw frame
+      pushTelemetryDataToQueues(rxBuffer + 1, rxBufferCount - 2);
+#endif
       break;
 
 #if defined(LUA)

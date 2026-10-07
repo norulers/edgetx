@@ -26,7 +26,9 @@
 extern "C" {
 #endif
 #include <stdint.h>
-extern uint32_t SystemCoreClock;
+#if !defined(SystemCoreClock)
+  extern uint32_t SystemCoreClock;
+#endif
 uint32_t timersGetRunTimeCounter(void);
 #if defined(__cplusplus)
 }

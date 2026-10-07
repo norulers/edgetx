@@ -239,7 +239,7 @@ class DateTimeWidget : public Widget
                  int screenNum, int zoneNum) :
       Widget(factory, parent, rect, screenNum, zoneNum)
   {
-    coord_t x = rect.w - HeaderDateTime::HDR_DATE_WIDTH - DT_XO;
+    coord_t x = (rect.w - HeaderDateTime::HDR_DATE_WIDTH) / 2;
     dateTime = new HeaderDateTime(this, x, PAD_THREE);
     update();
   }
@@ -261,7 +261,7 @@ class DateTimeWidget : public Widget
     uint32_t color;
     memcpy(&color, &widgetData->options[0].value.unsignedValue, sizeof(color));
     dateTime->setColor(color);
-    coord_t x = width() - HeaderDateTime::HDR_DATE_WIDTH - DT_XO;
+    coord_t x = (width() - HeaderDateTime::HDR_DATE_WIDTH) / 2;
     dateTime->setPos(x, PAD_THREE);
   }
 

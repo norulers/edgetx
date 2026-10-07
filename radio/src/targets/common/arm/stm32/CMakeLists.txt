@@ -43,6 +43,20 @@ if(NOT NATIVE_BUILD)
     ${STM32USB_DIR}/Core/Inc
     ${STM32USB_DIR}/Class/DFU/Inc)
 
+  # Crash / watchdog stall diagnostics (records kept in the unused D3 SRAM),
+  # Debug builds only
+  if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND CPU_TYPE_FULL MATCHES "^STM32H7(43|50)")
+    add_definitions(-DCRASH_DUMP)
+    set(FIRMWARE_SRC ${FIRMWARE_SRC} ${STM32_DRIVER_DIR}/crash_dump.cpp)
+  endif()
+
+  # Crash / watchdog stall diagnostics (records kept in the unused D3 SRAM),
+  # Debug builds only
+  if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND CPU_TYPE_FULL MATCHES "^STM32H7(43|50)")
+    add_definitions(-DCRASH_DUMP)
+    set(FIRMWARE_SRC ${FIRMWARE_SRC} ${STM32_DRIVER_DIR}/crash_dump.cpp)
+  endif()
+
   # Bootloader USB devices
   add_library(stm32usb_device_bl OBJECT EXCLUDE_FROM_ALL    
     ${STM32_DRIVER_DIR}/usbd_conf.c

@@ -22,6 +22,14 @@
 #include "hal/watchdog_driver.h"
 #include "stm32_hal_ll.h"
 
+#if defined(CRASH_DUMP)
+#include "hal/crash_dump.h"
+volatile uint32_t watchdogResetCount = 0;
+#define WATCHDOG_COUNT_RELOAD() (watchdogResetCount++)
+#else
+#define WATCHDOG_COUNT_RELOAD()
+#endif
+
 #ifdef IWDG1
   #define IWDG IWDG1
 #endif
@@ -36,9 +44,11 @@ void watchdogInit(unsigned int duration)
 
   LL_IWDG_ReloadCounter(IWDG);
   LL_IWDG_Enable(IWDG);
+  WATCHDOG_COUNT_RELOAD();
 }
 
 void watchdogReset()
 {
   LL_IWDG_ReloadCounter(IWDG);  
+  WATCHDOG_COUNT_RELOAD();
 }

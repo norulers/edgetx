@@ -31,6 +31,7 @@
 #include "sourcechoice.h"
 #include "switchchoice.h"
 #include "switches.h"
+#include "timer_setup.h"
 #include "toggleswitch.h"
 
 #define SET_DIRTY() storageDirty(EE_MODEL)
@@ -88,6 +89,29 @@ class LogicalSwitchEditPage : public Page
     etx_txt_color(headerSwitchName->getLvObj(), COLOR_THEME_ACTIVE_INDEX,
                   ETX_STATE_LS_ACTIVE);
     etx_font(headerSwitchName->getLvObj(), FONT_BOLD_INDEX, ETX_STATE_LS_ACTIVE);
+
+    // Dark FPV header: hide original canvas icons, place new ones with orange color
+    for (uint32_t i = 0; i < lv_obj_get_child_cnt(header->getLvObj()); i++) {
+      auto child = lv_obj_get_child(header->getLvObj(), i);
+      if (lv_obj_check_type(child, &lv_canvas_class))
+        lv_obj_add_flag(child, LV_OBJ_FLAG_HIDDEN);
+    }
+    auto leftBg = new StaticIcon(header, 0, 0, ICON_TOPLEFT_BG, COLOR_THEME_PRIMARY2_INDEX);
+    lv_obj_set_style_img_recolor_opa(leftBg->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_img_recolor(leftBg->getLvObj(), lv_color_make(0x22, 0x22, 0x22), LV_PART_MAIN);
+    leftBg->setTop((EdgeTxStyles::MENU_HEADER_HEIGHT - leftBg->height()) / 2);
+    auto leftIco = new StaticIcon(leftBg, 0, 0, ICON_MODEL_LOGICAL_SWITCHES, COLOR_THEME_PRIMARY2_INDEX);
+    lv_obj_set_style_img_recolor_opa(leftIco->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_img_recolor(leftIco->getLvObj(), lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN);
+    leftIco->center(leftBg->width() + PAD_MEDIUM, leftBg->height());
+    auto rightBg = new StaticIcon(header, LCD_W, 0, ICON_TOPRIGHT_BG, COLOR_THEME_PRIMARY2_INDEX);
+    lv_obj_set_style_img_recolor_opa(rightBg->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_img_recolor(rightBg->getLvObj(), lv_color_make(0x22, 0x22, 0x22), LV_PART_MAIN);
+    rightBg->setPos(LCD_W - rightBg->width(), (EdgeTxStyles::MENU_HEADER_HEIGHT - rightBg->height()) / 2);
+    auto rightIco = new StaticIcon(rightBg, 0, 0, ICON_BTN_CLOSE, COLOR_THEME_PRIMARY2_INDEX);
+    lv_obj_set_style_img_recolor_opa(rightIco->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_img_recolor(rightIco->getLvObj(), lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN);
+    rightIco->center(rightBg->width() + PAD_MEDIUM, rightBg->height());
   }
 
   void updateLogicalSwitchOneWindow()
@@ -100,12 +124,21 @@ class LogicalSwitchEditPage : public Page
     FlexGridLayout grid(col_dsc, row_dsc, PAD_TINY);
     FlexGridLayout grid2(col_dsc2, row_dsc, PAD_TINY);
 
+    // Dark FPV theme
+    lv_obj_set_style_bg_color(logicalSwitchOneWindow->getLvObj(), lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(logicalSwitchOneWindow->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_text_color(logicalSwitchOneWindow->getLvObj(), lv_color_white(), LV_PART_MAIN);
+
     LogicalSwitchData* cs = lswAddress(index);
     uint8_t cstate = lswFamily(cs->func);
 
     // V1
     auto line = logicalSwitchOneWindow->newLine(grid);
-    new StaticText(line, rect_t{}, STR_V1);
+    lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    line->padAll(PAD_SMALL);
+    auto v1Lbl = new StaticText(line, rect_t{}, STR_V1);
+    lv_obj_set_style_text_color(v1Lbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
     switch (cstate) {
       case LS_FAMILY_BOOL:
       case LS_FAMILY_STICKY:
@@ -113,22 +146,26 @@ class LogicalSwitchEditPage : public Page
         choice = new SwitchChoice(
             line, rect_t{}, SWSRC_FIRST_IN_LOGICAL_SWITCHES,
             SWSRC_LAST_IN_LOGICAL_SWITCHES, GET_SET_DEFAULT(cs->v1));
+        applyDarkBtnStyle(choice->getLvObj());
         choice->setAvailableHandler(isSwitchAvailableInLogicalSwitches);
         break;
-      case LS_FAMILY_COMP:
-        new SourceChoice(line, rect_t{}, 0, MIXSRC_LAST_TELEM,
+      case LS_FAMILY_COMP: {
+        auto srcChoice = new SourceChoice(line, rect_t{}, 0, MIXSRC_LAST_TELEM,
                          GET_SET_DEFAULT(cs->v1), true);
+        applyDarkBtnStyle(srcChoice->getLvObj());
         break;
+      }
       case LS_FAMILY_TIMER:
         timer =
             new NumberEdit(line, rect_t{}, -128, 122, GET_SET_DEFAULT(cs->v1));
+        applyDarkBtnStyle(timer->getLvObj());
         timer->setDisplayHandler([](int32_t value) {
           return formatNumberAsString(lswTimerValue(value), PREC1, 0, nullptr,
                                       "s");
         });
         break;
-      default:
-        new SourceChoice(line, rect_t{}, 0, MIXSRC_LAST_TELEM,
+      default: {
+        auto srcChoice = new SourceChoice(line, rect_t{}, 0, MIXSRC_LAST_TELEM,
                          GET_DEFAULT(cs->v1), [=](int32_t newValue) {
                            cs->v1 = newValue;
                            if (v2Edit != nullptr) {
@@ -140,7 +177,9 @@ class LogicalSwitchEditPage : public Page
                            }
                            SET_DIRTY();
                          }, true);
+        applyDarkBtnStyle(srcChoice->getLvObj());
         break;
+      }
     }
 
     // V2
@@ -149,20 +188,27 @@ class LogicalSwitchEditPage : public Page
     } else {
       line = logicalSwitchOneWindow->newLine(grid);
     }
-    new StaticText(line, rect_t{}, STR_V2);
+    lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    line->padAll(PAD_SMALL);
+    auto v2Lbl = new StaticText(line, rect_t{}, STR_V2);
+    lv_obj_set_style_text_color(v2Lbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
     switch (cstate) {
       case LS_FAMILY_BOOL:
       case LS_FAMILY_STICKY:
         choice = new SwitchChoice(
             line, rect_t{}, SWSRC_FIRST_IN_LOGICAL_SWITCHES,
             SWSRC_LAST_IN_LOGICAL_SWITCHES, GET_SET_DEFAULT(cs->v2));
+        applyDarkBtnStyle(choice->getLvObj());
         choice->setAvailableHandler(isSwitchAvailableInLogicalSwitches);
         break;
       case LS_FAMILY_EDGE: {
         auto edit1 =
             new NumberEdit(line, rect_t{}, -129, 122, GET_DEFAULT(cs->v2));
+        applyDarkBtnStyle(edit1->getLvObj());
         auto edit2 = new NumberEdit(line, rect_t{}, -1, 222 - cs->v2,
                                     GET_SET_DEFAULT(cs->v3));
+        applyDarkBtnStyle(edit2->getLvObj());
         edit1->setSetValueHandler([=](int32_t newValue) {
           cs->v2 = newValue;
           SET_DIRTY();
@@ -184,13 +230,16 @@ class LogicalSwitchEditPage : public Page
           }
         });
       } break;
-      case LS_FAMILY_COMP:
-        new SourceChoice(line, rect_t{}, 0, MIXSRC_LAST_TELEM,
+      case LS_FAMILY_COMP: {
+        auto srcChoice2 = new SourceChoice(line, rect_t{}, 0, MIXSRC_LAST_TELEM,
                          GET_SET_DEFAULT(cs->v2), true);
+        applyDarkBtnStyle(srcChoice2->getLvObj());
         break;
+      }
       case LS_FAMILY_TIMER:
         timer =
             new NumberEdit(line, rect_t{}, -128, 122, GET_SET_DEFAULT(cs->v2));
+        applyDarkBtnStyle(timer->getLvObj());
         timer->setDisplayHandler([](int32_t value) {
           return formatNumberAsString(lswTimerValue(value), PREC1, 0, nullptr,
                                       "s");
@@ -201,6 +250,7 @@ class LogicalSwitchEditPage : public Page
         if (validateLSV2Range(cs, v2_min, v2_max, nullptr)) SET_DIRTY();
         v2Edit = new NumberEdit(line, rect_t{}, v2_min, v2_max,
                                 GET_SET_DEFAULT(cs->v2));
+        applyDarkBtnStyle(v2Edit->getLvObj());
 
         v2Edit->setDisplayHandler([=](int value) -> std::string {
           if (abs(cs->v1) <= MIXSRC_LAST_CH) value = calc100toRESX(value);
@@ -212,16 +262,26 @@ class LogicalSwitchEditPage : public Page
 
     // AND switch
     line = logicalSwitchOneWindow->newLine(grid);
-    new StaticText(line, rect_t{}, STR_AND_SWITCH);
+    lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    line->padAll(PAD_SMALL);
+    auto andLbl = new StaticText(line, rect_t{}, STR_AND_SWITCH);
+    lv_obj_set_style_text_color(andLbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
     choice = new SwitchChoice(line, rect_t{}, -MAX_LS_ANDSW, MAX_LS_ANDSW,
                               GET_SET_DEFAULT(cs->andsw));
+    applyDarkBtnStyle(choice->getLvObj());
     choice->setAvailableHandler(isSwitchAvailableInLogicalSwitches);
 
     // Duration
     line = logicalSwitchOneWindow->newLine(grid);
-    new StaticText(line, rect_t{}, STR_DURATION);
+    lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    line->padAll(PAD_SMALL);
+    auto durLbl = new StaticText(line, rect_t{}, STR_DURATION);
+    lv_obj_set_style_text_color(durLbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
     auto edit = new NumberEdit(line, rect_t{}, 0, MAX_LS_DURATION,
                                GET_SET_DEFAULT(cs->duration), PREC1);
+    applyDarkBtnStyle(edit->getLvObj());
     edit->setZeroText("---");
     edit->setDisplayHandler([](int32_t value) {
       return formatNumberAsString(value, PREC1, 0, nullptr, "s");
@@ -229,13 +289,19 @@ class LogicalSwitchEditPage : public Page
 
     // Delay
     line = logicalSwitchOneWindow->newLine(grid);
-    new StaticText(line, rect_t{}, STR_DELAY);
+    lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    line->padAll(PAD_SMALL);
+    auto delayLbl = new StaticText(line, rect_t{}, STR_DELAY);
+    lv_obj_set_style_text_color(delayLbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
     if (cstate == LS_FAMILY_EDGE) {
-      new StaticText(line, rect_t{}, STR_NA);
+      auto naLbl = new StaticText(line, rect_t{}, STR_NA);
+      lv_obj_set_style_text_color(naLbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
     } else {
-      auto edit = new NumberEdit(line, rect_t{}, 0, MAX_LS_DELAY,
+      auto delayEdit = new NumberEdit(line, rect_t{}, 0, MAX_LS_DELAY,
                                  GET_SET_DEFAULT(cs->delay), PREC1);
-      edit->setDisplayHandler([](int32_t value) {
+      applyDarkBtnStyle(delayEdit->getLvObj());
+      delayEdit->setDisplayHandler([](int32_t value) {
         if (value == 0) return std::string("---");
         return formatNumberAsString(value, PREC1, 0, nullptr, "s");
       });
@@ -244,8 +310,13 @@ class LogicalSwitchEditPage : public Page
     // Sticky persist
     if (cstate == LS_FAMILY_STICKY) {
       line = logicalSwitchOneWindow->newLine(grid);
-      new StaticText(line, rect_t{}, STR_PERSISTENT);
-      new ToggleSwitch(line, rect_t{}, GET_SET_DEFAULT(cs->lsPersist));
+      lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+      lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+      line->padAll(PAD_SMALL);
+      auto persistLbl = new StaticText(line, rect_t{}, STR_PERSISTENT);
+      lv_obj_set_style_text_color(persistLbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
+      auto persistSw = new ToggleSwitch(line, rect_t{}, GET_SET_DEFAULT(cs->lsPersist));
+      applyDarkBtnStyle(persistSw->getLvObj());
     }
   }
 
@@ -257,13 +328,23 @@ class LogicalSwitchEditPage : public Page
 
     FlexGridLayout grid(col_dsc, row_dsc, PAD_TINY);
 
+    // Dark FPV theme
+    lv_obj_set_style_bg_color(window->getLvObj(), lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(window->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_text_color(window->getLvObj(), lv_color_white(), LV_PART_MAIN);
+
     LogicalSwitchData* cs = lswAddress(index);
 
     // LS Func
     auto line = window->newLine(grid);
-    new StaticText(line, rect_t{}, STR_FUNC);
+    lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    line->padAll(PAD_SMALL);
+    auto funcLbl = new StaticText(line, rect_t{}, STR_FUNC);
+    lv_obj_set_style_text_color(funcLbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
     auto functionChoice = new Choice(line, rect_t{}, STR_VCSWFUNC, 0,
                                      LS_FUNC_MAX, GET_DEFAULT(cs->func));
+    applyDarkBtnStyle(functionChoice->getLvObj());
     functionChoice->setSetValueHandler([=](int32_t newValue) {
       cs->func = newValue;
       if (lswFamily(cs->func) == LS_FAMILY_TIMER) {
@@ -302,6 +383,7 @@ class LogicalSwitchButton : public ListLineButton
   LogicalSwitchButton(Window* parent, int lsIndex) :
       ListLineButton(parent, lsIndex)
   {
+    stylePageGroupControl(lvobj);
     setHeight(LS_BUTTON_H);
     padAll(PAD_ZERO);
 
@@ -578,6 +660,11 @@ void ModelLogicalSwitchesPage::plusPopup(Window* window)
 
 void ModelLogicalSwitchesPage::build(Window* window)
 {
+  // FPV dark theme
+  lv_obj_set_style_bg_color(window->getLvObj(), lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(window->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_text_color(window->getLvObj(), lv_color_white(), LV_PART_MAIN);
+
   window->setFlexLayout(LV_FLEX_FLOW_COLUMN, PAD_OUTLINE);
 
   bool hasEmptySwitch = false;
@@ -652,6 +739,7 @@ void ModelLogicalSwitchesPage::build(Window* window)
                          plusPopup(window);
                          return 0;
                        });
+    stylePageGroupControl(addButton->getLvObj());
 
     addButton->setLongPressHandler([=]() -> uint8_t {
       plusPopup(window);

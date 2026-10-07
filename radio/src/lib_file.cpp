@@ -96,13 +96,16 @@ void etxNormalizePath(const char* in, char* out, size_t outLen)
   if (outLen < 2) return;
   if (!in) in = "";
 
-  // absolute input replaces the CWD; relative input is appended
+  // absolute input replaces the CWD; relative input is appended. A path
+  // longer than the work buffer yields an empty result (like an output that
+  // does not fit) instead of normalizing a silently truncated path.
   char work[FF_MAX_LFN + 1];
   if (in[0] == '/') {
-    strncpy(work, in, sizeof(work) - 1);
-    work[sizeof(work) - 1] = '\0';
+    if (strlen(in) >= sizeof(work)) return;
+    strcpy(work, in);
   } else {
-    snprintf(work, sizeof(work), "%s/%s", s_currentDir, in);
+    int n = snprintf(work, sizeof(work), "%s/%s", s_currentDir, in);
+    if (n < 0 || (size_t)n >= sizeof(work)) return;
   }
 
   size_t len = 0;

@@ -558,6 +558,20 @@ void sdDone()
   storageDeInit();
 }
 
+bool sdMountRaw()
+{
+  storageInit();
+  if (f_mount(&g_FATFS_Obj, "", 1) == FR_OK) return true;
+  storageDeInit();
+  return false;
+}
+
+void sdUnmountRaw()
+{
+  f_mount(nullptr, "", 0);
+  storageDeInit();
+}
+
 uint32_t sdMounted()
 {
 #if defined(SIMU) && !defined(SIMU_DISKIO)

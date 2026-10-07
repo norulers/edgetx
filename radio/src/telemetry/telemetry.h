@@ -246,7 +246,12 @@ void registerTelemetryQueue(TelemetryQueue*);
 
 // Unregister and delete in one go: the producer runs in the timer task and
 // would otherwise be able to write into a queue that has just been freed.
+// Only for queues allocated with new.
 void destroyTelemetryQueue(TelemetryQueue*);
+
+// Unregister only, for queues embedded in another object or on the stack:
+// once this returns the producer no longer writes into the queue.
+void unregisterTelemetryQueue(TelemetryQueue*);
 
 void pushTelemetryDataToQueues(uint8_t* data, int length);
 #endif

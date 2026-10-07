@@ -482,6 +482,12 @@ void destroyTelemetryQueue(TelemetryQueue* queue)
   telemetryQueues.remove(queue);
   delete queue;
 }
+
+void unregisterTelemetryQueue(TelemetryQueue* queue)
+{
+  MutexLock lock = MutexLock::MakeInstance(&telemetryQueueMutex);
+  telemetryQueues.remove(queue);
+}
 #else
 void telemetryQueuesInit() {}
 #endif

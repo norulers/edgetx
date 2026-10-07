@@ -35,6 +35,7 @@
 #include "sourcechoice.h"
 #include "switchchoice.h"
 #include "textedit.h"
+#include "timer_setup.h"
 
 #define SET_DIRTY() storageDirty(EE_MODEL)
 
@@ -71,6 +72,30 @@ void MixEditWindow::buildHeader(Window *window)
   header->setTitle(STR_MIXES);
   header->setTitle2(title2);
 
+  // Dark FPV header: hide original canvas icons, place new ones with orange color
+  for (uint32_t i = 0; i < lv_obj_get_child_cnt(header->getLvObj()); i++) {
+    auto child = lv_obj_get_child(header->getLvObj(), i);
+    if (lv_obj_check_type(child, &lv_canvas_class))
+      lv_obj_add_flag(child, LV_OBJ_FLAG_HIDDEN);
+  }
+  auto leftBg = new StaticIcon(header, 0, 0, ICON_TOPLEFT_BG, COLOR_THEME_PRIMARY2_INDEX);
+  lv_obj_set_style_img_recolor_opa(leftBg->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_img_recolor(leftBg->getLvObj(), lv_color_make(0x22, 0x22, 0x22), LV_PART_MAIN);
+  leftBg->setTop((EdgeTxStyles::MENU_HEADER_HEIGHT - leftBg->height()) / 2);
+  auto leftIco = new StaticIcon(leftBg, 0, 0, ICON_MODEL_MIXER, COLOR_THEME_PRIMARY2_INDEX);
+  lv_obj_set_style_img_recolor_opa(leftIco->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_img_recolor(leftIco->getLvObj(), lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN);
+  leftIco->center(leftBg->width() + PAD_MEDIUM, leftBg->height());
+
+  auto rightBg = new StaticIcon(header, LCD_W, 0, ICON_TOPRIGHT_BG, COLOR_THEME_PRIMARY2_INDEX);
+  lv_obj_set_style_img_recolor_opa(rightBg->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_img_recolor(rightBg->getLvObj(), lv_color_make(0x22, 0x22, 0x22), LV_PART_MAIN);
+  rightBg->setPos(LCD_W - rightBg->width(), (EdgeTxStyles::MENU_HEADER_HEIGHT - rightBg->height()) / 2);
+  auto rightIco = new StaticIcon(rightBg, 0, 0, ICON_BTN_CLOSE, COLOR_THEME_PRIMARY2_INDEX);
+  lv_obj_set_style_img_recolor_opa(rightIco->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_img_recolor(rightIco->getLvObj(), lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN);
+  rightIco->center(rightBg->width() + PAD_MEDIUM, rightBg->height());
+
   new MixerEditStatusBar(
       window,
       {window->getRect().w - MIX_STATUS_BAR_WIDTH - PageGroup::PAGE_GROUP_BACK_BTN_W, 0,
@@ -79,8 +104,8 @@ void MixEditWindow::buildHeader(Window *window)
 }
 
 #if !NARROW_LAYOUT
-static const lv_coord_t col_dsc[] = {LV_GRID_FR(1), LV_GRID_FR(2),
-                                     LV_GRID_FR(1), LV_GRID_FR(3),
+static const lv_coord_t col_dsc[] = {LV_GRID_FR(1), LV_GRID_FR(3),
+                                     LV_GRID_FR(1), LV_GRID_FR(4),
                                      LV_GRID_TEMPLATE_LAST};
 static const lv_coord_t row_dsc[] = {LV_GRID_CONTENT, LV_GRID_TEMPLATE_LAST};
 #else
@@ -95,41 +120,70 @@ void MixEditWindow::buildBody(Window *form)
   FlexGridLayout grid(col_dsc, row_dsc, PAD_TINY);
   form->setFlexLayout();
 
+  // Dark FPV theme
+  lv_obj_set_style_bg_color(form->getLvObj(), lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(form->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_text_color(form->getLvObj(), lv_color_white(), LV_PART_MAIN);
+
   MixData *mix = mixAddress(index);
 
   // Mix name
   auto line = form->newLine(grid);
-  new StaticText(line, rect_t{}, STR_NAME);
-  new ModelTextEdit(line, rect_t{}, mix->name, sizeof(mix->name));
+  lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  line->padAll(PAD_SMALL);
+  auto lbl = new StaticText(line, rect_t{}, STR_NAME);
+  lv_obj_set_style_text_color(lbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
+  auto nameEdit = new ModelTextEdit(line, rect_t{}, mix->name, sizeof(mix->name));
+  applyDarkBtnStyle(nameEdit->getLvObj());
 
   // Source
   line = form->newLine(grid);
-  new StaticText(line, rect_t{}, STR_SOURCE);
-  new SourceChoice(line, rect_t{}, 0, MIXSRC_LAST,
+  lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  line->padAll(PAD_SMALL);
+  lbl = new StaticText(line, rect_t{}, STR_SOURCE);
+  lv_obj_set_style_text_color(lbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
+  auto srcChoice = new SourceChoice(line, rect_t{}, 0, MIXSRC_LAST,
                    GET_SET_DEFAULT(mix->srcRaw), true);
+  applyDarkBtnStyle(srcChoice->getLvObj());
 
   // Weight
   line = form->newLine(grid);
-  new StaticText(line, rect_t{}, STR_WEIGHT);
+  lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  line->padAll(PAD_SMALL);
+  lbl = new StaticText(line, rect_t{}, STR_WEIGHT);
+  lv_obj_set_style_text_color(lbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
   auto svar = new SourceNumberEdit(line, MIX_WEIGHT_MIN, MIX_WEIGHT_MAX,
                                    GET_SET_DEFAULT(mix->weight), MIXSRC_FIRST);
   svar->setSuffix("%");
+  applyDarkBtnStyle(svar->getLvObj());
 
   // Offset
-  new StaticText(line, rect_t{}, STR_OFFSET);
+  lbl = new StaticText(line, rect_t{}, STR_OFFSET);
+  lv_obj_set_style_text_color(lbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
   auto gvar = new SourceNumberEdit(line, MIX_OFFSET_MIN, MIX_OFFSET_MAX,
                                    GET_SET_DEFAULT(mix->offset), MIXSRC_FIRST);
   gvar->setSuffix("%");
+  applyDarkBtnStyle(gvar->getLvObj());
 
   // Switch
   line = form->newLine(grid);
-  new StaticText(line, rect_t{}, STR_SWITCH);
-  new SwitchChoice(line, rect_t{}, SWSRC_FIRST_IN_MIXES, SWSRC_LAST_IN_MIXES,
+  lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  line->padAll(PAD_SMALL);
+  lbl = new StaticText(line, rect_t{}, STR_SWITCH);
+  lv_obj_set_style_text_color(lbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
+  auto swtch = new SwitchChoice(line, rect_t{}, SWSRC_FIRST_IN_MIXES, SWSRC_LAST_IN_MIXES,
                    GET_SET_DEFAULT(mix->swtch));
+  applyDarkBtnStyle(swtch->getLvObj());
 
   // Curve
-  new StaticText(line, rect_t{}, STR_CURVE);
-  new CurveParam(line, rect_t{}, &mix->curve, SET_DEFAULT(mix->curve.value), MIXSRC_FIRST, mix->srcRaw);
+  lbl = new StaticText(line, rect_t{}, STR_CURVE);
+  lv_obj_set_style_text_color(lbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
+  auto curveParam = new CurveParam(line, rect_t{}, &mix->curve, SET_DEFAULT(mix->curve.value), MIXSRC_FIRST, mix->srcRaw);
+  applyDarkBtnStyle(curveParam->getLvObj());
 
   line = form->newLine(grid);
   line->padAll(PAD_LARGE);
@@ -139,4 +193,5 @@ void MixEditWindow::buildBody(Window *form)
         return 0;
       });
   lv_obj_set_width(btn->getLvObj(), lv_pct(100));
+  applyDarkBtnStyle(btn->getLvObj());
 }

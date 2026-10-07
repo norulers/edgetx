@@ -32,6 +32,7 @@
 #include "source_numberedit.h"
 #include "switchchoice.h"
 #include "textedit.h"
+#include "timer_setup.h"
 
 #define SET_DIRTY() storageDirty(EE_MODEL)
 
@@ -53,15 +54,48 @@ class InputEditAdvanced : public Page
     header->setTitle(STR_MENUINPUTS);
     header->setTitle2(title2);
 
+    // Dark FPV header icons
+    for (uint32_t i = 0; i < lv_obj_get_child_cnt(header->getLvObj()); i++) {
+      auto child = lv_obj_get_child(header->getLvObj(), i);
+      if (lv_obj_check_type(child, &lv_canvas_class))
+        lv_obj_add_flag(child, LV_OBJ_FLAG_HIDDEN);
+    }
+    auto leftBg = new StaticIcon(header, 0, 0, ICON_TOPLEFT_BG, COLOR_THEME_PRIMARY2_INDEX);
+    lv_obj_set_style_img_recolor_opa(leftBg->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_img_recolor(leftBg->getLvObj(), lv_color_make(0x22, 0x22, 0x22), LV_PART_MAIN);
+    leftBg->setTop((EdgeTxStyles::MENU_HEADER_HEIGHT - leftBg->height()) / 2);
+    auto leftIco = new StaticIcon(leftBg, 0, 0, ICON_MODEL_INPUTS, COLOR_THEME_PRIMARY2_INDEX);
+    lv_obj_set_style_img_recolor_opa(leftIco->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_img_recolor(leftIco->getLvObj(), lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN);
+    leftIco->center(leftBg->width() + PAD_MEDIUM, leftBg->height());
+    auto rightBg = new StaticIcon(header, LCD_W, 0, ICON_TOPRIGHT_BG, COLOR_THEME_PRIMARY2_INDEX);
+    lv_obj_set_style_img_recolor_opa(rightBg->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_img_recolor(rightBg->getLvObj(), lv_color_make(0x22, 0x22, 0x22), LV_PART_MAIN);
+    rightBg->setPos(LCD_W - rightBg->width(), (EdgeTxStyles::MENU_HEADER_HEIGHT - rightBg->height()) / 2);
+    auto rightIco = new StaticIcon(rightBg, 0, 0, ICON_BTN_CLOSE, COLOR_THEME_PRIMARY2_INDEX);
+    lv_obj_set_style_img_recolor_opa(rightIco->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_img_recolor(rightIco->getLvObj(), lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN);
+    rightIco->center(rightBg->width() + PAD_MEDIUM, rightBg->height());
+
+    // Dark FPV theme
+    lv_obj_set_style_bg_color(body->getLvObj(), lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(body->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_text_color(body->getLvObj(), lv_color_white(), LV_PART_MAIN);
+
     FlexGridLayout grid(col_dsc, row_dsc, PAD_TINY);
     body->setFlexLayout();
+    body->padAll(PAD_SMALL);
 
     ExpoData* input = expoAddress(index);
 
     // Side
     auto line = body->newLine(grid);
-    new StaticText(line, rect_t{}, STR_SIDE);
-    new Choice(
+    lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    line->padAll(PAD_SMALL);
+    auto lbl = new StaticText(line, rect_t{}, STR_SIDE);
+    lv_obj_set_style_text_color(lbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
+    auto side = new Choice(
         line, rect_t{}, STR_VCURVEFUNC, 1, 3,
         [=]() -> int16_t { return 4 - input->mode; },
         [=](int16_t newValue) {
@@ -69,14 +103,20 @@ class InputEditAdvanced : public Page
           Messaging::send(Messaging::CURVE_UPDATE);
           SET_DIRTY();
         });
+    applyDarkBtnStyle(side->getLvObj());
 
     // Trim
     line = body->newLine(grid);
-    new StaticText(line, rect_t{}, STR_TRIM);
+    lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+    line->padAll(PAD_SMALL);
+    lbl = new StaticText(line, rect_t{}, STR_TRIM);
+    lv_obj_set_style_text_color(lbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
     const auto trimLast = TRIM_OFF + keysGetMaxTrims() - 1;
     auto c = new Choice(line, rect_t{}, -TRIM_OFF, trimLast,
                         GET_VALUE(-input->trimSource),
                         SET_VALUE(input->trimSource, -newValue));
+    applyDarkBtnStyle(c->getLvObj());
 
     uint16_t srcRaw = input->srcRaw;
     c->setAvailableHandler([=](int value) {
@@ -89,7 +129,11 @@ class InputEditAdvanced : public Page
     // Flight modes
     if (modelFMEnabled()) {
       line = body->newLine(grid);
-      new StaticText(line, rect_t{}, STR_FLMODE);
+      lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+      lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+      line->padAll(PAD_SMALL);
+      lbl = new StaticText(line, rect_t{}, STR_FLMODE);
+      lv_obj_set_style_text_color(lbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
       new FMMatrix<ExpoData>(line, rect_t{}, input);
     }
   }
@@ -100,6 +144,35 @@ InputEditWindow::InputEditWindow(int8_t input, uint8_t index) :
 {
   header->setTitle(STR_MENUINPUTS);
   headerSwitchName = header->setTitle2("");
+
+  // Dark FPV header: hide original canvas icons, place new ones with orange color
+  for (uint32_t i = 0; i < lv_obj_get_child_cnt(header->getLvObj()); i++) {
+    auto child = lv_obj_get_child(header->getLvObj(), i);
+    if (lv_obj_check_type(child, &lv_canvas_class))
+      lv_obj_add_flag(child, LV_OBJ_FLAG_HIDDEN);
+  }
+  auto leftBg = new StaticIcon(header, 0, 0, ICON_TOPLEFT_BG, COLOR_THEME_PRIMARY2_INDEX);
+  lv_obj_set_style_img_recolor_opa(leftBg->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_img_recolor(leftBg->getLvObj(), lv_color_make(0x22, 0x22, 0x22), LV_PART_MAIN);
+  leftBg->setTop((EdgeTxStyles::MENU_HEADER_HEIGHT - leftBg->height()) / 2);
+  auto leftIco = new StaticIcon(leftBg, 0, 0, ICON_MODEL_INPUTS, COLOR_THEME_PRIMARY2_INDEX);
+  lv_obj_set_style_img_recolor_opa(leftIco->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_img_recolor(leftIco->getLvObj(), lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN);
+  leftIco->center(leftBg->width() + PAD_MEDIUM, leftBg->height());
+
+  auto rightBg = new StaticIcon(header, LCD_W, 0, ICON_TOPRIGHT_BG, COLOR_THEME_PRIMARY2_INDEX);
+  lv_obj_set_style_img_recolor_opa(rightBg->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_img_recolor(rightBg->getLvObj(), lv_color_make(0x22, 0x22, 0x22), LV_PART_MAIN);
+  rightBg->setPos(LCD_W - rightBg->width(), (EdgeTxStyles::MENU_HEADER_HEIGHT - rightBg->height()) / 2);
+  auto rightIco = new StaticIcon(rightBg, 0, 0, ICON_BTN_CLOSE, COLOR_THEME_PRIMARY2_INDEX);
+  lv_obj_set_style_img_recolor_opa(rightIco->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_img_recolor(rightIco->getLvObj(), lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN);
+  rightIco->center(rightBg->width() + PAD_MEDIUM, rightBg->height());
+
+  // Dark FPV theme
+  lv_obj_set_style_bg_color(body->getLvObj(), lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(body->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_text_color(body->getLvObj(), lv_color_white(), LV_PART_MAIN);
 
   etx_txt_color(headerSwitchName->getLvObj(), COLOR_THEME_ACTIVE_INDEX,
                 LV_STATE_USER_1);
@@ -157,27 +230,46 @@ void InputEditWindow::buildBody(Window* form)
 
   // Input Name
   auto line = form->newLine(grid);
-  new StaticText(line, rect_t{}, STR_INPUTNAME);
-  new ModelTextEdit(line, rect_t{}, g_model.inputNames[input->chn],
+  lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  line->padAll(PAD_SMALL);
+  auto lbl = new StaticText(line, rect_t{}, STR_INPUTNAME);
+  lv_obj_set_style_text_color(lbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
+  auto nameEdit = new ModelTextEdit(line, rect_t{}, g_model.inputNames[input->chn],
                     LEN_INPUT_NAME,
                     [=]() {
                       setTitle();
                     });
+  applyDarkBtnStyle(nameEdit->getLvObj());
 
   // Line Name
   line = form->newLine(grid);
-  new StaticText(line, rect_t{}, STR_EXPONAME);
-  new ModelTextEdit(line, rect_t{}, input->name, LEN_EXPOMIX_NAME);
+  lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  line->padAll(PAD_SMALL);
+  lbl = new StaticText(line, rect_t{}, STR_EXPONAME);
+  lv_obj_set_style_text_color(lbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
+  auto lineEdit = new ModelTextEdit(line, rect_t{}, input->name, LEN_EXPOMIX_NAME);
+  applyDarkBtnStyle(lineEdit->getLvObj());
 
   // Source
   line = form->newLine(grid);
-  new StaticText(line, rect_t{}, STR_SOURCE);
+  lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  line->padAll(PAD_SMALL);
+  lbl = new StaticText(line, rect_t{}, STR_SOURCE);
+  lv_obj_set_style_text_color(lbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
   auto src = new InputSource(line, input);
   lv_obj_set_style_grid_cell_x_align(src->getLvObj(), LV_GRID_ALIGN_STRETCH, 0);
+  applyDarkBtnStyle(src->getLvObj());
 
   // Weight
   line = form->newLine(grid);
-  new StaticText(line, rect_t{}, STR_WEIGHT);
+  lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  line->padAll(PAD_SMALL);
+  lbl = new StaticText(line, rect_t{}, STR_WEIGHT);
+  lv_obj_set_style_text_color(lbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
   auto gvar =
       new SourceNumberEdit(line, -100, 100, GET_DEFAULT(input->weight),
                            [=](int32_t newValue) {
@@ -186,10 +278,15 @@ void InputEditWindow::buildBody(Window* form)
                              SET_DIRTY();
                            }, MIXSRC_FIRST);
   gvar->setSuffix("%");
+  applyDarkBtnStyle(gvar->getLvObj());
 
   // Offset
   line = form->newLine(grid);
-  new StaticText(line, rect_t{}, STR_OFFSET);
+  lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  line->padAll(PAD_SMALL);
+  lbl = new StaticText(line, rect_t{}, STR_OFFSET);
+  lv_obj_set_style_text_color(lbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
   gvar = new SourceNumberEdit(line, -100, 100,
                               GET_DEFAULT(input->offset), [=](int32_t newValue) {
                                 input->offset = newValue;
@@ -197,21 +294,31 @@ void InputEditWindow::buildBody(Window* form)
                                 SET_DIRTY();
                               }, MIXSRC_FIRST);
   gvar->setSuffix("%");
+  applyDarkBtnStyle(gvar->getLvObj());
 
   // Switch
   line = form->newLine(grid);
-  new StaticText(line, rect_t{}, STR_SWITCH);
-  new SwitchChoice(line, rect_t{}, SWSRC_FIRST_IN_MIXES, SWSRC_LAST_IN_MIXES,
+  lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  line->padAll(PAD_SMALL);
+  lbl = new StaticText(line, rect_t{}, STR_SWITCH);
+  lv_obj_set_style_text_color(lbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
+  auto sw = new SwitchChoice(line, rect_t{}, SWSRC_FIRST_IN_MIXES, SWSRC_LAST_IN_MIXES,
                    GET_DEFAULT(input->swtch),
                    [=](int newValue) {
                      input->swtch = newValue;
                      updatePreview = true;
                      SET_DIRTY();
                    });
+  applyDarkBtnStyle(sw->getLvObj());
 
   // Curve
   line = form->newLine(grid);
-  new StaticText(line, rect_t{}, STR_CURVE);
+  lv_obj_set_style_bg_color(line->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(line->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  line->padAll(PAD_SMALL);
+  lbl = new StaticText(line, rect_t{}, STR_CURVE);
+  lv_obj_set_style_text_color(lbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
   auto param =
       new CurveParam(line, rect_t{}, &input->curve,
         [=](int32_t newValue) {
@@ -221,6 +328,7 @@ void InputEditWindow::buildBody(Window* form)
         }, MIXSRC_FIRST, input->srcRaw);
   lv_obj_set_style_grid_cell_x_align(param->getLvObj(), LV_GRID_ALIGN_STRETCH,
                                      0);
+  applyDarkBtnStyle(param->getLvObj());
 
   line = form->newLine(grid);
   line->padAll(PAD_LARGE);
@@ -230,6 +338,7 @@ void InputEditWindow::buildBody(Window* form)
         return 0;
       });
   lv_obj_set_width(btn->getLvObj(), lv_pct(100));
+  applyDarkBtnStyle(btn->getLvObj());
 }
 
 void InputEditWindow::checkEvents()

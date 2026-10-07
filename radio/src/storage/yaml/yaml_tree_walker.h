@@ -157,6 +157,10 @@ public:
 
     void setAttrValue(const char* buf, uint16_t len);
 
+    // Emit the current attribute (the one getAttr() points at) as text,
+    // using the same representation as the storage YAML files.
+    bool outputCurrentAttr(yaml_writer_func wf, void* opaque);
+
     bool generate(yaml_writer_func wf, void* opaque);
 
     void dump_stack();
