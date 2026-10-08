@@ -21,9 +21,11 @@
 
 #pragma once
 
+#include "bottom_dock.h"
 #include "topbar.h"
 #include "window.h"
 
+class BottomDock;
 class TopBar;
 class HeaderIcon;
 
@@ -76,6 +78,7 @@ class ViewMain : public NavWindow
   bool isVisible = true;
   lv_obj_t* tile_view = nullptr;
   TopBar* topbar = nullptr;
+  BottomDock* dock = nullptr;
   HeaderIcon* headerIcon = nullptr;
   bool widget_select = false;
   tmr10ms_t widgetSelectCancelTime = 0;

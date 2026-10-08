@@ -120,6 +120,12 @@ void sdMount();
 void sdDone();
 uint32_t sdMounted();
 
+// Short-lived mount without sdMount() side effects (free space scan, log
+// files), for accesses while the card is otherwise unused (emergency mode).
+// sdMounted() stays false while mounted this way.
+bool sdMountRaw();
+void sdUnmountRaw();
+
 uint32_t sdGetNoSectors();
 uint32_t sdGetSize();
 uint32_t sdGetFreeSectors();

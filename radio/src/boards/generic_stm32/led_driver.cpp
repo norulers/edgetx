@@ -24,13 +24,15 @@
 #include "hal/rgbleds.h"
 #include "stm32_gpio.h"
 #include "boards/generic_stm32/rgb_leds.h"
-#include "board.h"
 
 #if defined(STATUS_LED_PWM)
   #include "hal.h"
   #include "stm32_hal_ll.h"
   #include "stm32_timer.h"
 #endif
+
+// HAL headers first: definitions.h (via board.h) defines UNUSED too
+#include "board.h"
 
 #define __weak __attribute__((weak))
 

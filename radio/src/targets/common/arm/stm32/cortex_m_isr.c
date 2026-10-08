@@ -21,17 +21,25 @@
 
 #include "cortex_m_isr.h"
 #include "stm32_cmsis.h"
+#include "hal/crash_dump.h"
 
 #define GET_VECTACTIVE() \
   ((SCB->ICSR & SCB_ICSR_VECTACTIVE_Msk) >> SCB_ICSR_VECTACTIVE_Pos)
 
-#define HARDFAULT_HANDLING_ASM(_x) \
+// Pass the stacked exception frame (MSP or PSP, depending on EXC_RETURN),
+// EXC_RETURN, the fault type and r4-r11 of the faulting context (pushed here,
+// they are not part of the hardware frame) to fault_handler_c()
+#define FAULT_HANDLING_ASM(type)   \
   __asm volatile(                  \
       "tst lr, #4 \n"              \
       "ite eq \n"                  \
       "mrseq r0, msp \n"           \
       "mrsne r0, psp \n"           \
-      "b hard_fault_handler_c \n")
+      "mov r1, lr \n"              \
+      "movs r2, #" #type " \n"     \
+      "push {r4-r11} \n"           \
+      "mov r3, sp \n"              \
+      "b fault_handler_c \n")
 
 #define HALT_IF_DEBUGGING()                                 \
   do {                                                      \
@@ -40,10 +48,18 @@
     }                                                       \
   } while (0)
 
+// Only linked into firmware builds (crash_dump.cpp) / boards that report
+// faults, null otherwise
+__attribute__((weak)) void crashDumpFault(uint32_t type, const uint32_t* frame,
+                                          uint32_t excReturn,
+                                          const uint32_t* regs);
+__attribute__((weak)) void boardFaultHook(uint32_t type);
 
 __attribute__((optimize("O0")))
 void default_isr_handler()
 {
+  if (crashDumpFault) crashDumpFault(CRASH_TYPE_UNHANDLED_IRQ, 0, 0, 0);
+
   /* Halt in debugger if connected */
   if (CoreDebug->DHCSR & CoreDebug_DHCSR_C_DEBUGEN_Msk) {
     uint32_t active_irq = GET_VECTACTIVE();
@@ -59,22 +75,34 @@ void default_isr_handler()
   while (1) {}
 }
 
-typedef struct __attribute__((packed)) ContextStateFrame {
-  uint32_t r0;
-  uint32_t r1;
-  uint32_t r2;
-  uint32_t r3;
-  uint32_t r12;
-  uint32_t lr;
-  uint32_t return_address;
-  uint32_t xpsr;
-} sContextStateFrame;
-
-__attribute__((optimize("O0")))
-void hard_fault_handler_c(sContextStateFrame *frame) {
+// Records the fault, then waits for the watchdog to reset the radio (which
+// boots in emergency mode, exactly as without the capture)
+__attribute__((used, noinline))
+void fault_handler_c(const uint32_t* frame, uint32_t excReturn, uint32_t type,
+                     const uint32_t* regs)
+{
+  if (crashDumpFault) crashDumpFault(type, frame, excReturn, regs);
+  if (boardFaultHook) boardFaultHook(type);
   HALT_IF_DEBUGGING();
+  while (1) {}
 }
 
-void HardFault_Handler(void) {
-  HARDFAULT_HANDLING_ASM();
+__attribute__((naked)) void HardFault_Handler(void)
+{
+  FAULT_HANDLING_ASM(1);  // CRASH_TYPE_HARDFAULT
+}
+
+__attribute__((naked)) void MemManage_Handler(void)
+{
+  FAULT_HANDLING_ASM(2);  // CRASH_TYPE_MEMMANAGE
+}
+
+__attribute__((naked)) void BusFault_Handler(void)
+{
+  FAULT_HANDLING_ASM(3);  // CRASH_TYPE_BUSFAULT
+}
+
+__attribute__((naked)) void UsageFault_Handler(void)
+{
+  FAULT_HANDLING_ASM(4);  // CRASH_TYPE_USAGEFAULT
 }

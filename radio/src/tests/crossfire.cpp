@@ -23,6 +23,7 @@
 #include "gtests.h"
 #include "telemetry/telemetry.h"
 #include "telemetry/crossfire.h"
+#include "telemetry/sensor_names.h"
 #include "crc.h"
 
 #if defined(CROSSFIRE)
@@ -347,6 +348,371 @@ TEST(Crossfire, frameParser_multipleJumboFrames)
   
   EXPECT_EQ(lua_buffer[offset], 0x3D);
   EXPECT_EQ(lua_buffer[offset + 0x3D - 1], 0xF0);
+}
+
+//-----------------------------------------------------------------------------
+// ArduPilot custom telemetry frames (0x80, legacy 0x7F) carry the yaapu
+// passthrough sensors. Roll and pitch sit in the 0x5006 packet, yaw in 0x5005,
+// all in 0.2 deg steps; they are decoded into the same Ptch/Roll/Yaw sensors as
+// the native ATTITUDE frame, so they keep updating when the vehicle throttles
+// that frame to 1Hz (ArduPilot RC_OPTIONS bit 8).
+//-----------------------------------------------------------------------------
+static int findSensorIndex(const char* label)
+{
+  for (int i = 0; i < MAX_TELEMETRY_SENSORS; i++) {
+    if (g_model.telemetrySensors[i].isAvailable() &&
+        strncmp(g_model.telemetrySensors[i].label, label, TELEM_LABEL_LEN) == 0) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+// roll -11.6 deg  -> round((-11.6 * 100 + 18000) * 0.05) = 842
+// pitch 34.4 deg  -> round((34.4 * 100 + 9000) * 0.05) = 622
+// yaw 270.0 deg   -> round(270.0 * 100 * 0.05) = 1350
+// data = 842 | (622 << 11) = 0x0013734A, 1350 << 17 = 0x0A8C0000
+// appid and data are little endian, the CRC goes into the last byte
+static uint8_t ap_passthrough_attitude[] = {
+    0xEA, 0x09, 0x80, 0xF0, 0x06, 0x50, 0x4A, 0x73, 0x13, 0x00, 0x00,
+};
+
+static uint8_t ap_passthrough_yaw[] = {
+    0xEA, 0x09, 0x80, 0xF0, 0x05, 0x50, 0x00, 0x00, 0x8C, 0x0A, 0x00,
+};
+
+static uint8_t ap_passthrough_multi[] = {
+    0xEA, 0x10, 0x80, 0xF2, 0x02, 0x06, 0x50, 0x4A, 0x73, 0x13,
+    0x00, 0x05, 0x50, 0x00, 0x00, 0x8C, 0x0A, 0x00,
+};
+
+// HOME packet (0x5004): bearing to home in 3 deg steps at bits 25-31, the low
+// bits carry the distance and the altitude: 41 * 3 = 123 deg, the 0x23700C of
+// the other fields must not leak into it. The second frame encodes 121 * 3 =
+// 363 deg, which has to wrap to 3
+static uint8_t ap_passthrough_home[] = {
+    0xEA, 0x09, 0x80, 0xF0, 0x04, 0x50, 0x0C, 0x70, 0x23, 0x52, 0x00,
+};
+
+static uint8_t ap_passthrough_home_wrapped[] = {
+    0xEA, 0x09, 0x80, 0xF0, 0x04, 0x50, 0x0C, 0x70, 0x23, 0xF2, 0x00,
+};
+
+// HOME packet with the altitude above home: 500 dm mantissa with an exponent
+// of 1 -> 500.0 m (bearing still 41 * 3), and the same with the sign bit set:
+// 125 dm -> -12.5 m
+static uint8_t ap_passthrough_home_alt[] = {
+    0xEA, 0x09, 0x80, 0xF0, 0x04, 0x50, 0x00, 0x10, 0x7D, 0x52, 0x00,
+};
+
+static uint8_t ap_passthrough_home_alt_neg[] = {
+    0xEA, 0x09, 0x80, 0xF0, 0x04, 0x50, 0x00, 0x40, 0x1F, 0x53, 0x00,
+};
+
+// HOME packets with the distance to home: 123 * 10 m with the exponent set and
+// 456 m without it
+static uint8_t ap_passthrough_home_dist[] = {
+    0xEA, 0x09, 0x80, 0xF0, 0x04, 0x50, 0xED, 0x01, 0x00, 0x52, 0x00,
+};
+
+static uint8_t ap_passthrough_home_dist_short[] = {
+    0xEA, 0x09, 0x80, 0xF0, 0x04, 0x50, 0x20, 0x07, 0x00, 0x52, 0x00,
+};
+
+// native ATTITUDE frame: pitch 10 deg, roll 23 deg, yaw 30 deg in 1e-4 rad
+static uint8_t native_attitude[] = {
+    0xEA, 0x08, 0x1E, 0x06, 0xD1, 0x0F, 0xAE, 0x14, 0x74, 0x00,
+};
+
+// GPS status packet (0x5002): 12 satellites (0xC), the HDOP bits above the
+// count must not leak into it
+static uint8_t ap_passthrough_gps[] = {
+    0xEA, 0x09, 0x80, 0xF0, 0x02, 0x50, 0xFC, 0x37, 0x00, 0x00, 0x00,
+};
+
+// native GPS frame: 20 satellites in the last payload byte
+static uint8_t native_gps[] = {
+    0xEA, 0x11, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x14, 0x00,
+};
+
+// RPM packet (0x500A): the two RPM sensors of the vehicle in 0.1 rpm as signed
+// 16 bit values, sensor 1 in bits 0-15 (1234 -> 12340 rpm), sensor 2 in bits
+// 16-31 (0xFED4 -> -300 -> -3000 rpm)
+static uint8_t ap_passthrough_rpm[] = {
+    0xEA, 0x09, 0x80, 0xF0, 0x0A, 0x50, 0xD2, 0x04, 0xD4, 0xFE, 0x00,
+};
+
+// VEL_YAW packet (0x5005): vertical speed in dm/s as a 7 bit mantissa (bits
+// 1-7), an exponent bit (bit 0, x10) and a sign bit (bit 8). -127 dm/s =
+// -12.7 m/s, yaw is the 270 deg of the frame above
+static uint8_t ap_passthrough_vspeed[] = {
+    0xEA, 0x09, 0x80, 0xF0, 0x05, 0x50, 0xFE, 0x01, 0x8C, 0x0A, 0x00,
+};
+
+// same packet with the exponent bit set: 5 * 10 = 50 dm/s = 5.0 m/s, yaw 0
+static uint8_t ap_passthrough_vspeed_exp[] = {
+    0xEA, 0x09, 0x80, 0xF0, 0x05, 0x50, 0x0B, 0x00, 0x00, 0x00, 0x00,
+};
+
+// native vario frame (0x07): 100 cm/s = 1.00 m/s
+static uint8_t native_vario[] = {
+    0xEA, 0x04, 0x07, 0x00, 0x64, 0x00,
+};
+
+static void finishFrame(uint8_t* frame)
+{
+  frame[frame[1] + 1] = crc8(&frame[2], frame[1] - 1);
+}
+
+static void resetPassthroughTest()
+{
+  MODEL_RESET();
+  TELEMETRY_RESET();
+  // as if a LINK_ID frame with a valid link quality had arrived
+  telemetryStreaming = TELEMETRY_TIMEOUT10ms;
+  allowNewSensors = true;
+}
+
+// the sensor keeps UNIT_RADIANS, and the value is scaled by its precision
+static float sensorRadians(int idx)
+{
+  float scale = 1.0f;
+  for (int p = 0; p < g_model.telemetrySensors[idx].prec; p++) scale *= 0.1f;
+  return telemetryItems[idx].value * scale;
+}
+
+// Without passthrough frames the native ATTITUDE frame remains the attitude
+// source. Keep this test ahead of the passthrough ones: the passthrough
+// attitude state is module global, so the module has to be untouched here.
+TEST(Crossfire, ArduPilotPassthroughWithoutPassthroughFrames)
+{
+  resetPassthroughTest();
+
+  crsf_frame_test ft;
+  if (!ft.ctx) return;
+
+  finishFrame(native_attitude);
+  ft.process(native_attitude);
+
+  const int rollIdx = findSensorIndex(STR_SENSOR_ROLL);
+  const int pitchIdx = findSensorIndex(STR_SENSOR_PITCH);
+  const int yawIdx = findSensorIndex(STR_SENSOR_YAW);
+  ASSERT_GE(rollIdx, 0);
+  ASSERT_GE(pitchIdx, 0);
+  ASSERT_GE(yawIdx, 0);
+  EXPECT_NEAR(sensorRadians(pitchIdx), 10.0f * M_PI / 180.0f, 0.01f);
+  EXPECT_NEAR(sensorRadians(rollIdx), 23.0f * M_PI / 180.0f, 0.01f);
+  EXPECT_NEAR(sensorRadians(yawIdx), 30.0f * M_PI / 180.0f, 0.01f);
+}
+
+// The VEL_YAW packet carries the vertical speed the yaapu vario shows; it is
+// sent faster than the native vario frames, which it replaces while fresh.
+// Keep this test ahead of the other passthrough ones: the vertical speed state
+// is module global and they send 0x5005 frames as well.
+TEST(Crossfire, ArduPilotPassthroughVSpeed)
+{
+  resetPassthroughTest();
+
+  crsf_frame_test ft;
+  if (!ft.ctx) return;
+
+  finishFrame(native_vario);
+  ft.process(native_vario);
+
+  const int vspdIdx = findSensorIndex(STR_SENSOR_VSPD);
+  ASSERT_GE(vspdIdx, 0);
+  // the sensor carries cm/s, as UNIT_METERS_PER_SECOND with a precision of 2
+  EXPECT_EQ(telemetryItems[vspdIdx].value, 100);
+
+  finishFrame(ap_passthrough_vspeed);
+  ft.process(ap_passthrough_vspeed);
+  EXPECT_EQ(telemetryItems[vspdIdx].value, -1270);
+
+  // the native frame is ignored while the passthrough one is fresh
+  ft.process(native_vario);
+  EXPECT_EQ(telemetryItems[vspdIdx].value, -1270);
+
+  finishFrame(ap_passthrough_vspeed_exp);
+  ft.process(ap_passthrough_vspeed_exp);
+  EXPECT_EQ(telemetryItems[vspdIdx].value, 500);
+}
+
+TEST(Crossfire, ArduPilotPassthroughAttitude)
+{
+  resetPassthroughTest();
+
+  crsf_frame_test ft;
+  if (!ft.ctx) return;
+
+  finishFrame(ap_passthrough_attitude);
+  finishFrame(ap_passthrough_yaw);
+  ft.process(ap_passthrough_attitude);
+  ft.process(ap_passthrough_yaw);
+
+  const int rollIdx = findSensorIndex(STR_SENSOR_ROLL);
+  const int pitchIdx = findSensorIndex(STR_SENSOR_PITCH);
+  const int yawIdx = findSensorIndex(STR_SENSOR_YAW);
+  ASSERT_GE(rollIdx, 0);
+  ASSERT_GE(pitchIdx, 0);
+  ASSERT_GE(yawIdx, 0);
+  EXPECT_NEAR(sensorRadians(rollIdx), -11.6f * M_PI / 180.0f, 0.01f);
+  EXPECT_NEAR(sensorRadians(pitchIdx), 34.4f * M_PI / 180.0f, 0.01f);
+  // yaw is normalized to the +-180 range of the native frame: 270 -> -90
+  EXPECT_NEAR(sensorRadians(yawIdx), -90.0f * M_PI / 180.0f, 0.01f);
+
+  // the raw frame still reaches the Lua queue (yaapu and friends)
+  EXPECT_EQ(luaInputTelemetryFifo->size(), (size_t)(0x09 + 0x09));
+
+  // the slower native ATTITUDE frame is ignored while the passthrough attitude
+  // is fresh
+  finishFrame(native_attitude);
+  ft.process(native_attitude);
+  EXPECT_NEAR(sensorRadians(rollIdx), -11.6f * M_PI / 180.0f, 0.01f);
+  EXPECT_NEAR(sensorRadians(pitchIdx), 34.4f * M_PI / 180.0f, 0.01f);
+  EXPECT_NEAR(sensorRadians(yawIdx), -90.0f * M_PI / 180.0f, 0.01f);
+}
+
+TEST(Crossfire, ArduPilotPassthroughMultiPacket)
+{
+  resetPassthroughTest();
+
+  crsf_frame_test ft;
+  if (!ft.ctx) return;
+
+  finishFrame(ap_passthrough_multi);
+  ft.process(ap_passthrough_multi);
+
+  const int rollIdx = findSensorIndex(STR_SENSOR_ROLL);
+  const int pitchIdx = findSensorIndex(STR_SENSOR_PITCH);
+  const int yawIdx = findSensorIndex(STR_SENSOR_YAW);
+  ASSERT_GE(rollIdx, 0);
+  ASSERT_GE(pitchIdx, 0);
+  ASSERT_GE(yawIdx, 0);
+  EXPECT_NEAR(sensorRadians(rollIdx), -11.6f * M_PI / 180.0f, 0.01f);
+  EXPECT_NEAR(sensorRadians(pitchIdx), 34.4f * M_PI / 180.0f, 0.01f);
+  EXPECT_NEAR(sensorRadians(yawIdx), -90.0f * M_PI / 180.0f, 0.01f);
+}
+
+TEST(Crossfire, ArduPilotPassthroughHomeBearing)
+{
+  resetPassthroughTest();
+
+  crsf_frame_test ft;
+  if (!ft.ctx) return;
+
+  EXPECT_EQ(getArduPilotHomeBearing(), -1);
+
+  finishFrame(ap_passthrough_home);
+  ft.process(ap_passthrough_home);
+  EXPECT_EQ(getArduPilotHomeBearing(), 123);
+
+  finishFrame(ap_passthrough_home_wrapped);
+  ft.process(ap_passthrough_home_wrapped);
+  EXPECT_EQ(getArduPilotHomeBearing(), 3);
+}
+
+// The same frame carries the altitude above home the right readout shows, in
+// dm as a 10 bit mantissa, a 2 bit exponent and a sign bit. The home state is
+// module global and already fresh from the bearing test, hence no check for the
+// "no home frame" value here (the bearing test covers that path).
+TEST(Crossfire, ArduPilotPassthroughHomeAltitude)
+{
+  resetPassthroughTest();
+
+  crsf_frame_test ft;
+  if (!ft.ctx) return;
+
+  finishFrame(ap_passthrough_home_alt);
+  ft.process(ap_passthrough_home_alt);
+  EXPECT_NEAR(getArduPilotHomeAltitude(), 500.0f, 0.01f);
+  EXPECT_EQ(getArduPilotHomeBearing(), 123);
+
+  // the sign bit turns it into an altitude below home
+  finishFrame(ap_passthrough_home_alt_neg);
+  ft.process(ap_passthrough_home_alt_neg);
+  EXPECT_NEAR(getArduPilotHomeAltitude(), -12.5f, 0.01f);
+  EXPECT_EQ(getArduPilotHomeBearing(), 123);
+}
+
+// and the distance to home in the same frame, in m as a 10 bit mantissa with a
+// 2 bit exponent below it
+TEST(Crossfire, ArduPilotPassthroughHomeDistance)
+{
+  resetPassthroughTest();
+
+  crsf_frame_test ft;
+  if (!ft.ctx) return;
+
+  finishFrame(ap_passthrough_home_dist);
+  ft.process(ap_passthrough_home_dist);
+  EXPECT_NEAR(getArduPilotHomeDistance(), 1230.0f, 0.01f);
+
+  finishFrame(ap_passthrough_home_dist_short);
+  ft.process(ap_passthrough_home_dist_short);
+  EXPECT_NEAR(getArduPilotHomeDistance(), 456.0f, 0.01f);
+}
+
+// The passthrough GPS status packet carries the satellite count the yaapu
+// script shows, the native frame the real one. The passthrough state is module
+// global, so check the native frame first.
+TEST(Crossfire, ArduPilotPassthroughGpsStatus)
+{
+  resetPassthroughTest();
+
+  crsf_frame_test ft;
+  if (!ft.ctx) return;
+
+  finishFrame(native_gps);
+  ft.process(native_gps);
+
+  const int satsIdx = findSensorIndex(STR_SENSOR_SATELLITES);
+  ASSERT_GE(satsIdx, 0);
+  EXPECT_EQ(telemetryItems[satsIdx].value, 20);
+
+  // once the vehicle sends the passthrough packet, it takes over
+  finishFrame(ap_passthrough_gps);
+  ft.process(ap_passthrough_gps);
+  EXPECT_EQ(telemetryItems[satsIdx].value, 12);
+
+  ft.process(native_gps);
+  EXPECT_EQ(telemetryItems[satsIdx].value, 12);
+
+  // 15 is the top of the 4 bit field, the HUD draws it as "15+"
+  ap_passthrough_gps[6] = 0x0F;
+  finishFrame(ap_passthrough_gps);
+  ft.process(ap_passthrough_gps);
+  EXPECT_EQ(telemetryItems[satsIdx].value, 15);
+}
+
+// The RPM packet feeds the two RPM sensors of the vehicle, both arrive in the
+// same frame so each sensor has to keep its own value
+TEST(Crossfire, ArduPilotPassthroughRpm)
+{
+  resetPassthroughTest();
+
+  crsf_frame_test ft;
+  if (!ft.ctx) return;
+
+  finishFrame(ap_passthrough_rpm);
+  ft.process(ap_passthrough_rpm);
+
+  const int rpm1Idx = findSensorIndex(STR_SENSOR_RPM);
+  const int rpm2Idx = findSensorIndex(STR_SENSOR_RPM2);
+  ASSERT_GE(rpm1Idx, 0);
+  ASSERT_GE(rpm2Idx, 0);
+  EXPECT_EQ(telemetryItems[rpm1Idx].value, 12340);
+  EXPECT_EQ(telemetryItems[rpm2Idx].value, -3000);
+
+  // sensor 1 = 100 * 10 = 1000 rpm, sensor 2 = 10 * 10 = 100 rpm
+  ap_passthrough_rpm[6] = 0x64;
+  ap_passthrough_rpm[7] = 0x00;
+  ap_passthrough_rpm[8] = 0x0A;
+  ap_passthrough_rpm[9] = 0x00;
+  finishFrame(ap_passthrough_rpm);
+  ft.process(ap_passthrough_rpm);
+  EXPECT_EQ(telemetryItems[rpm1Idx].value, 1000);
+  EXPECT_EQ(telemetryItems[rpm2Idx].value, 100);
 }
 #endif // HARDWARE_EXTERNAL_MODULE
 #endif

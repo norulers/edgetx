@@ -23,6 +23,7 @@
 
 #include "edgetx.h"
 #include "storage/sdcard_yaml.h"
+#include "storage/ui_screens_yaml.h"
 #include "yaml/yaml_datastructs.h"
 #include "yaml/yaml_labelslist.h"
 #include "yaml/yaml_modelslist.h"
@@ -302,8 +303,12 @@ void ModelCell::setDefaultName()
   // from the file name
   int idx = -1;
   sscanf(modelFilename, "model%d", &idx);
-  if (idx > 0)
-    sprintf(modelName, "MODEL%02d" MODEL_FILENAME_SUFFIX, idx);
+  if (idx > 0) {
+    // 'modelName' is too small for the worst case (MODEL + 10 digits + suffix)
+    char defaultName[24];
+    sprintf(defaultName, "MODEL%02d" MODEL_FILENAME_SUFFIX, idx);
+    strAppend(modelName, defaultName, LEN_MODEL_NAME);
+  }
   else
     strAppend(modelName, modelFilename, LEN_MODEL_NAME);
   char* tmp = (char *)strrchr(modelName, '.');
@@ -925,6 +930,8 @@ bool ModelsList::removeModel(ModelCell *model)
     TRACE("Labels: Unable to move file");
     return true;
   }
+
+  uiScreensDelete(model->modelFilename);
 
   // Free memory
   delete(model);

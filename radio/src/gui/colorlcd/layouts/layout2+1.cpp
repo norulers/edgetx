@@ -35,4 +35,6 @@ static const uint8_t zmap[] = {
 BaseLayoutFactory<Layout> layout2P1("Layout2P1", "2 + 1", defaultLayoutOptions,
                                     3, (uint8_t*)zmap);
 
+// defaultLayout points to the built-in fallback; the actual default screen
+// is chosen at runtime in LayoutFactory::loadDefaultLayout() (layout.cpp)
 const LayoutFactory* defaultLayout = &layout2P1;

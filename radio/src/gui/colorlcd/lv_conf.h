@@ -444,8 +444,16 @@
 #if !defined(SIMU)
 
 #if defined(TRANSLATIONS_CN)
-  #define LV_FONT_CUSTOM_DECLARE LV_FONT_DECLARE(lv_font_cn_STD)
-  #define LV_FONT_DEFAULT &lv_font_cn_STD
+  #if defined(FONT_CN_FAMILY_LXGW)
+    #define LV_FONT_CUSTOM_DECLARE LV_FONT_DECLARE(lv_font_lxgw_STD)
+    #define LV_FONT_DEFAULT &lv_font_lxgw_STD
+  #elif defined(FONT_CN_FAMILY_SMILEYSANS)
+    #define LV_FONT_CUSTOM_DECLARE LV_FONT_DECLARE(lv_font_ss_STD)
+    #define LV_FONT_DEFAULT &lv_font_ss_STD
+  #else
+    #define LV_FONT_CUSTOM_DECLARE LV_FONT_DECLARE(lv_font_cn_STD)
+    #define LV_FONT_DEFAULT &lv_font_cn_STD
+  #endif
 #elif defined(TRANSLATIONS_TW)
   #define LV_FONT_CUSTOM_DECLARE LV_FONT_DECLARE(lv_font_tw_STD)
   #define LV_FONT_DEFAULT &lv_font_tw_STD

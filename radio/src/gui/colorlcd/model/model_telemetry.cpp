@@ -32,6 +32,7 @@
 #include "sourcechoice.h"
 #include "textedit.h"
 #include "toggleswitch.h"
+#include "timer_setup.h"
 
 #define SET_DIRTY() storageDirty(EE_MODEL)
 
@@ -89,7 +90,7 @@ class TSStyle
   lv_style_t tsFreshStyle;
 
   static LAYOUT_VAL_SCALED(NUM_W, 36)
-  static LAYOUT_VAL_SCALED(NAME_W, 56)
+  static LAYOUT_VAL_SCALED(NAME_W, 140)
   static LAYOUT_VAL_SCALED(ID_Y, 16)
   static LAYOUT_VAL_SCALED(ID_H, 12)
   static LAYOUT_VAL_SCALED(FRSH_Y, 10)
@@ -99,6 +100,26 @@ class TSStyle
 };
 
 static TSStyle tsStyle;
+
+static StaticText* telemetryPageLabel(Window* parent, const char* text,
+                                      LcdFlags textFlags = 0)
+{
+  return new StaticText(parent, rect_t{}, text, COLOR_THEME_QM_FG_INDEX,
+                        textFlags);
+}
+
+static StaticText* telemetryPageSubtitle(Window* parent, const char* text)
+{
+  return telemetryPageLabel(parent, text, FONT(BOLD));
+}
+
+// Same as above but without height/padding overrides (for button rows)
+static Window* telemetryButtonLine(Window* parent, FlexGridLayout& grid)
+{
+  auto line = parent->newLine(grid);
+  stylePageGroupControl(line->getLvObj());
+  return line;
+}
 
 static void ts_num_constructor(const lv_obj_class_t* class_p, lv_obj_t* obj)
 {
@@ -157,6 +178,7 @@ lv_obj_t* TSStyle::newId(lv_obj_t* parent, const char* id)
 static void ts_name_constructor(const lv_obj_class_t* class_p, lv_obj_t* obj)
 {
   etx_obj_add_style(obj, styles->text_align_left, LV_PART_MAIN);
+  lv_label_set_long_mode(obj, LV_LABEL_LONG_CLIP);
 }
 
 static const lv_obj_class_t ts_name_class = {
@@ -213,6 +235,7 @@ class SensorButton : public ListLineButton
   SensorButton(Window* parent, const rect_t& rect, uint8_t index) :
       ListLineButton(parent, index)
   {
+    stylePageGroupControl(lvobj);
     padAll(PAD_ZERO);
     setHeight(EdgeTxStyles::UI_ELEMENT_HEIGHT + PAD_SMALL);
 
@@ -364,6 +387,8 @@ class SensorEditWindow : public SubPage
   explicit SensorEditWindow(uint8_t index) :
       SubPage(ICON_MODEL_TELEMETRY, STR_MENUTELEMETRY, "", true), index(index)
   {
+    setDarkHeader(ICON_MODEL_TELEMETRY);
+    setDarkBody();
     buildHeader(header);
     buildBody(body);
     enableRefresh();
@@ -534,7 +559,7 @@ class SensorEditWindow : public SubPage
 
   void buildBody(Window* window)
   {
-    window->setFlexLayout();
+    window->setFlexLayout(LV_FLEX_FLOW_COLUMN, PAD_TINY);
 
     TelemetrySensor* sensor = &g_model.telemetrySensors[index];
 
@@ -750,6 +775,33 @@ class SensorEditWindow : public SubPage
         });
 
     updateSensorParameters();
+
+    // FPV dark theme: override SetupLine styles to match FunctionEditPage
+    for (uint32_t ci = 0; ci < lv_obj_get_child_cnt(window->getLvObj()); ci++) {
+      lv_obj_t* line = lv_obj_get_child(window->getLvObj(), ci);
+      lv_obj_set_style_bg_color(line, lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+      lv_obj_set_style_bg_opa(line, LV_OPA_COVER, LV_PART_MAIN);
+      lv_obj_set_style_pad_all(line, PAD_SMALL, LV_PART_MAIN);
+      // Darken all labels to white
+      for (uint32_t si = 0; si < lv_obj_get_child_cnt(line); si++) {
+        lv_obj_t* sc = lv_obj_get_child(line, si);
+        if (lv_obj_check_type(sc, &lv_label_class)) {
+          lv_obj_set_style_text_color(sc, lv_color_white(), LV_PART_MAIN);
+        }
+        // Apply dark button style to editable controls
+        if (lv_obj_check_type(sc, &lv_btn_class) ||
+            lv_obj_check_type(sc, &lv_textarea_class)) {
+          applyDarkBtnStyle(sc);
+        }
+        // Also style children of containers (Choice, NumberEdit, etc.)
+        for (uint32_t gi = 0; gi < lv_obj_get_child_cnt(sc); gi++) {
+          lv_obj_t* gc = lv_obj_get_child(sc, gi);
+          if (lv_obj_check_type(gc, &lv_btn_class)) {
+            applyDarkBtnStyle(gc);
+          }
+        }
+      }
+    }
   }
 
   static LAYOUT_SIZE(NUM_EDIT_W, EdgeTxStyles::EDIT_FLD_WIDTH_NARROW, LAYOUT_SCALE(80))
@@ -861,12 +913,17 @@ void ModelTelemetryPage::buildSensorList(int8_t focusSensorIndex)
 
 void ModelTelemetryPage::build(Window* window)
 {
+  // FPV dark theme
+  lv_obj_set_style_bg_color(window->getLvObj(), lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(window->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_text_color(window->getLvObj(), lv_color_white(), LV_PART_MAIN);
+
   window->padAll(PAD_TINY);
   window->padBottom(PAD_LARGE);
   window->setFlexLayout(LV_FLEX_FLOW_COLUMN, PAD_ZERO);
 
   // Sensors
-  new Subtitle(window, STR_TELEMETRY_SENSORS);
+  telemetryPageSubtitle(window, STR_TELEMETRY_SENSORS);
 
   sensorWindow = new Window(window, rect_t{});
   sensorWindow->padAll(PAD_TINY);
@@ -875,7 +932,7 @@ void ModelTelemetryPage::build(Window* window)
   FlexGridLayout grid4(col_dsc4, row_dsc);
 
   // Autodiscover button
-  auto line = window->newLine(grid4);
+  auto line = telemetryButtonLine(window, grid4);
   discover = new TextButton(
       line, rect_t{},
       (allowNewSensors) ? STR_STOP_DISCOVER_SENSORS : STR_DISCOVER_SENSORS);
@@ -891,6 +948,7 @@ void ModelTelemetryPage::build(Window* window)
   });
   lv_obj_set_grid_cell(discover->getLvObj(), LV_GRID_ALIGN_STRETCH, 0, 1,
                        LV_GRID_ALIGN_CENTER, 0, 1);
+  stylePageGroupControl(discover->getLvObj());
   discover->check(allowNewSensors);
 
   // New sensor button
@@ -905,9 +963,10 @@ void ModelTelemetryPage::build(Window* window)
       });
   lv_obj_set_grid_cell(b->getLvObj(), LV_GRID_ALIGN_STRETCH, 1, 1,
                        LV_GRID_ALIGN_CENTER, 0, 1);
+  stylePageGroupControl(b->getLvObj());
 
 #if TWOCOLBUTTONS
-  line = window->newLine(grid4);
+  line = telemetryButtonLine(window, grid4);
 #endif
   // Delete all sensors button
   deleteAll =
@@ -928,52 +987,96 @@ void ModelTelemetryPage::build(Window* window)
   lv_obj_set_grid_cell(deleteAll->getLvObj(), LV_GRID_ALIGN_STRETCH, 2, 1,
                        LV_GRID_ALIGN_CENTER, 0, 1);
 #endif
+  stylePageGroupControl(deleteAll->getLvObj());
 
-  FlexGridLayout grid(col_dsc, row_dsc, PAD_TINY);
+  // Flex container for settings rows — matches sensor list layout
+  auto settingsWin = new Window(window, rect_t{});
+  settingsWin->padAll(PAD_TINY);
+  settingsWin->setFlexLayout(LV_FLEX_FLOW_COLUMN, PAD_TINY);
 
-  // Show instance IDs button
-  line = window->newLine(grid);
-  line->padLeft(PAD_LARGE);
-  new StaticText(line, rect_t{}, STR_SHOW_INSTANCE_ID);
-  new ToggleSwitch(line, rect_t{}, GET_SET_DEFAULT(g_model.showInstanceIds));
+  // Show instance IDs
+  auto row = new Window(settingsWin, rect_t{});
+  stylePageGroupControl(row->getLvObj());
+  row->setHeight(EdgeTxStyles::UI_ELEMENT_HEIGHT + PAD_SMALL);
+  row->padAll(PAD_ZERO);
+  row->padLeft(PAD_LARGE);
+  lv_obj_set_width(row->getLvObj(), LV_PCT(100));
+  lv_obj_set_flex_flow(row->getLvObj(), LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(row->getLvObj(), LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  auto lbl = telemetryPageLabel(row, STR_SHOW_INSTANCE_ID);
+  lv_obj_set_flex_grow(lbl->getLvObj(), 1);
+  new ToggleSwitch(row, rect_t{}, GET_SET_DEFAULT(g_model.showInstanceIds));
 
-  // Ignore instance button
-  line = window->newLine(grid);
-  line->padLeft(PAD_LARGE);
-  new StaticText(line, rect_t{}, STR_IGNORE_INSTANCE);
-  new ToggleSwitch(line, rect_t{}, GET_SET_DEFAULT(g_model.ignoreSensorIds));
+  // Ignore instance
+  row = new Window(settingsWin, rect_t{});
+  stylePageGroupControl(row->getLvObj());
+  row->setHeight(EdgeTxStyles::UI_ELEMENT_HEIGHT + PAD_SMALL);
+  row->padAll(PAD_ZERO);
+  row->padLeft(PAD_LARGE);
+  lv_obj_set_width(row->getLvObj(), LV_PCT(100));
+  lv_obj_set_flex_flow(row->getLvObj(), LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(row->getLvObj(), LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  lbl = telemetryPageLabel(row, STR_IGNORE_INSTANCE);
+  lv_obj_set_flex_grow(lbl->getLvObj(), 1);
+  new ToggleSwitch(row, rect_t{}, GET_SET_DEFAULT(g_model.ignoreSensorIds));
 
   // RX stat
-  new Subtitle(window, getRxStatLabels()->label);
+  telemetryPageSubtitle(settingsWin, getRxStatLabels()->label);
 
-  line = window->newLine(grid);
-  line->padLeft(PAD_LARGE);
-  new StaticText(line, rect_t{}, STR_LOWALARM);
-  new NumberEdit(line, {0, 0, NUM_EDIT_W, 0}, 0, 100,
+  row = new Window(settingsWin, rect_t{});
+  stylePageGroupControl(row->getLvObj());
+  row->setHeight(EdgeTxStyles::UI_ELEMENT_HEIGHT + PAD_SMALL);
+  row->padAll(PAD_ZERO);
+  row->padLeft(PAD_LARGE);
+  lv_obj_set_width(row->getLvObj(), LV_PCT(100));
+  lv_obj_set_flex_flow(row->getLvObj(), LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(row->getLvObj(), LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  lbl = telemetryPageLabel(row, STR_LOWALARM);
+  lv_obj_set_flex_grow(lbl->getLvObj(), 1);
+  new NumberEdit(row, {0, 0, NUM_EDIT_W, 0}, 0, 100,
                  GET_SET_DEFAULT(g_model.rfAlarms.warning));
 
-  line = window->newLine(grid);
-  line->padLeft(PAD_LARGE);
-  new StaticText(line, rect_t{}, STR_CRITICALALARM);
-  new NumberEdit(line, {0, 0, NUM_EDIT_W, 0}, 0, 100,
+  row = new Window(settingsWin, rect_t{});
+  stylePageGroupControl(row->getLvObj());
+  row->setHeight(EdgeTxStyles::UI_ELEMENT_HEIGHT + PAD_SMALL);
+  row->padAll(PAD_ZERO);
+  row->padLeft(PAD_LARGE);
+  lv_obj_set_width(row->getLvObj(), LV_PCT(100));
+  lv_obj_set_flex_flow(row->getLvObj(), LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(row->getLvObj(), LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  lbl = telemetryPageLabel(row, STR_CRITICALALARM);
+  lv_obj_set_flex_grow(lbl->getLvObj(), 1);
+  new NumberEdit(row, {0, 0, NUM_EDIT_W, 0}, 0, 100,
                  GET_SET_DEFAULT(g_model.rfAlarms.critical));
 
-  line = window->newLine(grid);
-  line->padLeft(PAD_LARGE);
-  new StaticText(line, rect_t{}, STR_DISABLE_ALARM);
-  new ToggleSwitch(line, rect_t{},
+  row = new Window(settingsWin, rect_t{});
+  stylePageGroupControl(row->getLvObj());
+  row->setHeight(EdgeTxStyles::UI_ELEMENT_HEIGHT + PAD_SMALL);
+  row->padAll(PAD_ZERO);
+  row->padLeft(PAD_LARGE);
+  lv_obj_set_width(row->getLvObj(), LV_PCT(100));
+  lv_obj_set_flex_flow(row->getLvObj(), LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(row->getLvObj(), LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  lbl = telemetryPageLabel(row, STR_DISABLE_ALARM);
+  lv_obj_set_flex_grow(lbl->getLvObj(), 1);
+  new ToggleSwitch(row, rect_t{},
                    GET_SET_DEFAULT(g_model.disableTelemetryWarning));
 
   // Vario
-  new Subtitle(window, STR_VARIO);
+  telemetryPageSubtitle(settingsWin, STR_VARIO);
 
-  FlexGridLayout grid5(col_dsc5, row_dsc);
-
-  line = window->newLine(grid5);
-  line->padLeft(PAD_LARGE);
-  new StaticText(line, rect_t{}, STR_SOURCE);
+  row = new Window(settingsWin, rect_t{});
+  stylePageGroupControl(row->getLvObj());
+  row->setHeight(EdgeTxStyles::UI_ELEMENT_HEIGHT + PAD_SMALL);
+  row->padAll(PAD_ZERO);
+  row->padLeft(PAD_LARGE);
+  lv_obj_set_width(row->getLvObj(), LV_PCT(100));
+  lv_obj_set_flex_flow(row->getLvObj(), LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(row->getLvObj(), LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  lbl = telemetryPageLabel(row, STR_SOURCE);
+  lv_obj_set_flex_grow(lbl->getLvObj(), 1);
   auto choice = new SourceChoice(
-      line, rect_t{}, MIXSRC_NONE, MIXSRC_LAST_TELEM,
+      row, rect_t{}, MIXSRC_NONE, MIXSRC_LAST_TELEM,
       GET_DEFAULT(g_model.varioData.source
                       ? MIXSRC_FIRST_TELEM + 3 * (g_model.varioData.source - 1)
                       : MIXSRC_NONE),
@@ -988,37 +1091,54 @@ void ModelTelemetryPage::build(Window* window)
     return qr.rem == 0 && isVarioSensorAvailable(qr.quot + 1);
   });
 
-  line = window->newLine(grid5);
-  line->padLeft(PAD_LARGE);
-  new StaticText(line, rect_t{}, STR_RANGE);
-
-  auto vMin = new NumberEdit(line, {0, 0, NUM_EDIT_W, 0}, -17, 17,
+  row = new Window(settingsWin, rect_t{});
+  stylePageGroupControl(row->getLvObj());
+  row->setHeight(EdgeTxStyles::UI_ELEMENT_HEIGHT + PAD_SMALL);
+  row->padAll(PAD_ZERO);
+  row->padLeft(PAD_LARGE);
+  lv_obj_set_width(row->getLvObj(), LV_PCT(100));
+  lv_obj_set_flex_flow(row->getLvObj(), LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(row->getLvObj(), LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  lbl = telemetryPageLabel(row, STR_RANGE);
+  auto rangeBox = new Window(row, rect_t{});
+  lv_obj_set_flex_grow(rangeBox->getLvObj(), 1);
+  lv_obj_set_height(rangeBox->getLvObj(), EdgeTxStyles::UI_ELEMENT_HEIGHT + PAD_SMALL);
+  lv_obj_set_flex_flow(rangeBox->getLvObj(), LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(rangeBox->getLvObj(), LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  auto vMin = new NumberEdit(rangeBox, {0, 0, NUM_EDIT_W, 0}, -17, 17,
                              GET_SET_WITH_OFFSET(g_model.varioData.min, -10));
   vMin->setAvailableHandler(
       [](int val) { return val < g_model.varioData.max + 10; });
-
-  auto vMax = new NumberEdit(line, {0, 0, NUM_EDIT_W, 0}, -17, 17,
+  auto vMax = new NumberEdit(rangeBox, {0, 0, NUM_EDIT_W, 0}, -17, 17,
                              GET_SET_WITH_OFFSET(g_model.varioData.max, 10));
   vMax->setAvailableHandler(
       [](int val) { return g_model.varioData.min - 10 < val; });
 
-  line = window->newLine(grid5);
-  line->padLeft(PAD_LARGE);
-  new StaticText(line, rect_t{}, STR_CENTER);
-
+  row = new Window(settingsWin, rect_t{});
+  stylePageGroupControl(row->getLvObj());
+  row->setHeight(EdgeTxStyles::UI_ELEMENT_HEIGHT + PAD_SMALL);
+  row->padAll(PAD_ZERO);
+  row->padLeft(PAD_LARGE);
+  lv_obj_set_width(row->getLvObj(), LV_PCT(100));
+  lv_obj_set_flex_flow(row->getLvObj(), LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(row->getLvObj(), LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  lbl = telemetryPageLabel(row, STR_CENTER);
+  auto centerBox = new Window(row, rect_t{});
+  lv_obj_set_flex_grow(centerBox->getLvObj(), 1);
+  lv_obj_set_height(centerBox->getLvObj(), EdgeTxStyles::UI_ELEMENT_HEIGHT + PAD_SMALL);
+  lv_obj_set_flex_flow(centerBox->getLvObj(), LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(centerBox->getLvObj(), LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
   auto cMin = new NumberEdit(
-      line, rect_t{0, 0, NUM_EDIT_W, 0}, -15, 15,
+      centerBox, rect_t{0, 0, NUM_EDIT_W, 0}, -15, 15,
       GET_SET_WITH_OFFSET(g_model.varioData.centerMin, -5), PREC1);
   cMin->setAvailableHandler(
       [](int val) { return val < g_model.varioData.centerMax + 5; });
-
   auto cMax = new NumberEdit(
-      line, rect_t{0, 0, NUM_EDIT_W, 0}, -15, 15,
+      centerBox, rect_t{0, 0, NUM_EDIT_W, 0}, -15, 15,
       GET_SET_WITH_OFFSET(g_model.varioData.centerMax, 5), PREC1);
   cMax->setAvailableHandler(
       [](int val) { return g_model.varioData.centerMin - 5 < val; });
-
-  new Choice(line, rect_t{}, STR_VVARIOCENTER, 0, 1,
+  new Choice(centerBox, rect_t{}, STR_VVARIOCENTER, 0, 1,
              GET_SET_DEFAULT(g_model.varioData.centerSilent));
 
   // Don't call this before the 'discover' button has been created

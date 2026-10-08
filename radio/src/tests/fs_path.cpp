@@ -134,3 +134,24 @@ TEST(FsPath, normalizeBufferBounds)
   etxNormalizePath("/ab/cd", out, 4);
   EXPECT_STREQ(out, "/ab");
 }
+
+// An input longer than the internal work buffer must not be normalized as a
+// silently truncated path: the result is empty
+TEST(FsPath, normalizeOverlongInput)
+{
+  EXPECT_EQ(etxChdir("/"), FR_OK);
+  char out[FF_MAX_LFN + 1];
+  std::string seg(FF_MAX_LFN, 'a');
+
+  etxNormalizePath(("/" + seg).c_str(), out, sizeof(out));
+  EXPECT_STREQ(out, "");
+
+  // relative: "/" (CWD) + "/" + name no longer fits either
+  etxNormalizePath(seg.c_str(), out, sizeof(out));
+  EXPECT_STREQ(out, "");
+
+  // the longest path that fits is still accepted
+  std::string fit = "/" + std::string(FF_MAX_LFN - 1, 'b');
+  etxNormalizePath(fit.c_str(), out, sizeof(out));
+  EXPECT_STREQ(out, fit.c_str());
+}

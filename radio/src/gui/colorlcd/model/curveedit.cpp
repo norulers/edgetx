@@ -27,6 +27,7 @@
 #include "getset_helpers.h"
 #include "numberedit.h"
 #include "textedit.h"
+#include "timer_setup.h"
 
 #define SET_DIRTY() storageDirty(EE_MODEL)
 
@@ -150,7 +151,7 @@ class CurveDataEdit : public Window
 #if WIDE_LAYOUT
   static LAYOUT_VAL_SCALED(NUM_BTN_WIDTH, 50)
 #else
-  static LAYOUT_VAL_SCALED(NUM_BTN_WIDTH, 47)
+  static LAYOUT_VAL_SCALED(NUM_BTN_WIDTH, 52)
 #endif
   static LAYOUT_VAL_SCALED(NUM_HDR_HEIGHT, 15)
   static LAYOUT_VAL_SCALED(PTNUM_X, 15)
@@ -167,18 +168,20 @@ class CurveDataEdit : public Window
   {
     // Point number
     for (int i = 0; i < count; i++) {
-      new StaticText(parent,
+      auto ptLbl = new StaticText(parent,
                      {PTNUM_X + (i * (NUM_BTN_WIDTH + PAD_TINY)), y,
                       NUM_BTN_WIDTH, PTNUM_H},
                      std::to_string(i + start + 1),
                      COLOR_THEME_PRIMARY1_INDEX, FONT(XS) | CENTERED);
+      lv_obj_set_style_text_color(ptLbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
     }
 
     y += NUM_HDR_HEIGHT;
 
-    new StaticText(
+    auto xAxisLbl = new StaticText(
         parent, {1, y + PAD_MEDIUM, PTNUM_X, EdgeTxStyles::UI_ELEMENT_HEIGHT},
         "X", COLOR_THEME_PRIMARY1_INDEX, CENTERED);
+    lv_obj_set_style_text_color(xAxisLbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
 
     int8_t* points = curveAddress(index);
 
@@ -187,11 +190,12 @@ class CurveDataEdit : public Window
       uint8_t i = 0;
       uint8_t c = count;
       if (start == 0) {
-        new StaticText(
+        auto minLbl = new StaticText(
             parent,
             {PTNUM_X + (i * (NUM_BTN_WIDTH + PAD_TINY)), y + PAD_MEDIUM,
              NUM_BTN_WIDTH, EdgeTxStyles::UI_ELEMENT_HEIGHT},
             "-100", COLOR_THEME_SECONDARY1_INDEX, CENTERED);
+        lv_obj_set_style_text_color(minLbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
         i += 1;
       }
       if ((start + count) == curvePointsCount) {
@@ -220,34 +224,38 @@ class CurveDataEdit : public Window
               Messaging::send(Messaging::CURVE_EDIT);
             },
             CENTERED);
+        applyDarkBtnStyle(numEditX[px]->getLvObj());
       }
       if ((start + count) == curvePointsCount) {
-        new StaticText(
+        auto maxLbl = new StaticText(
             parent,
             {PTNUM_X + (i * (NUM_BTN_WIDTH + PAD_TINY)), y + PAD_MEDIUM,
              NUM_BTN_WIDTH, EdgeTxStyles::UI_ELEMENT_HEIGHT},
             "100", COLOR_THEME_SECONDARY1_INDEX, CENTERED);
+        lv_obj_set_style_text_color(maxLbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
       }
     } else {
       for (uint8_t i = 0; i < count; i++) {
-        new StaticText(
+        auto xValLbl = new StaticText(
             parent,
             rect_t{PTNUM_X + (i * (NUM_BTN_WIDTH + PAD_TINY)), y + PAD_MEDIUM,
                    NUM_BTN_WIDTH, EdgeTxStyles::UI_ELEMENT_HEIGHT},
             std::to_string(-100 + (200 * (i + start)) / (curvePointsCount - 1)),
             COLOR_THEME_SECONDARY1_INDEX, CENTERED);
+        lv_obj_set_style_text_color(xValLbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
       }
     }
 
     y += EdgeTxStyles::UI_ELEMENT_HEIGHT + PAD_TINY;
 
-    new StaticText(
+    auto yAxisLbl = new StaticText(
         parent, {1, y + PAD_MEDIUM, PTNUM_X, EdgeTxStyles::UI_ELEMENT_HEIGHT},
         "Y", COLOR_THEME_PRIMARY1_INDEX, CENTERED);
+    lv_obj_set_style_text_color(yAxisLbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
 
     // y value
     for (uint8_t i = 0; i < count; i++) {
-      new NumberEdit(parent,
+      auto yEdit = new NumberEdit(parent,
           {PTNUM_X + (i * (NUM_BTN_WIDTH + PAD_TINY)), y, NUM_BTN_WIDTH,
            EdgeTxStyles::UI_ELEMENT_HEIGHT},
           -100, 100, GET_VALUE(points[i + start]),
@@ -257,6 +265,7 @@ class CurveDataEdit : public Window
             Messaging::send(Messaging::CURVE_EDIT);
           },
           CENTERED);
+      applyDarkBtnStyle(yEdit->getLvObj());
     }
   }
 };
@@ -266,6 +275,34 @@ CurveEditWindow::CurveEditWindow(uint8_t index, mixsrc_t source) :
 {
   buildBody(body);
   buildHeader(header);
+
+  // Dark FPV header: hide original canvas icons, place new ones with orange color
+  for (uint32_t i = 0; i < lv_obj_get_child_cnt(header->getLvObj()); i++) {
+    auto child = lv_obj_get_child(header->getLvObj(), i);
+    if (lv_obj_check_type(child, &lv_canvas_class))
+      lv_obj_add_flag(child, LV_OBJ_FLAG_HIDDEN);
+  }
+  auto leftBg = new StaticIcon(header, 0, 0, ICON_TOPLEFT_BG, COLOR_THEME_PRIMARY2_INDEX);
+  lv_obj_set_style_img_recolor_opa(leftBg->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_img_recolor(leftBg->getLvObj(), lv_color_make(0x22, 0x22, 0x22), LV_PART_MAIN);
+  leftBg->setTop((EdgeTxStyles::MENU_HEADER_HEIGHT - leftBg->height()) / 2);
+  auto leftIco = new StaticIcon(leftBg, 0, 0, ICON_MODEL_CURVES, COLOR_THEME_PRIMARY2_INDEX);
+  lv_obj_set_style_img_recolor_opa(leftIco->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_img_recolor(leftIco->getLvObj(), lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN);
+  leftIco->center(leftBg->width() + PAD_MEDIUM, leftBg->height());
+  auto rightBg = new StaticIcon(header, LCD_W, 0, ICON_TOPRIGHT_BG, COLOR_THEME_PRIMARY2_INDEX);
+  lv_obj_set_style_img_recolor_opa(rightBg->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_img_recolor(rightBg->getLvObj(), lv_color_make(0x22, 0x22, 0x22), LV_PART_MAIN);
+  rightBg->setPos(LCD_W - rightBg->width(), (EdgeTxStyles::MENU_HEADER_HEIGHT - rightBg->height()) / 2);
+  auto rightIco = new StaticIcon(rightBg, 0, 0, ICON_BTN_CLOSE, COLOR_THEME_PRIMARY2_INDEX);
+  lv_obj_set_style_img_recolor_opa(rightIco->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_img_recolor(rightIco->getLvObj(), lv_color_make(0xFF, 0x8C, 0x00), LV_PART_MAIN);
+  rightIco->center(rightBg->width() + PAD_MEDIUM, rightBg->height());
+
+  // Dark FPV theme
+  lv_obj_set_style_bg_color(body->getLvObj(), lv_color_make(0x18, 0x18, 0x18), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(body->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_text_color(body->getLvObj(), lv_color_white(), LV_PART_MAIN);
 }
 
 void CurveEditWindow::buildHeader(Window* window)
@@ -316,12 +353,16 @@ void CurveEditWindow::buildBody(Window* window)
 
   auto iLine = form->newLine(iGrid);
   iLine->padAll(PAD_TINY);
+  lv_obj_set_style_bg_color(iLine->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(iLine->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
   lv_obj_set_grid_align(iLine->getLvObj(), LV_GRID_ALIGN_SPACE_BETWEEN,
                         LV_GRID_ALIGN_SPACE_BETWEEN);
 
   // Name
-  new StaticText(iLine, rect_t{}, STR_NAME);
-  new ModelTextEdit(iLine, rect_t{}, curve.name, sizeof(curve.name));
+  auto nameLbl = new StaticText(iLine, rect_t{}, STR_NAME);
+  lv_obj_set_style_text_color(nameLbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
+  auto nameEdit = new ModelTextEdit(iLine, rect_t{}, curve.name, sizeof(curve.name));
+  applyDarkBtnStyle(nameEdit->getLvObj());
 
   // Smooth
   auto smooth =
@@ -332,15 +373,19 @@ void CurveEditWindow::buildBody(Window* window)
         return g_model.curves[index].smooth;
       });
   smooth->check(g_model.curves[index].smooth);
+  applyDarkBtnStyle(smooth->getLvObj());
 
   iLine = form->newLine(iGrid);
   iLine->padAll(PAD_TINY);
+  lv_obj_set_style_bg_color(iLine->getLvObj(), lv_color_make(0x28, 0x28, 0x28), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(iLine->getLvObj(), LV_OPA_COVER, LV_PART_MAIN);
   lv_obj_set_grid_align(iLine->getLvObj(), LV_GRID_ALIGN_SPACE_BETWEEN,
                         LV_GRID_ALIGN_SPACE_BETWEEN);
 
   // Type
-  new StaticText(iLine, rect_t{}, STR_TYPE);
-  new Choice(
+  auto typeLbl = new StaticText(iLine, rect_t{}, STR_TYPE);
+  lv_obj_set_style_text_color(typeLbl->getLvObj(), lv_color_white(), LV_PART_MAIN);
+  auto typeChoice = new Choice(
       iLine, {0, 0, EdgeTxStyles::EDIT_FLD_WIDTH, 0}, STR_CURVE_TYPES, 0, 1,
       GET_DEFAULT(g_model.curves[index].type), [=](int32_t newValue) {
         CurveHeader& curve = g_model.curves[index];
@@ -364,6 +409,7 @@ void CurveEditWindow::buildBody(Window* window)
           }
         }
       });
+  applyDarkBtnStyle(typeChoice->getLvObj());
 
   // Points count
   auto edit = new Choice(
@@ -395,6 +441,7 @@ void CurveEditWindow::buildBody(Window* window)
   edit->setTextHandler([=](int value) {
     return std::to_string(value) + STR_PTS;
   });
+  applyDarkBtnStyle(edit->getLvObj());
 
   iLine = form->newLine(iGrid);
   iLine->padAll(PAD_ZERO);

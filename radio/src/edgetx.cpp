@@ -22,10 +22,12 @@
 #include "os/sleep.h"
 #include "os/time.h"
 #if !defined(SIMU)
+#if defined(STM32)
 #include "stm32_rgbleds.h"
 #include "boards/generic_stm32/rgb_leds.h"
 #include "stm32_hal.h"
 #include "stm32_hal_ll.h"
+#endif
 #endif
 
 #include "edgetx.h"
@@ -36,6 +38,7 @@
 #include "hal/watchdog_driver.h"
 #include "hal/abnormal_reboot.h"
 #include "hal/usb_driver.h"
+#include "hal/crash_dump.h"
 #include "hal/audio_driver.h"
 #include "hal/rgbleds.h"
 
@@ -136,6 +139,7 @@ void toggleLatencySwitch()
 void checkValidMCU(void)
 {
 #if !defined(SIMU) && !defined(BOOT)
+#if defined(STM32)
   // Checks the radio MCU type matches intended firmware type
   uint32_t idcode = DBGMCU->IDCODE & 0xFFF;
 
@@ -170,6 +174,10 @@ void checkValidMCU(void)
   if(idcode != TARGET_IDCODE) {
     runFatalErrorScreen("Wrong MCU");
   }
+#endif
+#else
+  // AT32 / other non-STM32 targets: MCU id check not implemented yet (WIP)
+  // TODO: read the AT32F435 UID and compare against the target.
 #endif
 #endif
 }
@@ -1792,7 +1800,11 @@ int main()
 
 #if !defined(SIMU)
   /* Ensure all priority bits are assigned as preemption priority bits. */
+#if defined(STM32)
   NVIC_SetPriorityGrouping( NVIC_PRIORITYGROUP_4 );
+#else
+  nvic_priority_group_config(NVIC_PRIORITY_GROUP_4);
+#endif
 #endif
 
   // G: The WDT remains active after a WDT reset -- at maximum clock speed. So it's
@@ -1801,6 +1813,10 @@ int main()
   // during boot up.)
 #if defined(LCD_CONTRAST_DEFAULT)
   g_eeGeneral.contrast = LCD_CONTRAST_DEFAULT;
+#endif
+
+#if defined(CRASH_DUMP)
+  crashDumpBoot();
 #endif
 
   boardInit();

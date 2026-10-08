@@ -107,8 +107,36 @@ static inline void _interrupt_1ms()
   }
 }
 
+#if defined(CRASH_DUMP)
+// Watchdog stall detector: only linked into firmware builds (crash_dump.cpp),
+// null otherwise
+extern "C" __attribute__((weak)) void crashDumpTimerTick(const uint32_t* frame,
+                                                         uint32_t excReturn);
+
+extern "C" __attribute__((used, noinline)) void ms_timer_irq_c(
+    const uint32_t* frame, uint32_t excReturn)
+{
+  MS_TIMER->SR &= ~TIM_SR_UIF;
+  _interrupt_1ms();
+  if (crashDumpTimerTick) crashDumpTimerTick(frame, excReturn);
+}
+
+// Naked entry: hands the stacked frame of the interrupted context (MSP or PSP
+// depending on EXC_RETURN) to the stall detector
+extern "C" __attribute__((naked)) void MS_TIMER_IRQHandler()
+{
+  __asm volatile(
+      "tst lr, #4 \n"
+      "ite eq \n"
+      "mrseq r0, msp \n"
+      "mrsne r0, psp \n"
+      "mov r1, lr \n"
+      "b ms_timer_irq_c \n");
+}
+#else
 extern "C" void MS_TIMER_IRQHandler()
 {
   MS_TIMER->SR &= ~TIM_SR_UIF;
   _interrupt_1ms();
 }
+#endif

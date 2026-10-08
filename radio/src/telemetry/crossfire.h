@@ -47,6 +47,8 @@
 #define LINK_TX_ID                     0x1D
 #define ATTITUDE_ID                    0x1E
 #define FLIGHT_MODE_ID                 0x21
+#define AP_CUSTOM_TELEM_ID             0x80  // ArduPilot passthrough telemetry
+#define AP_CUSTOM_TELEM_LEGACY_ID      0x7F  // same, for vehicle fw < 4.06
 #define PING_DEVICES_ID                0x28
 #define DEVICE_INFO_ID                 0x29
 #define REQUEST_SETTINGS_ID            0x2A
@@ -95,6 +97,7 @@ enum CrossfireSensorIndexes {
   BARO_ALTITUDE_INDEX,
   AIRSPEED_INDEX,
   CF_RPM_INDEX,
+  CF_RPM2_INDEX,
   TEMP_INDEX,
   CELLS_INDEX,
   VOLT_ARRAY_INDEX,
@@ -122,6 +125,18 @@ extern CrossfireModuleStatus crossfireModuleStatus[2];
 void processCrossfireTelemetryFrame(uint8_t module, uint8_t* rxBuffer,
                                     uint8_t rxBufferCount);
 void crossfireSetDefault(int index, uint16_t id, uint8_t subId);
+
+// Bearing to home in degrees (0-360), as decoded from the ArduPilot
+// passthrough home frame; -1 while no home frame has been received recently
+int16_t getArduPilotHomeBearing();
+
+// Altitude above home in meters, from the same frame; -100000 while no home
+// frame has been received recently
+float getArduPilotHomeAltitude();
+
+// Distance to home in meters, from the same frame; -100000 while no home frame
+// has been received recently
+float getArduPilotHomeDistance();
 
 const uint32_t CROSSFIRE_BAUDRATES[] = {
   115200,
