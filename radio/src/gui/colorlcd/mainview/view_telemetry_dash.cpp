@@ -1066,8 +1066,8 @@ void TelemetryDashViewMenu::buildReadouts()
   spdReadout = makeText(SX(TAPE_L_X - 10), SY(RO_VALUE_CY), S(TAPE_W + 38),
                         "--- km/h", FONT(XS), C_READOUT, LV_TEXT_ALIGN_CENTER);
 
-  makeText(SX(RO_SPD_CX - 50), SY(RO_TITLE_CY), S(100), "Home Alt:", FONT(XS),
-           C_LABEL, LV_TEXT_ALIGN_CENTER);
+  homeAltTitle = makeText(SX(RO_SPD_CX - 50), SY(RO_TITLE_CY), S(100),
+                          "Home Alt:", FONT(XS), C_LABEL, LV_TEXT_ALIGN_CENTER);
   homeAltReadout = makeText(SX(RO_SPD_CX - 50), SY(RO_VALUE_CY), S(100),
                             "--- m", FONT(XS), C_READOUT,
                             LV_TEXT_ALIGN_CENTER);
@@ -1156,13 +1156,19 @@ void TelemetryDashViewMenu::updateValues()
   char txt[32];
   int idx;
 
+  // ArduPilot sends its home data in CRSF passthrough frames, iNav sends none,
+  // so the two controllers use different sources for the home referred values
+  const bool inav = controllerType == CONTROLLER_INAV;
+
   // ---- top bar -----------------------------------------------------------
   idx = findSensor("Sats");
   int sats = idx >= 0 ? (int)getSensorValue(idx) : -1;
   if (sats != lastSats && sats >= 0) {
     lastSats = sats;
-    // yaapu's saturation marker: 15 is the top of the 4 bit passthrough field
-    snprintf(txt, sizeof(txt), sats == 15 ? "SAT: 15+" : "SAT: %d", sats);
+    // yaapu's saturation marker: 15 is the top of the 4 bit field of the
+    // ArduPilot passthrough frame, which iNav does not send
+    const bool saturated = sats == 15 && !inav;
+    snprintf(txt, sizeof(txt), saturated ? "SAT: 15+" : "SAT: %d", sats);
     satValue->setText(txt);
   }
 
@@ -1257,8 +1263,10 @@ void TelemetryDashViewMenu::updateValues()
   float roll = idx >= 0 ? getAngleDegrees(idx) : 0.0f;
 
   // like yaapu, the home direction comes from the ArduPilot passthrough home
-  // frame and stays at -1 while no home bearing is known
-  const int16_t homeBearing = getArduPilotHomeBearing();
+  // frame; iNav sends no home frame, so there the home point of the model's GPS
+  // sensor is used. Both stay at -1 while no home bearing is known
+  const int16_t homeBearing =
+      inav ? getGpsHomeBearing() : getArduPilotHomeBearing();
   float homeAngle = homeBearing >= 0 ? (float)homeBearing : -1.0f;
 
   const float drawnHdg =
@@ -1293,9 +1301,22 @@ void TelemetryDashViewMenu::updateValues()
     updateTape(spdTape, spd, 10.0f, spdValid, spdDec ? 1 : 0);
   }
 
-  // ---- altitude above home tape (metric) ---------------------------------
-  const float homeAlt = getArduPilotHomeAltitude();
+  // ---- altitude tape (metric) --------------------------------------------
+  // the ArduPilot home frame carries the altitude above home; iNav sends no
+  // home frame and no altitude above home either, so its absolute altitude is
+  // shown instead
+  float homeAlt = -100000.0f;
+  if (inav) {
+    idx = findMappedSensor("Alt", "GAlt");
+    if (idx >= 0) homeAlt = getSensorValueIn(idx, UNIT_METERS, 0);
+  } else {
+    homeAlt = getArduPilotHomeAltitude();
+  }
   const bool homeAltValid = homeAlt > -10000.0f;
+
+  const char* altTitle = inav ? "Altitude:" : "Home Alt:";
+  if (homeAltTitle->getText() != altTitle) homeAltTitle->setText(altTitle);
+
   if (fabsf(homeAlt - lastHomeAlt) > 0.4f) {
     lastHomeAlt = homeAlt;
     snprintf(txt, sizeof(txt), homeAltValid ? "%.0f m" : "--- m", homeAlt);
@@ -1326,7 +1347,8 @@ void TelemetryDashViewMenu::updateValues()
 
     if (i == CELL_DIST) {
       // like yaapu: meters up to 999, above that km with two decimals
-      const float dist = getArduPilotHomeDistance();
+      const float dist =
+          inav ? getGpsHomeDistance() : getArduPilotHomeDistance();
       if (dist > -10000.0f) {
         if (dist < 1000.0f) {
           v = (int)lroundf(dist);

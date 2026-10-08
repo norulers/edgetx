@@ -80,6 +80,71 @@ uint32_t getDistFromEarthAxis(int32_t latitude)
                 12500);
 }
 
+//-----------------------------------------------------------------------------
+// Home position of the model, for vehicles that send no home frame of their own
+// (iNav). See the description of these two functions in telemetry_sensors.h.
+//-----------------------------------------------------------------------------
+
+// the GPS sensor item, or null while the model sends no position at all
+static const TelemetryItem* getGpsItem()
+{
+  for (int i = 0; i < MAX_TELEMETRY_SENSORS; i++) {
+    if (!telemetryItems[i].isAvailable() || telemetryItems[i].isOld()) continue;
+    if (g_model.telemetrySensors[i].unit == UNIT_GPS) return &telemetryItems[i];
+  }
+  return nullptr;
+}
+
+float getGpsHomeDistance()
+{
+  const TelemetryItem* item = getGpsItem();
+  if (!item) return -100000.0f;
+
+  const int32_t homeLat = item->pilotLatitude;
+  const int32_t homeLon = item->pilotLongitude;
+  // no fix has been received since the model was loaded, so there is no home
+  if (!homeLat && !homeLon) return -100000.0f;
+
+  // flat earth approximation along the two axes of the Dist formula sensor: one
+  // degree of latitude is a fixed distance, one degree of longitude shrinks
+  // with the latitude of the home point. Both coordinate differences are in
+  // 1/1000000 degrees, which the sum is converted from at the end.
+  const uint32_t mPerDegLat = uint32_t(EARTH_RADIUS * M_PI / 180);
+  const double north = (double)mPerDegLat * abs(item->gps.latitude - homeLat);
+  const double east = (double)item->gps.pilotDistFromEarthAxis *
+                      abs(item->gps.longitude - homeLon);
+
+  return (float)(sqrt(north * north + east * east) / 1000000.0);
+}
+
+int16_t getGpsHomeBearing()
+{
+  const TelemetryItem* item = getGpsItem();
+  if (!item) return -1;
+
+  const int32_t homeLat = item->pilotLatitude;
+  const int32_t homeLon = item->pilotLongitude;
+  if (!homeLat && !homeLon) return -1;
+
+  // coordinates are stored as degrees * 1000000
+  const float lat1 = item->gps.latitude * 0.000001f;
+  const float lon1 = item->gps.longitude * 0.000001f;
+  const float lat2 = homeLat * 0.000001f;
+  const float lon2 = homeLon * 0.000001f;
+
+  const float rad = (float)M_PI / 180.0f;
+  const float lat1r = lat1 * rad, lat2r = lat2 * rad;
+  const float dLon = (lon2 - lon1) * rad;
+
+  const float y = sinf(dLon) * cosf(lat2r);
+  const float x = cosf(lat1r) * sinf(lat2r) - sinf(lat1r) * cosf(lat2r) * cosf(dLon);
+  float bearing = atan2f(y, x) / rad;
+  if (bearing < 0.0f) bearing += 360.0f;
+
+  const int16_t deg = (int16_t)(bearing + 0.5f);
+  return deg >= 360 ? 0 : deg;
+}
+
 void TelemetryItem::setValue(const TelemetrySensor & sensor, const char * val, uint32_t, uint32_t)
 {
   strncpy(text, val, sizeof(text));

@@ -132,3 +132,15 @@ class TelemetryItem
 extern TelemetryItem telemetryItems[MAX_TELEMETRY_SENSORS];
 extern bool allowNewSensors;
 bool isFaiForbidden(source_t idx);
+
+// Home position of the model, for vehicles that send no home frame of their own
+// (iNav): the home point is the position the telemetry code keeps as the pilot
+// position -- on a radio without a GPS of its own that is the first position the
+// model's GPS sensor reported, so a flight started at home measures from home.
+// The Dist formula sensor measures against the same point.
+
+// Distance to the home point in meters, -100000 while it is unknown
+float getGpsHomeDistance();
+
+// Bearing to the home point in degrees (0-359), -1 while it is unknown
+int16_t getGpsHomeBearing();

@@ -31,6 +31,14 @@
  *           the ArduPilot passthrough 0x500A frame) and CURR (aircraft current);
  *           BATT and CURR carry their unit, SPD/BATT/CURR drop to integers
  *           from 10 up, as yaapu shows them
+ *
+ * Two controllers can be selected with the ENT key, ArduPilot (yaapu) by
+ * default: ArduPilot reads the home frame of its CRSF passthrough telemetry,
+ * which iNav does not send. In INAV mode the distance and the home direction
+ * come from the model's GPS sensor and the home point the telemetry code keeps
+ * for it (the point the Dist formula sensor measures against), and the altitude
+ * readout shows the altitude the vehicle reports (Alt, else GAlt) instead of an
+ * altitude above home.
  */
 #pragma once
 
@@ -137,6 +145,7 @@ class TelemetryDashViewMenu : public NavWindow
   Tape        spdTape;
   Tape        homeAltTape;
   StaticText* spdReadout = nullptr;
+  StaticText* homeAltTitle = nullptr;
   StaticText* homeAltReadout = nullptr;
 
   // bottom grid (3 columns x 2 rows)
